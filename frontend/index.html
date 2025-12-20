@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DTCC Dataset Downloader</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>DTCC Dataset Downloader</h1>
+    </header>
+    <div id="controls">
+      <button id="draw-bbox">Draw Bounding Box</button>
+      <button id="clear-bbox">Clear</button>
+    </div>
+    <div id="map" class="map-container"></div>
+    <div id="info">
+      <h3>Selected Area (EPSG:3006)</h3>
+      <pre id="coordinates">No area selected</pre>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
