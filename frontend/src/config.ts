@@ -16,3 +16,5 @@ export const MAX_BBOX_AREA_KM2 = 10;
  * (derived from MAX_BBOX_AREA_KM2)
  */
 export const MAX_BBOX_AREA_M2 = MAX_BBOX_AREA_KM2 * 1_000_000;
+
+export const API_BASE_URL = 'http://localhost:8000/api/v1';

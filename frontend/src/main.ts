@@ -2,8 +2,9 @@ import '../style.css';
 import { registerProjections } from './map/projections';
 import { mapManager } from './map/map-manager';
 import { BBoxDrawer } from './map/bbox-drawer';
-import { requestDataset } from './api/dataset-api';
+import { requestDataset, fetchDatasetList } from './api/dataset-api';
 import { BoundingBox } from './types';
+import { DatasetDialog } from './ui/dataset-dialog';
 
 // Main application initialization
 function initializeApp(): void {
@@ -16,6 +17,9 @@ function initializeApp(): void {
 
     // Create bounding box drawer
     const bboxDrawer = new BBoxDrawer(map);
+
+    // Create dataset dialog
+    const datasetDialog = new DatasetDialog();
 
     // Get UI elements
     const drawButton = document.getElementById('draw-bbox') as HTMLButtonElement;
@@ -40,10 +44,11 @@ function initializeApp(): void {
       coordinatesDisplay.textContent = 'No area selected';
       drawButton.disabled = false;
       drawButton.textContent = 'Draw Bounding Box';
+      datasetDialog.hide();
     });
 
     // Handle bounding box drawn event
-    bboxDrawer.onBBoxDrawn((bbox: BoundingBox) => {
+    bboxDrawer.onBBoxDrawn(async (bbox: BoundingBox) => {
       // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
       // Users can continue to resize and move the box after initial draw
 
@@ -56,11 +61,21 @@ CRS: ${bbox.crs}`;
 
       coordinatesDisplay.textContent = displayText;
 
-      // Send to API (mocked)
-      requestDataset(bbox).catch((error) => {
-        console.error('Error sending dataset request:', error);
-        alert('Failed to send dataset request. Check console for details.');
-      });
+      // Fetch and show dataset selection dialog
+      try {
+        const datasets = await fetchDatasetList();
+        datasetDialog.show(datasets);
+      } catch (error) {
+        console.error('Error fetching dataset list:', error);
+        alert('Failed to fetch dataset list. Make sure the server is running.');
+      }
+    });
+
+    // Handle dataset selection
+    datasetDialog.onSelect((datasetName: string) => {
+      console.log('Selected dataset:', datasetName);
+      // Future: Trigger download with the selected dataset
+      datasetDialog.hide();
     });
 
     console.log('Application initialized successfully');

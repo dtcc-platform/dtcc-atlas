@@ -21,6 +21,8 @@ export class BBoxDrawer {
   private callback: ((bbox: BoundingBox) => void) | null = null;
   private allowNewExtent: boolean = true;
   private readonly tooltip: HTMLElement;
+  private pointermoveHandler: ((event: any) => void) | null = null;
+  private mouseoutHandler: (() => void) | null = null;
 
   constructor(map: Map) {
     this.map = map;
@@ -52,31 +54,6 @@ export class BBoxDrawer {
     // Listen to extent changes (fired during drawing and resizing)
     this.extentInteraction.on('extentchanged', (event) => {
       this.handleExtentChanged(event.extent);
-    });
-
-    // Track mouse movement to update tooltip position and show it during drawing/editing
-    this.map.on('pointermove', (event) => {
-      const extent = this.extentInteraction.getExtent();
-      if (extent) {
-        // Type guard to ensure we have a PointerEvent
-        const originalEvent = event.originalEvent;
-        if ('clientX' in originalEvent && 'clientY' in originalEvent) {
-          // Update tooltip position
-          this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
-          this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
-
-          // Calculate and display area
-          this.updateTooltipContent(extent);
-          this.tooltip.classList.add('visible');
-        }
-      } else {
-        this.tooltip.classList.remove('visible');
-      }
-    });
-
-    // Hide tooltip when mouse leaves the map
-    this.map.getViewport().addEventListener('mouseout', () => {
-      this.tooltip.classList.remove('visible');
     });
   }
 
@@ -160,9 +137,6 @@ export class BBoxDrawer {
     const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
 
     // Calculate and log area
-    const areaM2 = (maxX - minX) * (maxY - minY);
-    const areaKm2 = areaM2 / 1_000_000;
-    console.log(`Bounding box updated: ${areaKm2.toFixed(2)} km² (${areaKm2.toFixed(0)} m²)`);
 
     // Call the callback with the bounding box
     if (this.callback) {
@@ -182,6 +156,34 @@ export class BBoxDrawer {
    */
   enableDrawing(): void {
     this.map.addInteraction(this.extentInteraction);
+
+    // Set up tooltip tracking
+    this.pointermoveHandler = (event) => {
+      const extent = this.extentInteraction.getExtent();
+      if (extent) {
+        // Type guard to ensure we have a PointerEvent
+        const originalEvent = event.originalEvent;
+        if ('clientX' in originalEvent && 'clientY' in originalEvent) {
+          // Update tooltip position
+          this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
+          this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
+
+          // Calculate and display area
+          this.updateTooltipContent(extent);
+          this.tooltip.classList.add('visible');
+        }
+      } else {
+        this.tooltip.classList.remove('visible');
+      }
+    };
+
+    this.mouseoutHandler = () => {
+      this.tooltip.classList.remove('visible');
+    };
+
+    this.map.on('pointermove', this.pointermoveHandler);
+    this.map.getViewport().addEventListener('mouseout', this.mouseoutHandler);
+
     console.log('Bounding box interaction enabled');
   }
 
@@ -191,6 +193,18 @@ export class BBoxDrawer {
    */
   disableDrawing(): void {
     this.map.removeInteraction(this.extentInteraction);
+
+    // Clean up event listeners
+    if (this.pointermoveHandler) {
+      this.map.un('pointermove', this.pointermoveHandler);
+      this.pointermoveHandler = null;
+    }
+
+    if (this.mouseoutHandler) {
+      this.map.getViewport().removeEventListener('mouseout', this.mouseoutHandler);
+      this.mouseoutHandler = null;
+    }
+
     console.log('Bounding box interaction disabled');
   }
 
