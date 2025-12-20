@@ -101,3 +101,20 @@ button:disabled {
   border-radius: 4px;
   overflow-x: auto;
 }
+
+.help-text {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+/* Show move cursor when hovering over extent box */
+.ol-ext-extent {
+  cursor: move;
+}
+
+/* Show pointer cursor when hovering over extent corners/edges */
+.ol-ext-extent:hover {
+  cursor: move;
+}

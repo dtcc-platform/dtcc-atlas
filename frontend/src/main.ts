@@ -29,26 +29,23 @@ function initializeApp(): void {
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
       bboxDrawer.enableDrawing();
-      drawButton.textContent = 'Drawing... (drag on map)';
       drawButton.disabled = true;
+      drawButton.textContent = 'Drawing Active';
     });
 
     // Clear bounding box
     clearButton.addEventListener('click', () => {
       bboxDrawer.clearBoundingBox();
+      bboxDrawer.disableDrawing();
       coordinatesDisplay.textContent = 'No area selected';
-      drawButton.textContent = 'Draw Bounding Box';
       drawButton.disabled = false;
+      drawButton.textContent = 'Draw Bounding Box';
     });
 
     // Handle bounding box drawn event
     bboxDrawer.onBBoxDrawn((bbox: BoundingBox) => {
-      // Disable drawing after box is captured
-      bboxDrawer.disableDrawing();
-
-      // Update UI
-      drawButton.textContent = 'Draw Bounding Box';
-      drawButton.disabled = false;
+      // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
+      // Users can continue to resize and move the box after initial draw
 
       // Display coordinates
       const displayText = `Min X: ${bbox.minX.toFixed(2)} m

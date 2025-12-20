@@ -41,16 +41,26 @@ This will start the development server at http://localhost:3000 with hot reloadi
 ### Usage
 
 1. The map will load centered on Sweden
-2. Click "Draw Bounding Box" button
-3. Drag on the map to create a rectangle
+2. **Draw**: Click and drag on the map to create a bounding box rectangle
    - The bounding box size is automatically constrained to the maximum allowed area (10 km² by default)
-   - You cannot drag beyond this limit - the box will stop growing when the maximum is reached
-4. Release to capture the area
-5. Coordinates are automatically converted to EPSG:3006 (SWEREF99 TM)
+   - If you try to resize beyond this limit, the change will be reverted
+3. **Resize**: After drawing, click and drag the corners or edges to resize
+   - The box stays axis-aligned (edges remain parallel to map axes)
+   - Cannot create arbitrary polygons or rotated rectangles
+   - Size constraints apply during resize operations
+4. **Move**: Click and drag anywhere inside the box to move it
+5. Coordinates are automatically updated and converted to EPSG:3006 (SWEREF99 TM)
 6. The bounding box coordinates and area are displayed and logged to console
-7. Click "Clear" to remove the bounding box and draw a new one
+7. Click "Clear Bounding Box" to remove and draw a new one
 
-**Note**: The bounding box is constrained in real-time, so you cannot draw an area larger than the configured maximum.
+**Features**:
+- Area constraint enforcement (prevents exceeding maximum size)
+- Smooth dragging to reposition the bounding box
+- Axis-aligned bounding box maintained at all times
+- Resize via corners or edges (edges stay parallel to axes)
+- Prevents creation of arbitrary polygons or rotated rectangles
+- Automatic coordinate updates when moving or resizing
+- Built on OpenLayers' Extent interaction for reliability
 
 ### Building for Production
 
