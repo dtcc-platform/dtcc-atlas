@@ -20,9 +20,16 @@ export class BBoxDrawer {
   private previousExtent: ExtentType | null = null;
   private callback: ((bbox: BoundingBox) => void) | null = null;
   private allowNewExtent: boolean = true;
+  private readonly tooltip: HTMLElement;
 
   constructor(map: Map) {
     this.map = map;
+
+    // Get tooltip element
+    this.tooltip = document.getElementById('bbox-tooltip') as HTMLElement;
+    if (!this.tooltip) {
+      throw new Error('Tooltip element not found');
+    }
 
     // Create the Extent interaction with custom styling and larger hit tolerance
     this.extentInteraction = new Extent({
@@ -46,6 +53,56 @@ export class BBoxDrawer {
     this.extentInteraction.on('extentchanged', (event) => {
       this.handleExtentChanged(event.extent);
     });
+
+    // Track mouse movement to update tooltip position and show it during drawing/editing
+    this.map.on('pointermove', (event) => {
+      const extent = this.extentInteraction.getExtent();
+      if (extent) {
+        // Type guard to ensure we have a PointerEvent
+        const originalEvent = event.originalEvent;
+        if ('clientX' in originalEvent && 'clientY' in originalEvent) {
+          // Update tooltip position
+          this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
+          this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
+
+          // Calculate and display area
+          this.updateTooltipContent(extent);
+          this.tooltip.classList.add('visible');
+        }
+      } else {
+        this.tooltip.classList.remove('visible');
+      }
+    });
+
+    // Hide tooltip when mouse leaves the map
+    this.map.getViewport().addEventListener('mouseout', () => {
+      this.tooltip.classList.remove('visible');
+    });
+  }
+
+  /**
+   * Updates the tooltip content with current area in km²
+   */
+  private updateTooltipContent(extent: ExtentType): void {
+    // Transform corners to EPSG:3006 for accurate area calculation
+    const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
+    const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const areaM2 = width * height;
+    const areaKm2 = areaM2 / 1_000_000;
+
+    // Update tooltip text
+    this.tooltip.textContent = `Area: ${areaKm2.toFixed(2)} km²`;
+
+    // Show warning if exceeds max
+    if (areaM2 > MAX_BBOX_AREA_M2) {
+      this.tooltip.textContent = `Area: ${areaKm2.toFixed(2)} km² (exceeds ${MAX_BBOX_AREA_KM2} km² limit)`;
+      this.tooltip.style.background = 'rgba(231, 76, 60, 0.95)';
+    } else {
+      this.tooltip.style.background = 'rgba(44, 62, 80, 0.95)';
+    }
   }
 
   /**
@@ -144,6 +201,7 @@ export class BBoxDrawer {
     this.extentInteraction.setExtent(undefined as any);
     this.previousExtent = null;
     this.allowNewExtent = true; // Re-enable creating new extents
+    this.tooltip.classList.remove('visible'); // Hide tooltip
     console.log('Bounding box cleared');
   }
 
