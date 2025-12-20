@@ -15,3 +15,23 @@ export interface MapConfig {
   zoom: number;
   projection: string;
 }
+
+/**
+ * Extended dataset download request with dynamic parameters
+ */
+export interface DatasetDownloadRequest {
+  dataset: string;
+  bounds: number[];
+  parameters: Record<string, unknown>;
+  filename?: string;
+}
+
+/**
+ * Dataset download API response
+ */
+export interface DatasetDownloadResponse {
+  success: boolean;
+  message: string;
+  downloadId?: string;
+  downloadUrl?: string;
+}

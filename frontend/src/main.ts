@@ -2,9 +2,16 @@ import '../style.css';
 import { registerProjections } from './map/projections';
 import { mapManager } from './map/map-manager';
 import { BBoxDrawer } from './map/bbox-drawer';
-import { requestDataset, fetchDatasetList } from './api/dataset-api';
+import {
+  fetchDatasetList,
+  fetchDatasetSchema,
+  submitDatasetDownload,
+  bboxToArray,
+} from './api/dataset-api';
 import { BoundingBox } from './types';
 import { DatasetDialog } from './ui/dataset-dialog';
+import { schemaParser } from './forms/schema-parser';
+import { SubmissionState } from './types/form-state';
 
 // Main application initialization
 function initializeApp(): void {
@@ -30,6 +37,9 @@ function initializeApp(): void {
       throw new Error('Required UI elements not found');
     }
 
+    // Store current bbox for form submission
+    let currentBbox: BoundingBox | null = null;
+
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
       bboxDrawer.enableDrawing();
@@ -45,12 +55,16 @@ function initializeApp(): void {
       drawButton.disabled = false;
       drawButton.textContent = 'Draw Bounding Box';
       datasetDialog.hide();
+      currentBbox = null;
     });
 
     // Handle bounding box drawn event
     bboxDrawer.onBBoxDrawn(async (bbox: BoundingBox) => {
       // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
       // Users can continue to resize and move the box after initial draw
+
+      // Store bbox for form submission
+      currentBbox = bbox;
 
       // Display coordinates
       const displayText = `Min X: ${bbox.minX.toFixed(2)} m
@@ -64,19 +78,96 @@ CRS: ${bbox.crs}`;
       // Fetch and show dataset selection dialog
       try {
         const datasets = await fetchDatasetList();
-        datasetDialog.show(datasets);
+        datasetDialog.showDatasetList(datasets);
       } catch (error) {
         console.error('Error fetching dataset list:', error);
         alert('Failed to fetch dataset list. Make sure the server is running.');
       }
     });
 
-    // Handle dataset selection
-    datasetDialog.onSelect((datasetName: string) => {
-      console.log('Selected dataset:', datasetName);
-      // Future: Trigger download with the selected dataset
-      datasetDialog.hide();
+    // Handle dataset selection (fetch schema and show form)
+    datasetDialog.onSelect(async (datasetName: string) => {
+      if (!currentBbox) {
+        alert('No bounding box selected');
+        return;
+      }
+
+      try {
+        // Fetch dataset schema
+        const schema = await fetchDatasetSchema(datasetName);
+
+        // Parse schema to form config
+        const formConfig = schemaParser.parse(schema, datasetName, ['bounds']);
+
+        // Show form
+        datasetDialog.showDatasetForm(formConfig, currentBbox);
+      } catch (error) {
+        console.error('Error fetching dataset schema:', error);
+        alert(`Failed to load form for dataset "${datasetName}"`);
+      }
     });
+
+    // Handle form submission
+    datasetDialog.onSubmit(
+      async (datasetName: string, values: Record<string, unknown>) => {
+        if (!currentBbox) {
+          alert('No bounding box selected');
+          return;
+        }
+
+        // Update status: validating
+        datasetDialog.updateSubmissionStatus({
+          state: SubmissionState.VALIDATING,
+        });
+
+        // Small delay to show validating state
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Update status: submitting
+        datasetDialog.updateSubmissionStatus({
+          state: SubmissionState.SUBMITTING,
+        });
+
+        try {
+          // Extract filename from form values
+          const filename = values.filename as string || datasetName;
+
+          // Remove filename from parameters (it's not a dataset parameter)
+          const { filename: _, ...parameters } = values;
+
+          // Prepare request
+          const request = {
+            dataset: datasetName,
+            bounds: bboxToArray(currentBbox),
+            parameters,
+            filename, // Pass filename separately
+          };
+
+          // Submit to backend
+          const response = await submitDatasetDownload(request);
+
+          // Update status: success
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.SUCCESS,
+            message:
+              response.message || 'Download request submitted successfully!',
+          });
+
+          // Auto-close dialog after 3 seconds
+          setTimeout(() => {
+            datasetDialog.hide();
+          }, 3000);
+        } catch (error: any) {
+          console.error('Error submitting download request:', error);
+
+          // Update status: error
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.ERROR,
+            message: error.message || 'Failed to submit download request',
+          });
+        }
+      }
+    );
 
     console.log('Application initialized successfully');
   } catch (error) {
