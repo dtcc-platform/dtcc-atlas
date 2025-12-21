@@ -19,7 +19,6 @@ export class BBoxDrawer {
   private extentInteraction: Extent;
   private previousExtent: ExtentType | null = null;
   private callback: ((bbox: BoundingBox) => void) | null = null;
-  private allowNewExtent: boolean = true;
   private readonly tooltip: HTMLElement;
   private pointermoveHandler: ((event: any) => void) | null = null;
   private mouseoutHandler: (() => void) | null = null;
@@ -36,10 +35,8 @@ export class BBoxDrawer {
     // Create the Extent interaction with custom styling and larger hit tolerance
     this.extentInteraction = new Extent({
       pixelTolerance: 10,
-      // Prevent creating a new extent when one already exists
-      createCondition: () => {
-        return this.allowNewExtent;
-      },
+      // Allow creating new extent when clicking outside existing extent
+      // The interaction automatically handles this - clicking outside starts a new extent
       boxStyle: new Style({
         stroke: new Stroke({
           color: '#3498db',
@@ -129,9 +126,6 @@ export class BBoxDrawer {
     // Save as valid extent
     this.previousExtent = [...extent] as ExtentType;
 
-    // Disable creating new extents now that we have one
-    this.allowNewExtent = false;
-
     // Transform to EPSG:3006 for the callback
     const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
     const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
@@ -214,7 +208,6 @@ export class BBoxDrawer {
   clearBoundingBox(): void {
     this.extentInteraction.setExtent(undefined as any);
     this.previousExtent = null;
-    this.allowNewExtent = true; // Re-enable creating new extents
     this.tooltip.classList.remove('visible'); // Hide tooltip
     console.log('Bounding box cleared');
   }
@@ -240,7 +233,6 @@ export class BBoxDrawer {
     // Set the extent on the interaction
     this.extentInteraction.setExtent(extent);
     this.previousExtent = extent;
-    this.allowNewExtent = false;
 
     // Trigger the callback to update UI
     this.handleExtentChanged(extent);
