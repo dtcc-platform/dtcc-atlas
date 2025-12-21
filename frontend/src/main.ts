@@ -13,9 +13,14 @@ import { DatasetDialog } from './ui/dataset-dialog';
 import { schemaParser } from './forms/schema-parser';
 import { SubmissionState } from './types/form-state';
 import { appState } from './state/app-state';
+import { LocalBookmarkStorage } from './storage/local-bookmark-storage';
+import { BookmarkManager } from './bookmarks/bookmark-manager';
+import { SaveBookmarkDialog } from './ui/save-bookmark-dialog';
+import { BookmarkPanel } from './ui/bookmark-panel';
+import proj4 from 'proj4';
 
 // Main application initialization
-function initializeApp(): void {
+async function initializeApp(): Promise<void> {
   try {
     // Register coordinate system projections
     registerProjections();
@@ -29,12 +34,24 @@ function initializeApp(): void {
     // Create dataset dialog
     const datasetDialog = new DatasetDialog();
 
+    // Initialize bookmark system
+    const bookmarkStorage = new LocalBookmarkStorage();
+    const bookmarkManager = new BookmarkManager(bookmarkStorage);
+    const saveBookmarkDialog = new SaveBookmarkDialog();
+    const bookmarkPanel = new BookmarkPanel();
+
+    // Initialize bookmark manager and load bookmarks
+    await bookmarkManager.initialize();
+
     // Get UI elements
     const drawButton = document.getElementById('draw-bbox') as HTMLButtonElement;
     const clearButton = document.getElementById('clear-bbox') as HTMLButtonElement;
     const coordinatesDisplay = document.getElementById('coordinates') as HTMLPreElement;
+    const saveBookmarkBtn = document.getElementById('save-bookmark') as HTMLButtonElement;
+    const toggleBookmarksBtn = document.getElementById('toggle-bookmarks') as HTMLButtonElement;
+    const bookmarkCountSpan = document.getElementById('bookmark-count') as HTMLSpanElement;
 
-    if (!drawButton || !clearButton || !coordinatesDisplay) {
+    if (!drawButton || !clearButton || !coordinatesDisplay || !saveBookmarkBtn || !toggleBookmarksBtn || !bookmarkCountSpan) {
       throw new Error('Required UI elements not found');
     }
 
@@ -54,6 +71,86 @@ function initializeApp(): void {
       drawButton.textContent = 'Draw Bounding Box';
       datasetDialog.hide();
       appState.reset();
+    });
+
+    // Save bookmark button
+    saveBookmarkBtn.addEventListener('click', () => {
+      const bbox = appState.getBbox();
+      if (bbox) {
+        saveBookmarkDialog.show(bbox);
+      }
+    });
+
+    // Toggle bookmarks panel
+    toggleBookmarksBtn.addEventListener('click', () => {
+      bookmarkPanel.toggle();
+    });
+
+    // Save bookmark dialog callback
+    saveBookmarkDialog.onSave(async (name: string, bbox: BoundingBox) => {
+      try {
+        await bookmarkManager.saveBookmark(name, bbox);
+        saveBookmarkDialog.hide();
+      } catch (error) {
+        console.error('Error saving bookmark:', error);
+        alert('Failed to save bookmark. Please try again.');
+      }
+    });
+
+    // Load bookmark callback
+    bookmarkPanel.onLoad((bookmark) => {
+      // Clear existing bbox
+      bboxDrawer.clearBoundingBox();
+
+      // Load the bookmark extent
+      bboxDrawer.loadExtent(bookmark.bbox);
+
+      // Center and zoom map to fit the bookmark extent
+      const view = map.getView();
+      const bbox = bookmark.bbox;
+
+      // Transform bbox corners from EPSG:3006 to EPSG:3857 for map view
+      const [minX, minY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.minX, bbox.minY]);
+      const [maxX, maxY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.maxX, bbox.maxY]);
+
+      // Fit the view to the extent with some padding
+      view.fit([minX, minY, maxX, maxY], {
+        padding: [500, 500, 500, 50], // Add 50px padding on all sides
+        duration: 500, // Smooth animation duration in ms
+      });
+
+      // Enable drawing mode if not already enabled
+      if (drawButton.disabled === false) {
+        bboxDrawer.enableDrawing();
+        drawButton.disabled = true;
+        drawButton.textContent = 'Drawing Active';
+      }
+
+      // Hide bookmark panel
+      bookmarkPanel.hide();
+    });
+
+    // Delete bookmark callback
+    bookmarkPanel.onDelete(async (id: string) => {
+      if (confirm('Delete this bookmark?')) {
+        try {
+          await bookmarkManager.deleteBookmark(id);
+        } catch (error) {
+          console.error('Error deleting bookmark:', error);
+          alert('Failed to delete bookmark. Please try again.');
+        }
+      }
+    });
+
+    // Update UI when bookmarks change
+    bookmarkManager.on('bookmarks-changed', (bookmarks) => {
+      bookmarkPanel.render(bookmarks);
+      bookmarkCountSpan.textContent = bookmarks.length.toString();
+    });
+
+    // Enable/disable save button based on bbox state
+    appState.on('bbox-changed', (bbox) => {
+      saveBookmarkBtn.disabled = !bbox;
     });
 
     // Handle bounding box drawn event

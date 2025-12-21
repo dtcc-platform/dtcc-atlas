@@ -35,3 +35,6 @@ export interface DatasetDownloadResponse {
   downloadId?: string;
   downloadUrl?: string;
 }
+
+// Export bookmark types
+export * from './bookmarks';

@@ -225,4 +225,24 @@ export class BBoxDrawer {
   onBBoxDrawn(callback: (bbox: BoundingBox) => void): void {
     this.callback = callback;
   }
+
+  /**
+   * Programmatically load a bounding box extent onto the map
+   * Used when loading saved bookmarks
+   */
+  loadExtent(bbox: BoundingBox): void {
+    // Transform from EPSG:3006 to EPSG:3857 for map display
+    const [minX, minY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.minX, bbox.minY]);
+    const [maxX, maxY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.maxX, bbox.maxY]);
+
+    const extent: ExtentType = [minX, minY, maxX, maxY];
+
+    // Set the extent on the interaction
+    this.extentInteraction.setExtent(extent);
+    this.previousExtent = extent;
+    this.allowNewExtent = false;
+
+    // Trigger the callback to update UI
+    this.handleExtentChanged(extent);
+  }
 }

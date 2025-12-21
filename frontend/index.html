@@ -14,6 +14,8 @@
     <div id="controls">
       <button id="draw-bbox">Draw Bounding Box</button>
       <button id="clear-bbox">Clear</button>
+      <button id="save-bookmark" disabled>Save Bookmark</button>
+      <button id="toggle-bookmarks">Bookmarks (<span id="bookmark-count">0</span>)</button>
     </div>
     <div id="map" class="map-container"></div>
     <div id="bbox-tooltip" class="bbox-tooltip"></div>
@@ -29,6 +31,29 @@
       <p id="help-text" class="help-text">
         Click "Draw Bounding Box" to start. Then click and drag on the map. After drawing, drag corners or edges to resize. Click "Clear" to draw a new box.
       </p>
+    </div>
+
+    <!-- Bookmark Panel -->
+    <div id="bookmark-panel" class="bookmark-panel hidden">
+      <div class="bookmark-panel-header">
+        <h3>Saved Bookmarks</h3>
+        <button class="close-button">&times;</button>
+      </div>
+      <div id="bookmark-list" class="bookmark-list"></div>
+      <div class="bookmark-empty-state hidden">No saved bookmarks yet. Draw a bounding box and click "Save Bookmark" to start.</div>
+    </div>
+
+    <!-- Save Bookmark Dialog -->
+    <div id="save-bookmark-dialog" class="modal-overlay hidden">
+      <div class="modal-content">
+        <h3>Save Bookmark</h3>
+        <input type="text" id="bookmark-name-input" placeholder="Enter bookmark name..." maxlength="100" />
+        <div class="bookmark-area-preview">Area: <span id="preview-area"></span> km²</div>
+        <div class="modal-actions">
+          <button id="save-confirm" class="btn-primary">Save</button>
+          <button id="save-cancel" class="btn-secondary">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
