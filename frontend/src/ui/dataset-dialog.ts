@@ -18,18 +18,16 @@ enum DialogView {
 export class DatasetDialog {
   private dialog: HTMLElement;
   private content: HTMLElement;
+  // @ts-expect-error - currentView is kept for future state management features
   private currentView: DialogView = DialogView.DATASET_LIST;
   private formRenderer: FormRenderer | null = null;
+  private currentDataset: string | null = null;
 
   // Callbacks
   private onDatasetSelected: ((datasetName: string) => void) | null = null;
   private onFormSubmit:
     | ((datasetName: string, values: Record<string, unknown>) => void)
     | null = null;
-
-  // Current state
-  private currentDataset: string | null = null;
-  private currentBounds: BoundingBox | null = null;
 
   constructor() {
     const dialog = document.getElementById('dataset-dialog');
@@ -63,10 +61,9 @@ export class DatasetDialog {
   /**
    * Show dataset form view
    */
-  showDatasetForm(formConfig: FormConfig, bounds: BoundingBox): void {
+  showDatasetForm(formConfig: FormConfig, _bounds: BoundingBox): void {
     this.currentView = DialogView.DATASET_FORM;
     this.currentDataset = formConfig.datasetName;
-    this.currentBounds = bounds;
 
     this.renderDatasetForm(formConfig);
     this.dialog.classList.add('visible');

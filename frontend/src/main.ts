@@ -12,6 +12,7 @@ import { BoundingBox } from './types';
 import { DatasetDialog } from './ui/dataset-dialog';
 import { schemaParser } from './forms/schema-parser';
 import { SubmissionState } from './types/form-state';
+import { appState } from './state/app-state';
 
 // Main application initialization
 function initializeApp(): void {
@@ -37,9 +38,6 @@ function initializeApp(): void {
       throw new Error('Required UI elements not found');
     }
 
-    // Store current bbox for form submission
-    let currentBbox: BoundingBox | null = null;
-
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
       bboxDrawer.enableDrawing();
@@ -55,7 +53,7 @@ function initializeApp(): void {
       drawButton.disabled = false;
       drawButton.textContent = 'Draw Bounding Box';
       datasetDialog.hide();
-      currentBbox = null;
+      appState.reset();
     });
 
     // Handle bounding box drawn event
@@ -63,8 +61,8 @@ function initializeApp(): void {
       // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
       // Users can continue to resize and move the box after initial draw
 
-      // Store bbox for form submission
-      currentBbox = bbox;
+      // Store in centralized state
+      appState.setBbox(bbox);
 
       // Display coordinates
       const displayText = `Min X: ${bbox.minX.toFixed(2)} m
@@ -78,6 +76,7 @@ CRS: ${bbox.crs}`;
       // Fetch and show dataset selection dialog
       try {
         const datasets = await fetchDatasetList();
+        appState.setDatasets(datasets);
         datasetDialog.showDatasetList(datasets);
       } catch (error) {
         console.error('Error fetching dataset list:', error);
@@ -87,7 +86,8 @@ CRS: ${bbox.crs}`;
 
     // Handle dataset selection (fetch schema and show form)
     datasetDialog.onSelect(async (datasetName: string) => {
-      if (!currentBbox) {
+      const bbox = appState.getBbox();
+      if (!bbox) {
         alert('No bounding box selected');
         return;
       }
@@ -100,7 +100,7 @@ CRS: ${bbox.crs}`;
         const formConfig = schemaParser.parse(schema, datasetName, ['bounds']);
 
         // Show form
-        datasetDialog.showDatasetForm(formConfig, currentBbox);
+        datasetDialog.showDatasetForm(formConfig, bbox);
       } catch (error) {
         console.error('Error fetching dataset schema:', error);
         alert(`Failed to load form for dataset "${datasetName}"`);
@@ -110,7 +110,8 @@ CRS: ${bbox.crs}`;
     // Handle form submission
     datasetDialog.onSubmit(
       async (datasetName: string, values: Record<string, unknown>) => {
-        if (!currentBbox) {
+        const bbox = appState.getBbox();
+        if (!bbox) {
           alert('No bounding box selected');
           return;
         }
@@ -138,7 +139,7 @@ CRS: ${bbox.crs}`;
           // Prepare request
           const request = {
             dataset: datasetName,
-            bounds: bboxToArray(currentBbox),
+            bounds: bboxToArray(bbox),
             parameters,
             filename, // Pass filename separately
           };
