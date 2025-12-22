@@ -74,23 +74,21 @@ export async function submitDatasetDownload(
   // Get the binary data as a blob
   const blob = await response.blob();
 
-  // Extract filename from Content-Disposition header or use custom filename
+  // Extract filename from Content-Disposition header
   const contentDisposition = response.headers.get('Content-Disposition');
-  let filename = request.filename || `${request.dataset}_download`;
+  let filename = `${request.dataset}_download`; // Default fallback
 
   if (contentDisposition) {
     const filenameMatch = contentDisposition.match(/filename=([^;]+)/);
     if (filenameMatch) {
-      // Use the filename from server but keep the custom base name if provided
-      const serverFilename = filenameMatch[1].replace(/['"]/g, '');
-      if (request.filename) {
-        // Extract extension from server filename
-        const extension = serverFilename.split('.').pop();
-        filename = extension ? `${request.filename}.${extension}` : serverFilename;
-      } else {
-        filename = serverFilename;
-      }
+      // Use the filename from server directly - it already has the correct extension
+      filename = filenameMatch[1].replace(/['"]/g, '');
     }
+  }
+
+  // If no Content-Disposition header, add a generic extension
+  if (!contentDisposition) {
+    filename = `${filename}.bin`;
   }
 
   // Create a temporary URL for the blob

@@ -17,7 +17,9 @@ import { LocalBookmarkStorage } from './storage/local-bookmark-storage';
 import { BookmarkManager } from './bookmarks/bookmark-manager';
 import { SaveBookmarkDialog } from './ui/save-bookmark-dialog';
 import { BookmarkPanel } from './ui/bookmark-panel';
+import { SearchBox } from './ui/search-box';
 import proj4 from 'proj4';
+import { fromLonLat } from 'ol/proj';
 
 // Main application initialization
 async function initializeApp(): Promise<void> {
@@ -42,6 +44,36 @@ async function initializeApp(): Promise<void> {
 
     // Initialize bookmark manager and load bookmarks
     await bookmarkManager.initialize();
+
+    // Create search box
+    const searchBox = new SearchBox();
+
+    // Handle search result selection
+    searchBox.onResultSelect((lat: number, lon: number, boundingbox?: number[]) => {
+      const view = map.getView();
+
+      if (boundingbox && boundingbox.length === 4) {
+        // If we have a bounding box, fit the view to it
+        // Nominatim format: [south, north, west, east] in WGS84
+        const [south, north, west, east] = boundingbox;
+        const southWest = fromLonLat([west, south]);
+        const northEast = fromLonLat([east, north]);
+        const extent = [...southWest, ...northEast];
+
+        view.fit(extent, {
+          padding: [50, 50, 50, 50],
+          duration: 500,
+        });
+      } else {
+        // Otherwise, just center on the coordinates with appropriate zoom
+        const center = fromLonLat([lon, lat]);
+        view.animate({
+          center: center,
+          zoom: 12, // Default zoom for specific locations
+          duration: 500,
+        });
+      }
+    });
 
     // Get UI elements
     const drawButton = document.getElementById('draw-bbox') as HTMLButtonElement;
@@ -253,7 +285,12 @@ CRS: ${bbox.crs}`;
 
           // Auto-close dialog after 3 seconds
           setTimeout(() => {
+            const datasets = appState.getDatasets();
+            if (datasets && datasets.length > 0) {
+            datasetDialog.showDatasetList(datasets);
+            } else {
             datasetDialog.hide();
+            }
           }, 3000);
         } catch (error: any) {
           console.error('Error submitting download request:', error);

@@ -36,6 +36,7 @@ class DatasetDownloadRequest(BaseModel):
     dataset: str
     bounds: list[float]
     parameters: Dict[str, Any]
+    filename: str | None = None
 
 
 @app.post("/api/v1/datasets/download")
@@ -54,10 +55,11 @@ def download_dataset(request: DatasetDownloadRequest):
         **request.parameters
     }
 
+
     print(f"Download request for dataset '{request.dataset}' with params: {params}")
     try:
         # Validate parameters using the dataset's ArgsModel
-        args_model = dataset.ArgsModel(**params)
+        _ = dataset.ArgsModel(**params)
 
         # Call the dataset with validated parameters as kwargs
         # The ArgsModel validation ensures the params are correct
@@ -65,7 +67,11 @@ def download_dataset(request: DatasetDownloadRequest):
 
         # Determine file extension from format parameter or use default
         file_format = request.parameters.get("format", "bin")
-        filename = f"{request.dataset}_download.{file_format}"
+        filename = request.filename
+        if not filename:
+            filename= request.dataset
+
+        filename = f"{filename}.{file_format}"
 
         # Determine content type based on format
         content_type_map = {
@@ -79,7 +85,7 @@ def download_dataset(request: DatasetDownloadRequest):
             "json": "application/json",
         }
         content_type = content_type_map.get(file_format, "application/octet-stream")
-
+        print(f"Returning file '{filename}' with content type '{content_type}'")
         # Return binary data as downloadable file
         return Response(
             content=data,

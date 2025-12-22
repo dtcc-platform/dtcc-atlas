@@ -36,5 +36,17 @@ export interface DatasetDownloadResponse {
   downloadUrl?: string;
 }
 
+/**
+ * Nominatim geocoding API response
+ */
+export interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+  boundingbox?: [string, string, string, string]; // [south, north, west, east]
+  osm_type?: string;
+  type?: string;
+}
+
 // Export bookmark types
 export * from './bookmarks';
