@@ -1,10 +1,12 @@
 from dtcc_core import datasets
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 from typing import Dict, Any
 import io
+from pathlib import Path
 
 app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0")
 
@@ -105,3 +107,28 @@ def download_dataset(request: DatasetDownloadRequest):
             status_code=500,
             detail=f"Error generating dataset: {str(e)}"
         )
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """
+        Serve the SPA for all routes not matched by API endpoints.
+        This allows client-side routing to work properly.
+        """
+        # If path looks like a file request, try to serve it
+        file_path = static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+
+        # Otherwise, serve index.html for SPA routing
+        index_path = static_dir / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+
+        raise fastapi.HTTPException(status_code=404, detail="Not found")
+else:
+    print("Warning: Static directory not found, SPA will not be served.")
