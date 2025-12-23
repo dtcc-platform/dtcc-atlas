@@ -119,19 +119,19 @@ export class SearchBox {
   }
 
   private showLoading(): void {
-    this.resultsContainer.innerHTML = '<div class="search-loading">Searching...</div>';
-    this.resultsContainer.classList.add('visible');
+    this.resultsContainer.innerHTML = '<div class="p-4 text-center text-dtcc-gray-dark italic">Searching...</div>';
+    this.resultsContainer.classList.remove('hidden');
   }
 
   private displayResults(results: NominatimResult[]): void {
     this.clearResults();
 
     const resultsList = document.createElement('div');
-    resultsList.className = 'search-results-list';
+    resultsList.className = 'flex flex-col gap-1';
 
     results.forEach((result) => {
       const resultItem = document.createElement('div');
-      resultItem.className = 'search-result-item';
+      resultItem.className = 'px-3 py-3 bg-dtcc-gray-lighter rounded cursor-pointer text-sm text-dtcc-navy transition-colors hover:bg-blue-50';
       resultItem.textContent = result.display_name;
 
       resultItem.addEventListener('click', () => {
@@ -142,7 +142,7 @@ export class SearchBox {
     });
 
     this.resultsContainer.appendChild(resultsList);
-    this.resultsContainer.classList.add('visible');
+    this.resultsContainer.classList.remove('hidden');
   }
 
   private selectResult(result: NominatimResult): void {
@@ -165,8 +165,8 @@ export class SearchBox {
   }
 
   private showError(message: string): void {
-    this.resultsContainer.innerHTML = `<div class="search-error">${message}</div>`;
-    this.resultsContainer.classList.add('visible');
+    this.resultsContainer.innerHTML = `<div class="px-3 py-3 bg-red-50 text-red-900 border-l-4 border-dtcc-red rounded text-sm">${message}</div>`;
+    this.resultsContainer.classList.remove('hidden');
 
     // Auto-hide error after 5 seconds
     setTimeout(() => {
@@ -176,6 +176,6 @@ export class SearchBox {
 
   private clearResults(): void {
     this.resultsContainer.innerHTML = '';
-    this.resultsContainer.classList.remove('visible');
+    this.resultsContainer.classList.add('hidden');
   }
 }

@@ -55,7 +55,7 @@ export class DatasetDialog {
   showDatasetList(datasets: string[]): void {
     this.currentView = DialogView.DATASET_LIST;
     this.renderDatasetList(datasets);
-    this.dialog.classList.add('visible');
+    this.dialog.classList.remove('hidden');
   }
 
   /**
@@ -66,14 +66,14 @@ export class DatasetDialog {
     this.currentDataset = formConfig.datasetName;
 
     this.renderDatasetForm(formConfig);
-    this.dialog.classList.add('visible');
+    this.dialog.classList.remove('hidden');
   }
 
   /**
    * Hide dialog
    */
   hide(): void {
-    this.dialog.classList.remove('visible');
+    this.dialog.classList.add('hidden');
     this.formRenderer = null;
   }
 
@@ -109,17 +109,17 @@ export class DatasetDialog {
    */
   private renderDatasetList(datasets: string[]): void {
     this.content.innerHTML = `
-      <div class="dialog-header">
-        <h3>Select Dataset</h3>
+      <div class="flex items-center mb-6 gap-3">
+        <h3 class="flex-1 m-0 text-lg text-dtcc-navy text-center">Select Dataset</h3>
       </div>
-      <div class="dataset-buttons" id="dataset-buttons"></div>
+      <div id="dataset-buttons" class="flex flex-col gap-3 items-center"></div>
     `;
 
     const buttonsContainer = this.content.querySelector('#dataset-buttons')!;
 
     datasets.forEach((datasetName) => {
       const button = document.createElement('button');
-      button.className = 'dataset-button';
+      button.className = 'w-full px-4 py-3 bg-dtcc-blue text-white rounded cursor-pointer text-base transition-colors hover:bg-dtcc-blue-dark active:bg-dtcc-blue-darker text-center';
       button.textContent = datasetName;
       button.addEventListener('click', () => {
         if (this.onDatasetSelected) {
@@ -135,11 +135,11 @@ export class DatasetDialog {
    */
   private renderDatasetForm(formConfig: FormConfig): void {
     this.content.innerHTML = `
-      <div class="dialog-header">
-        <button class="back-button" id="back-button">← Back</button>
-        <h3>${formConfig.title}</h3>
+      <div class="flex items-center mb-6 gap-3">
+        <button class="bg-dtcc-gray text-white border-none px-3 py-2 rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-gray-dark" id="back-button">← Back</button>
+        <h3 class="flex-1 m-0 text-lg text-dtcc-navy text-center">${formConfig.title}</h3>
       </div>
-      <div class="form-container" id="form-container"></div>
+      <div id="form-container"></div>
     `;
 
     // Setup back button

@@ -265,7 +265,7 @@ export class BBoxDrawer {
       const extent = this.extentInteraction.getExtent();
       // Add defensive null check before isValidExtent
       if (!extent || !this.isValidExtent(extent)) {
-        this.tooltip.classList.remove('visible');
+        this.tooltip.classList.add('hidden');
         return;
       }
 
@@ -278,12 +278,12 @@ export class BBoxDrawer {
 
         // Calculate and display area
         this.updateTooltipContent(extent);
-        this.tooltip.classList.add('visible');
+        this.tooltip.classList.remove('hidden');
       }
     };
 
     this.mouseoutHandler = () => {
-      this.tooltip.classList.remove('visible');
+      this.tooltip.classList.add('hidden');
     };
 
     this.map.on('pointermove', this.pointermoveHandler);

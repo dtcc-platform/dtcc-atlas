@@ -78,21 +78,21 @@ export class BookmarkPanel {
    */
   private renderBookmarkItem(bookmark: SavedBookmark): HTMLElement {
     const item = document.createElement('div');
-    item.className = 'bookmark-item';
+    item.className = 'flex items-center gap-3 px-3 py-3 bg-dtcc-gray-lighter rounded-md border border-dtcc-border-light transition-all hover:bg-dtcc-gray-light hover:border-dtcc-border';
     item.dataset.bookmarkId = bookmark.id;
 
     const areaKm2 = this.calculateArea(bookmark);
     const dateStr = this.formatDate(bookmark.createdAt);
 
     item.innerHTML = `
-      <div class="bookmark-color" style="background-color: ${bookmark.color || '#3498db'}"></div>
-      <div class="bookmark-info">
-        <div class="bookmark-name">${this.escapeHtml(bookmark.name)}</div>
-        <div class="bookmark-meta">${areaKm2.toFixed(2)} km² • ${dateStr}</div>
+      <div class="w-1 h-10 rounded flex-shrink-0" style="background-color: ${bookmark.color || '#3498db'}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-base font-semibold text-dtcc-navy mb-1 overflow-hidden text-ellipsis whitespace-nowrap">${this.escapeHtml(bookmark.name)}</div>
+        <div class="text-xs text-dtcc-gray-dark">${areaKm2.toFixed(2)} km² • ${dateStr}</div>
       </div>
-      <div class="bookmark-actions">
-        <button class="bookmark-load" title="Load this bookmark">📍</button>
-        <button class="bookmark-delete" title="Delete this bookmark">🗑️</button>
+      <div class="flex gap-2 flex-shrink-0">
+        <button class="bookmark-load bg-transparent border-none text-xl px-2 py-1 cursor-pointer rounded transition-colors hover:bg-green-50" title="Load this bookmark">📍</button>
+        <button class="bookmark-delete bg-transparent border-none text-xl px-2 py-1 cursor-pointer rounded transition-colors hover:bg-red-50" title="Delete this bookmark">🗑️</button>
       </div>
     `;
 

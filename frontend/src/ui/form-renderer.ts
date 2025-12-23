@@ -39,11 +39,11 @@ export class FormRenderer {
    */
   render(): void {
     this.container.innerHTML = `
-      <form class="dataset-form" id="dataset-form">
-        <div class="form-fields" id="form-fields"></div>
-        <div class="form-status" id="form-status"></div>
-        <div class="form-actions">
-          <button type="submit" class="submit-button" id="submit-button">
+      <form class="flex flex-col gap-4" id="dataset-form">
+        <div class="flex flex-col gap-5" id="form-fields"></div>
+        <div class="hidden my-4" id="form-status"></div>
+        <div class="mt-2 flex justify-center">
+          <button type="submit" class="px-8 py-3 bg-dtcc-green text-white rounded cursor-pointer text-base font-semibold transition-colors hover:bg-dtcc-green-dark active:bg-dtcc-green-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed" id="submit-button">
             Download Dataset
           </button>
         </div>
@@ -79,23 +79,23 @@ export class FormRenderer {
    */
   private renderField(field: FormField): HTMLElement {
     const wrapper = document.createElement('div');
-    wrapper.className = 'form-field';
+    wrapper.className = 'flex flex-col gap-2';
     wrapper.dataset.fieldName = field.name;
 
     // Field label
     const label = document.createElement('label');
     label.htmlFor = `field-${field.name}`;
-    label.className = 'field-label';
+    label.className = 'text-sm font-semibold text-dtcc-navy flex items-center gap-1';
     label.innerHTML = `
       ${field.label}
-      ${field.required ? '<span class="required">*</span>' : ''}
+      ${field.required ? '<span class="text-dtcc-red font-bold">*</span>' : ''}
     `;
     wrapper.appendChild(label);
 
     // Field description
     if (field.description) {
       const desc = document.createElement('p');
-      desc.className = 'field-description';
+      desc.className = 'text-xs text-dtcc-gray-dark m-0 italic';
       desc.textContent = field.description;
       wrapper.appendChild(desc);
     }
@@ -106,7 +106,7 @@ export class FormRenderer {
 
     // Error container
     const error = document.createElement('div');
-    error.className = 'field-error';
+    error.className = 'text-xs text-dtcc-red hidden -mt-1';
     error.id = `error-${field.name}`;
     wrapper.appendChild(error);
 
@@ -142,7 +142,7 @@ export class FormRenderer {
     input.type = 'text';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'field-input';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic';
 
     if (field.placeholder) input.placeholder = field.placeholder;
     if (field.defaultValue) input.value = String(field.defaultValue);
@@ -162,7 +162,7 @@ export class FormRenderer {
     input.type = 'number';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'field-input';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic';
 
     if (field.defaultValue !== undefined)
       input.value = String(field.defaultValue);
@@ -182,7 +182,7 @@ export class FormRenderer {
     input.type = 'checkbox';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'field-checkbox';
+    input.className = 'w-5 h-5 cursor-pointer accent-dtcc-blue';
     input.checked = field.defaultValue === true;
 
     return input;
@@ -195,7 +195,7 @@ export class FormRenderer {
     const select = document.createElement('select');
     select.id = `field-${field.name}`;
     select.name = field.name;
-    select.className = 'field-select';
+    select.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10';
 
     if (field.required) select.required = true;
 
@@ -229,7 +229,7 @@ export class FormRenderer {
     input.type = 'text';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'field-input field-smart-union';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic font-mono bg-dtcc-gray-lighter';
     input.placeholder = field.placeholder;
 
     if (field.defaultValue) input.value = String(field.defaultValue);
@@ -316,7 +316,7 @@ export class FormRenderer {
       const errorElement = document.getElementById(`error-${error.fieldName}`);
       if (errorElement) {
         errorElement.textContent = error.message;
-        errorElement.classList.add('visible');
+        errorElement.classList.remove('hidden');
       }
     });
 
@@ -333,10 +333,10 @@ export class FormRenderer {
    * Clear all error messages
    */
   private clearErrors(): void {
-    const errorElements = this.container.querySelectorAll('.field-error');
+    const errorElements = this.container.querySelectorAll('.text-xs.text-dtcc-red');
     errorElements.forEach((el) => {
       el.textContent = '';
-      el.classList.remove('visible');
+      el.classList.add('hidden');
     });
   }
 
@@ -355,41 +355,43 @@ export class FormRenderer {
     switch (status.state) {
       case SubmissionState.IDLE:
         this.statusContainer.innerHTML = '';
-        this.statusContainer.className = 'form-status';
+        this.statusContainer.className = 'hidden my-4';
         break;
 
       case SubmissionState.VALIDATING:
-        this.statusContainer.innerHTML =
-          '<div class="status-message status-info">Validating...</div>';
-        this.statusContainer.className = 'form-status visible';
+        this.statusContainer.innerHTML = `
+          <div class="px-4 py-3 rounded bg-blue-50 text-blue-900 border-l-4 border-dtcc-blue flex items-center gap-2">
+            <div class="spinner"></div><span>Validating...</span>
+          </div>
+        `;
+        this.statusContainer.className = 'block my-4';
         break;
 
       case SubmissionState.SUBMITTING:
         this.statusContainer.innerHTML = `
-          <div class="status-message status-info">
-            <span class="spinner"></span>
-            Submitting request...
+          <div class="px-4 py-3 rounded bg-blue-50 text-blue-900 border-l-4 border-dtcc-blue flex items-center gap-2">
+            <div class="spinner"></div><span>Submitting request...</span>
           </div>
         `;
-        this.statusContainer.className = 'form-status visible';
+        this.statusContainer.className = 'block my-4';
         break;
 
       case SubmissionState.SUCCESS:
         this.statusContainer.innerHTML = `
-          <div class="status-message status-success">
-            ${status.message || 'Download request submitted successfully!'}
+          <div class="px-4 py-3 rounded bg-green-50 text-green-900 border-l-4 border-dtcc-green flex items-center gap-2">
+            <span>${status.message || 'Download request submitted successfully!'}</span>
           </div>
         `;
-        this.statusContainer.className = 'form-status visible';
+        this.statusContainer.className = 'block my-4';
         break;
 
       case SubmissionState.ERROR:
         this.statusContainer.innerHTML = `
-          <div class="status-message status-error">
-            ${status.message || 'An error occurred. Please try again.'}
+          <div class="px-4 py-3 rounded bg-red-50 text-red-900 border-l-4 border-dtcc-red flex items-center gap-2">
+            <span>${status.message || 'An error occurred. Please try again.'}</span>
           </div>
         `;
-        this.statusContainer.className = 'form-status visible';
+        this.statusContainer.className = 'block my-4';
         if (status.errors) {
           this.displayValidationErrors(status.errors);
         }
