@@ -18,6 +18,7 @@ import { BookmarkManager } from './bookmarks/bookmark-manager';
 import { SaveBookmarkDialog } from './ui/save-bookmark-dialog';
 import { BookmarkPanel } from './ui/bookmark-panel';
 import { SearchBox } from './ui/search-box';
+import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { fromLonLat } from 'ol/proj';
 
@@ -96,8 +97,7 @@ async function initializeApp(): Promise<void> {
 
     // Clear bounding box
     clearButton.addEventListener('click', () => {
-      bboxDrawer.clearBoundingBox();
-      bboxDrawer.disableDrawing();
+      bboxDrawer.clearBoundingBox();  // Now handles disabling internally
       coordinatesDisplay.textContent = 'No area selected';
       drawButton.disabled = false;
       drawButton.textContent = 'Draw Bounding Box';
@@ -131,10 +131,10 @@ async function initializeApp(): Promise<void> {
 
     // Load bookmark callback
     bookmarkPanel.onLoad((bookmark) => {
-      // Clear existing bbox
+      // Clear existing bbox - this now fully resets the interaction
       bboxDrawer.clearBoundingBox();
 
-      // Load the bookmark extent
+      // Load the bookmark extent (this will automatically enable drawing)
       bboxDrawer.loadExtent(bookmark.bbox);
 
       // Center and zoom map to fit the bookmark extent
@@ -151,12 +151,9 @@ async function initializeApp(): Promise<void> {
         duration: 500, // Smooth animation duration in ms
       });
 
-      // Enable drawing mode if not already enabled
-      if (drawButton.disabled === false) {
-        bboxDrawer.enableDrawing();
-        drawButton.disabled = true;
-        drawButton.textContent = 'Drawing Active';
-      }
+      // Update UI to reflect drawing active state
+      drawButton.disabled = true;
+      drawButton.textContent = 'Drawing Active';
 
       // Hide bookmark panel
       bookmarkPanel.hide();
@@ -249,6 +246,24 @@ CRS: ${bbox.crs}`;
         datasetDialog.updateSubmissionStatus({
           state: SubmissionState.VALIDATING,
         });
+
+        // Validate bounding box area
+        const bboxArea = bboxDrawer.getCurrentBBoxArea();
+        if (!bboxArea) {
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.ERROR,
+            message: 'Invalid bounding box. Please draw a new bounding box.',
+          });
+          return;
+        }
+
+        if (!bboxArea.isValid) {
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.ERROR,
+            message: `Bounding box area (${bboxArea.areaM2.toFixed(2)} m²) is too small. Minimum area is ${MIN_BBOX_AREA_M2} m².`,
+          });
+          return;
+        }
 
         // Small delay to show validating state
         await new Promise((resolve) => setTimeout(resolve, 300));
