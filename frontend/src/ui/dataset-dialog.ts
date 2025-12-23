@@ -28,6 +28,7 @@ export class DatasetDialog {
   private onFormSubmit:
     | ((datasetName: string, values: Record<string, unknown>) => void)
     | null = null;
+  private onBackButtonClick: (() => void) | null = null;
 
   constructor() {
     const dialog = document.getElementById('dataset-dialog');
@@ -102,6 +103,13 @@ export class DatasetDialog {
     this.onFormSubmit = callback;
   }
 
+  /**
+   * Register callback for back button
+   */
+  onBack(callback: () => void): void {
+    this.onBackButtonClick = callback;
+  }
+
   // PRIVATE METHODS
 
   /**
@@ -145,7 +153,9 @@ export class DatasetDialog {
     // Setup back button
     const backButton = this.content.querySelector('#back-button');
     backButton?.addEventListener('click', () => {
-      this.hide();
+      if (this.onBackButtonClick) {
+        this.onBackButtonClick();
+      }
     });
 
     // Render form

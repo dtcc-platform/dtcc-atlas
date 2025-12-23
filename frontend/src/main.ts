@@ -233,6 +233,14 @@ CRS: ${bbox.crs}`;
       }
     });
 
+    // Handle back button (return to dataset list)
+    datasetDialog.onBack(() => {
+      const datasets = appState.getDatasets();
+      if (datasets && datasets.length > 0) {
+        datasetDialog.showDatasetList(datasets);
+      }
+    });
+
     // Handle form submission
     datasetDialog.onSubmit(
       async (datasetName: string, values: Record<string, unknown>) => {
