@@ -137,6 +137,7 @@ __pycache__/
 *.pyd
 .venv/
 *.lock
+build/
 
 # IDEs and editors
 .idea/
@@ -144,4 +145,4 @@ __pycache__/
 
 # web build output
 /server/static/
-
+*.egg-info/

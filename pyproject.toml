@@ -3,12 +3,14 @@ name = "dtcc-dataset-downloader"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10,<=3.13"
 dependencies = [
-    "dtcc-core",
+    "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@dev/datasets",
     "fastapi>=0.125.0",
     "uvicorn>=0.38.0",
 ]
+[tool.setuptools.packages.find]
+include = ["server"]
 
 [tool.uv.sources]
 dtcc-core = { git = "https://github.com/dtcc-platform/dtcc-core.git", rev = "dev/datasets" }
