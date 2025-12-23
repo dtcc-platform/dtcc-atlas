@@ -23,6 +23,19 @@ export class BBoxDrawer {
   private pointermoveHandler: ((event: any) => void) | null = null;
   private mouseoutHandler: (() => void) | null = null;
 
+  /**
+   * Type guard to validate that an extent has valid coordinate values
+   * Checks for null, undefined, NaN, and correct array structure
+   */
+  private isValidExtent(extent: ExtentType | null | undefined): extent is ExtentType {
+    return !!(
+      extent &&
+      Array.isArray(extent) &&
+      extent.length === 4 &&
+      !extent.some(val => val === undefined || val === null || isNaN(val))
+    );
+  }
+
   constructor(map: Map) {
     this.map = map;
 
@@ -35,8 +48,11 @@ export class BBoxDrawer {
     // Create the Extent interaction with custom styling and larger hit tolerance
     this.extentInteraction = new Extent({
       pixelTolerance: 10,
+      // Enable dragging/moving the extent by clicking inside it
+      drag: true,
       // Allow creating new extent when clicking outside existing extent
-      // The interaction automatically handles this - clicking outside starts a new extent
+      // Clicking inside the extent allows moving it (translate)
+      // Clicking on corners/edges allows resizing
       boxStyle: new Style({
         stroke: new Stroke({
           color: '#3498db',
@@ -46,11 +62,14 @@ export class BBoxDrawer {
           color: 'rgba(52, 152, 219, 0.2)',
         }),
       }),
+      wrapX: false,
     });
 
     // Listen to extent changes (fired during drawing and resizing)
     this.extentInteraction.on('extentchanged', (event) => {
-      this.handleExtentChanged(event.extent);
+      if (this.isValidExtent(event.extent)) {
+        this.handleExtentChanged(event.extent);
+      }
     });
   }
 
@@ -58,6 +77,10 @@ export class BBoxDrawer {
    * Updates the tooltip content with current area in km²
    */
   private updateTooltipContent(extent: ExtentType): void {
+    if (!this.isValidExtent(extent)) {
+      return;
+    }
+
     // Transform corners to EPSG:3006 for accurate area calculation
     const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
     const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
@@ -83,6 +106,10 @@ export class BBoxDrawer {
    * Validates an extent against the maximum area constraint
    */
   private validateExtent(extent: ExtentType): boolean {
+    if (!this.isValidExtent(extent)) {
+      return false;
+    }
+
     // Transform corners to EPSG:3006 for accurate area calculation
     const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
     const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
@@ -107,7 +134,7 @@ export class BBoxDrawer {
    * Validates area and calls the callback with transformed coordinates
    */
   private handleExtentChanged(extent: ExtentType): void {
-    if (!extent) {
+    if (!this.isValidExtent(extent)) {
       return;
     }
 
@@ -154,7 +181,7 @@ export class BBoxDrawer {
     // Set up tooltip tracking
     this.pointermoveHandler = (event) => {
       const extent = this.extentInteraction.getExtent();
-      if (extent) {
+      if (this.isValidExtent(extent)) {
         // Type guard to ensure we have a PointerEvent
         const originalEvent = event.originalEvent;
         if ('clientX' in originalEvent && 'clientY' in originalEvent) {

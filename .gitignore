@@ -141,5 +141,7 @@ __pycache__/
 # IDEs and editors
 .idea/
 .vscode/
+
+# web build output
 /server/static/
 
