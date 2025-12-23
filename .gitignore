@@ -137,9 +137,10 @@ __pycache__/
 *.pyd
 .venv/
 *.lock
+build/
 
 # IDEs and editors
 .idea/
 .vscode/
 /server/static/
-
+*.egg-info/
