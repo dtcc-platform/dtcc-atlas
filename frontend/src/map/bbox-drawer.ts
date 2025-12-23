@@ -124,13 +124,17 @@ export class BBoxDrawer {
       ? `${areaM2.toFixed(2)} m²`
       : `${areaKm2.toFixed(2)} km²`;
 
-    // Update tooltip text and color based on size
-    // Only show warning for areas that are too large (enforced during drawing)
+    // Update tooltip text and color based on size constraints
     if (areaM2 > MAX_BBOX_AREA_M2) {
+      // Too large - red warning
       this.tooltip.textContent = `Area: ${areaDisplay} (exceeds ${MAX_BBOX_AREA_KM2} km² limit)`;
       this.tooltip.style.background = 'rgba(231, 76, 60, 0.95)';
+    } else if (areaM2 < MIN_BBOX_AREA_M2) {
+      // Too small - orange/yellow warning
+      this.tooltip.textContent = `Area: ${areaDisplay} (minimum ${MIN_BBOX_AREA_M2} m²)`;
+      this.tooltip.style.background = 'rgba(230, 126, 34, 0.95)';
     } else {
-      // Show area without warnings - minimum size will be validated on download
+      // Valid area - normal dark background
       this.tooltip.textContent = `Area: ${areaDisplay}`;
       this.tooltip.style.background = 'rgba(44, 62, 80, 0.95)';
     }
@@ -155,18 +159,18 @@ export class BBoxDrawer {
 
     // Check minimum area
     if (area < MIN_BBOX_AREA_M2) {
-      console.warn(
-        `Area ${area.toFixed(2)} m² is below minimum ${MIN_BBOX_AREA_M2} m²`
-      );
+      // console.warn(
+      //   `Area ${area.toFixed(2)} m² is below minimum ${MIN_BBOX_AREA_M2} m²`
+      // );
       return { valid: false, area, reason: 'too_small' };
     }
 
     // Check maximum area
     if (area > MAX_BBOX_AREA_M2) {
-      const areaKm2 = area / 1_000_000;
-      console.warn(
-        `Area ${areaKm2.toFixed(2)} km² exceeds maximum ${MAX_BBOX_AREA_KM2} km²`
-      );
+      // const areaKm2 = area / 1_000_000;
+      // console.warn(
+      //   `Area ${areaKm2.toFixed(2)} km² exceeds maximum ${MAX_BBOX_AREA_KM2} km²`
+      // );
       return { valid: false, area, reason: 'too_large' };
     }
 
@@ -175,8 +179,8 @@ export class BBoxDrawer {
 
   /**
    * Handles extent changes from the Extent interaction
-   * Validates area against maximum only and calls the callback with transformed coordinates
-   * Minimum area validation is only done when download button is pressed
+   * Validates area against both minimum and maximum constraints
+   * Invalid extents (too small or too large) are immediately reverted
    * @param extent - The extent coordinates
    */
   private handleExtentChanged(extent: ExtentType): void {
@@ -184,22 +188,27 @@ export class BBoxDrawer {
       return;
     }
 
-    // Only validate against maximum area constraint during drawing
+    // Validate against both minimum and maximum area constraints during drawing
     const validation = this.validateExtent(extent);
 
-    if (!validation.valid && validation.reason === 'too_large') {
-      // Revert to previous valid extent for too large (always enforce immediately)
+    if (!validation.valid && (validation.reason === 'too_large' || validation.reason === 'too_small')) {
+      // Revert to previous valid extent (enforce both min and max immediately)
       if (this.previousExtent) {
         this.extentInteraction.setExtent(this.previousExtent);
       } else {
-        // No previous extent - user tried to draw too large on first attempt
-        console.warn('First extent exceeded limit. Please draw a smaller area.');
+        // No previous extent - user's first attempt was invalid
+        const message = validation.reason === 'too_large'
+          ? 'First extent exceeded maximum limit. Please draw a smaller area.'
+          : 'First extent is too small. Please draw a larger area (minimum 25 m²).';
+        console.warn(message);
+        // Reset to dummy extent to clear the invalid extent
+        this.extentInteraction.setExtent(BBoxDrawer.DUMMY_EXTENT);
         return;
       }
       return;
     }
 
-    // Save as valid extent (even if too small - we'll validate on download)
+    // Save as valid extent (passed both min and max validation)
     this.previousExtent = [...extent] as ExtentType;
 
     // Transform to EPSG:3006 for the callback
@@ -265,6 +274,14 @@ export class BBoxDrawer {
       const extent = this.extentInteraction.getExtent();
       // Add defensive null check before isValidExtent
       if (!extent || !this.isValidExtent(extent)) {
+        this.tooltip.classList.add('hidden');
+        return;
+      }
+
+      // Additional defensive check: ensure extent has non-zero area
+      // This prevents crashes when OpenLayers' internal extent becomes invalid
+      const hasArea = (extent[2] !== extent[0]) && (extent[3] !== extent[1]);
+      if (!hasArea) {
         this.tooltip.classList.add('hidden');
         return;
       }
