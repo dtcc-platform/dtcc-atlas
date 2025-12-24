@@ -8,49 +8,104 @@
 </head>
 <body>
   <div id="app">
-    <header class="bg-dtcc-navy text-white p-4 text-center">
-      <h1 class="text-2xl font-semibold">DTCC Dataset Downloader</h1>
+    <header class="bg-dtcc-navy/95 backdrop-blur-sm text-white px-6 py-2.5 flex items-center justify-between border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <h1 class="text-sm font-semibold tracking-tight leading-none">DTCC Dataset Downloader</h1>
+        <span class="text-xs text-white/50 font-mono hidden sm:inline">v0.1.0</span>
+      </div>
+
+      <div class="flex items-center gap-4 text-xs font-mono">
+        <div id="bbox-status" class="hidden items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-dtcc-green"></span>
+          <span class="text-white/70">Area:</span>
+          <span id="area-display" class="text-white font-medium">--</span>
+        </div>
+        <div id="connection-status" class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-dtcc-green animate-pulse"></span>
+          <span class="text-white/70">Ready</span>
+        </div>
+      </div>
     </header>
-    <div id="controls" class="p-4 bg-dtcc-gray-light flex gap-2 border-b border-dtcc-border">
-      <button id="draw-bbox" class="px-4 py-2 bg-dtcc-blue text-white rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-blue-dark active:bg-dtcc-blue-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed">Draw Bounding Box</button>
-      <button id="clear-bbox" class="px-4 py-2 bg-dtcc-red text-white rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-red-dark active:bg-dtcc-red-darker">Clear</button>
-      <button id="save-bookmark" disabled class="px-4 py-2 bg-dtcc-blue text-white rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-blue-dark disabled:bg-dtcc-gray disabled:cursor-not-allowed">Save Bookmark</button>
-      <button id="toggle-bookmarks" class="px-4 py-2 bg-dtcc-blue text-white rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-blue-dark">Bookmarks (<span id="bookmark-count">0</span>)</button>
+
+    <!-- Floating Toolbar -->
+    <div id="toolbar" class="fixed top-14 left-4 z-[900] flex flex-col gap-2">
+      <!-- Primary Actions Group -->
+      <div class="bg-white/95 backdrop-blur-sm border border-dtcc-border shadow-float rounded-lg overflow-hidden">
+        <button id="draw-bbox" class="toolbar-btn" data-state="idle" data-tooltip="Draw bounding box on map">
+          <span class="w-5 h-5" id="draw-icon"></span>
+          <span class="text-sm font-medium">Draw Area</span>
+        </button>
+
+        <button id="clear-bbox" class="toolbar-btn" data-tooltip="Clear bounding box">
+          <span class="w-5 h-5" id="clear-icon"></span>
+          <span class="text-sm font-medium">Clear</span>
+        </button>
+
+        <div class="h-px bg-dtcc-border-light"></div>
+
+        <button id="save-bookmark" class="toolbar-btn" disabled data-tooltip="Save current area as bookmark">
+          <span class="w-5 h-5" id="bookmark-icon"></span>
+          <span class="text-sm font-medium">Save</span>
+        </button>
+
+        <button id="toggle-bookmarks" class="toolbar-btn" data-tooltip="View saved bookmarks">
+          <span class="w-5 h-5" id="list-icon"></span>
+          <span class="text-sm font-medium">Bookmarks</span>
+          <span class="toolbar-badge ml-auto" id="bookmark-count">0</span>
+        </button>
+      </div>
+
+      <!-- Secondary Actions Group -->
+      <div class="bg-white/95 backdrop-blur-sm border border-dtcc-border shadow-float rounded-lg overflow-hidden">
+        <button id="toggle-search" class="toolbar-btn" data-tooltip="Search for locations">
+          <span class="w-5 h-5" id="search-icon"></span>
+          <span class="text-sm font-medium">Search</span>
+        </button>
+      </div>
     </div>
+
     <div id="map" class="w-full h-full min-h-[400px] relative"></div>
     <div id="bbox-tooltip" class="fixed bg-dtcc-navy/95 text-white px-3 py-2 rounded text-sm font-medium pointer-events-none z-[9999] hidden whitespace-nowrap shadow-md"></div>
 
     <!-- Search Box -->
-    <div id="search-box" class="fixed top-20 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-lg p-3 z-[1000] flex flex-col gap-0 min-w-[350px] max-w-[500px]">
-      <div class="flex gap-2">
-        <input type="text" id="search-input" placeholder="Search location..." class="flex-1 px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic" />
-        <button id="search-button" class="px-4 py-2 bg-dtcc-blue text-white rounded cursor-pointer text-base transition-colors hover:bg-dtcc-blue-dark active:bg-dtcc-blue-darker shrink-0">🔍</button>
+    <div id="search-box" class="hidden fixed top-14 left-1/2 -translate-x-1/2 w-[480px] max-w-[calc(100vw-32px)] z-[950]">
+      <div class="bg-white border border-dtcc-border shadow-panel rounded-lg overflow-hidden">
+        <div class="flex items-center gap-2 px-3 py-2 border-b border-dtcc-border-light">
+          <span class="w-4 h-4 text-dtcc-gray-dark" id="search-input-icon"></span>
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search locations in Sweden..."
+            class="flex-1 px-0 py-1 border-none outline-none text-sm bg-transparent focus:ring-0"
+          />
+          <button id="close-search" class="p-1 hover:bg-dtcc-gray-lighter rounded transition-colors">
+            <span class="w-4 h-4 block" id="close-search-icon"></span>
+          </button>
+        </div>
+        <div id="search-results" class="hidden max-h-[400px] overflow-y-auto"></div>
       </div>
-      <div id="search-results" class="hidden mt-2 max-h-[300px] overflow-y-auto"></div>
     </div>
 
-    <div id="dataset-dialog" class="hidden fixed top-20 right-5 bg-white rounded-lg shadow-lg p-6 min-w-[250px] max-w-[450px] max-h-[80vh] overflow-y-auto z-[1000]">
-      <div>
-        <h3 class="text-lg mb-4 text-dtcc-navy text-center">Select dataset to download</h3>
-        <div id="dataset-buttons" class="flex flex-col gap-3 items-center"></div>
-      </div>
-    </div>
-    <div id="info" class="p-4 bg-dtcc-gray-lighter border-t border-dtcc-border-light">
-      <h3 class="text-base mb-2 text-dtcc-navy">Selected Area (EPSG:3006)</h3>
-      <pre id="coordinates" class="font-mono text-sm text-dtcc-navy bg-white p-3 border border-dtcc-border-light rounded overflow-x-auto">No area selected</pre>
-      <p class="mt-3 text-xs text-dtcc-gray-dark italic">
-        Click "Draw Bounding Box" to start. Then click and drag on the map. After drawing, drag corners or edges to resize. Click "Clear" to draw a new box.
-      </p>
+    <div id="dataset-dialog" class="hidden fixed top-14 right-4 bg-white rounded-lg shadow-panel border border-dtcc-border p-6 min-w-[320px] max-w-[480px] max-h-[calc(100vh-72px)] overflow-y-auto z-[1000]">
+      <div></div>
     </div>
 
     <!-- Bookmark Panel -->
-    <div id="bookmark-panel" class="hidden fixed top-20 left-5 bg-white rounded-lg shadow-lg p-6 min-w-[300px] max-w-[400px] max-h-[80vh] overflow-y-auto z-[1000]">
-      <div class="flex justify-between items-center mb-4 pb-3 border-b-2 border-dtcc-gray-light">
-        <h3 class="m-0 text-lg text-dtcc-navy">Saved Bookmarks</h3>
-        <button class="close-button bg-transparent text-dtcc-gray-dark border-none text-2xl leading-none p-0 w-8 h-8 cursor-pointer rounded transition-all hover:bg-dtcc-gray-light hover:text-dtcc-navy">&times;</button>
+    <div id="bookmark-panel" class="hidden fixed top-14 left-4 bg-white rounded-lg shadow-panel border border-dtcc-border p-6 min-w-[320px] max-w-[400px] max-h-[calc(100vh-72px)] overflow-y-auto z-[1000]">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-dtcc-border-light">
+        <div>
+          <h3 class="m-0 text-base font-semibold text-dtcc-navy">Bookmarks</h3>
+          <p class="m-0 mt-1 text-xs text-dtcc-gray-dark font-mono"><span id="bookmark-list-count">0</span> saved</p>
+        </div>
+        <button class="close-button p-2 hover:bg-dtcc-gray-lighter rounded transition-colors">
+          <span class="w-5 h-5 block text-dtcc-gray-dark" id="close-bookmarks-icon"></span>
+        </button>
       </div>
-      <div id="bookmark-list" class="flex flex-col gap-3"></div>
-      <div class="bookmark-empty-state hidden p-8 pt-0 text-center text-dtcc-gray-dark italic text-sm">No saved bookmarks yet. Draw a bounding box and click "Save Bookmark" to start.</div>
+      <div id="bookmark-list" class="flex flex-col gap-0"></div>
+      <div class="bookmark-empty-state hidden p-8 text-center">
+        <p class="text-dtcc-gray-dark text-sm m-0">No bookmarks yet</p>
+        <p class="text-dtcc-gray text-xs m-0 mt-2">Draw a bounding box and click Save to create one</p>
+      </div>
     </div>
 
     <!-- Save Bookmark Dialog -->
