@@ -18,8 +18,10 @@ import { BookmarkManager } from './bookmarks/bookmark-manager';
 import { SaveBookmarkDialog } from './ui/save-bookmark-dialog';
 import { BookmarkPanel } from './ui/bookmark-panel';
 import { SearchBox } from './ui/search-box';
+import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { fromLonLat } from 'ol/proj';
+import { Icons } from './ui/icons';
 
 // Main application initialization
 async function initializeApp(): Promise<void> {
@@ -29,6 +31,27 @@ async function initializeApp(): Promise<void> {
 
     // Initialize map
     const map = mapManager.initializeMap('map');
+
+    // Initialize toolbar icons
+    const drawIcon = document.getElementById('draw-icon');
+    const clearIcon = document.getElementById('clear-icon');
+    const bookmarkIcon = document.getElementById('bookmark-icon');
+    const listIcon = document.getElementById('list-icon');
+    const searchIcon = document.getElementById('search-icon');
+    const closeBookmarksIcon = document.getElementById('close-bookmarks-icon');
+
+    if (drawIcon) drawIcon.innerHTML = Icons.draw;
+    if (clearIcon) clearIcon.innerHTML = Icons.clear;
+    if (bookmarkIcon) bookmarkIcon.innerHTML = Icons.bookmark;
+    if (listIcon) listIcon.innerHTML = Icons.list;
+    if (searchIcon) searchIcon.innerHTML = Icons.search;
+    if (closeBookmarksIcon) closeBookmarksIcon.innerHTML = Icons.close;
+
+    // Initialize search icons
+    const searchInputIcon = document.getElementById('search-input-icon');
+    const closeSearchIcon = document.getElementById('close-search-icon');
+    if (searchInputIcon) searchInputIcon.innerHTML = Icons.search;
+    if (closeSearchIcon) closeSearchIcon.innerHTML = Icons.close;
 
     // Create bounding box drawer
     const bboxDrawer = new BBoxDrawer(map);
@@ -78,31 +101,63 @@ async function initializeApp(): Promise<void> {
     // Get UI elements
     const drawButton = document.getElementById('draw-bbox') as HTMLButtonElement;
     const clearButton = document.getElementById('clear-bbox') as HTMLButtonElement;
-    const coordinatesDisplay = document.getElementById('coordinates') as HTMLPreElement;
     const saveBookmarkBtn = document.getElementById('save-bookmark') as HTMLButtonElement;
     const toggleBookmarksBtn = document.getElementById('toggle-bookmarks') as HTMLButtonElement;
     const bookmarkCountSpan = document.getElementById('bookmark-count') as HTMLSpanElement;
+    const bookmarkListCount = document.getElementById('bookmark-list-count') as HTMLSpanElement;
 
-    if (!drawButton || !clearButton || !coordinatesDisplay || !saveBookmarkBtn || !toggleBookmarksBtn || !bookmarkCountSpan) {
+    if (!drawButton || !clearButton || !saveBookmarkBtn || !toggleBookmarksBtn || !bookmarkCountSpan) {
       throw new Error('Required UI elements not found');
     }
+
+    // Search toggle elements
+    const toggleSearchBtn = document.getElementById('toggle-search') as HTMLButtonElement;
+    const searchBoxEl = document.getElementById('search-box');
+    const searchInput = document.getElementById('search-input') as HTMLInputElement;
+    const closeSearchBtn = document.getElementById('close-search') as HTMLButtonElement;
+
+    // Search toggle button
+    toggleSearchBtn?.addEventListener('click', () => {
+      if (searchBoxEl?.classList.contains('hidden')) {
+        searchBoxEl.classList.remove('hidden');
+        searchInput?.focus();
+      } else {
+        searchBoxEl?.classList.add('hidden');
+      }
+    });
+
+    closeSearchBtn?.addEventListener('click', () => {
+      searchBoxEl?.classList.add('hidden');
+    });
+
+    // Close search on Escape key
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        searchBoxEl?.classList.add('hidden');
+      }
+    });
 
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
       bboxDrawer.enableDrawing();
+      drawButton.setAttribute('data-state', 'active');
       drawButton.disabled = true;
-      drawButton.textContent = 'Drawing Active';
     });
 
     // Clear bounding box
     clearButton.addEventListener('click', () => {
       bboxDrawer.clearBoundingBox();
-      bboxDrawer.disableDrawing();
-      coordinatesDisplay.textContent = 'No area selected';
+      drawButton.setAttribute('data-state', 'idle');
       drawButton.disabled = false;
-      drawButton.textContent = 'Draw Bounding Box';
       datasetDialog.hide();
       appState.reset();
+
+      // Hide bbox status in header
+      const bboxStatus = document.getElementById('bbox-status');
+      if (bboxStatus) {
+        bboxStatus.classList.add('hidden');
+        bboxStatus.classList.remove('flex');
+      }
     });
 
     // Save bookmark button
@@ -131,10 +186,10 @@ async function initializeApp(): Promise<void> {
 
     // Load bookmark callback
     bookmarkPanel.onLoad((bookmark) => {
-      // Clear existing bbox
+      // Clear existing bbox - this now fully resets the interaction
       bboxDrawer.clearBoundingBox();
 
-      // Load the bookmark extent
+      // Load the bookmark extent (this will automatically enable drawing)
       bboxDrawer.loadExtent(bookmark.bbox);
 
       // Center and zoom map to fit the bookmark extent
@@ -151,12 +206,9 @@ async function initializeApp(): Promise<void> {
         duration: 500, // Smooth animation duration in ms
       });
 
-      // Enable drawing mode if not already enabled
-      if (drawButton.disabled === false) {
-        bboxDrawer.enableDrawing();
-        drawButton.disabled = true;
-        drawButton.textContent = 'Drawing Active';
-      }
+      // Update UI to reflect drawing active state
+      drawButton.disabled = true;
+      drawButton.textContent = 'Drawing Active';
 
       // Hide bookmark panel
       bookmarkPanel.hide();
@@ -178,6 +230,9 @@ async function initializeApp(): Promise<void> {
     bookmarkManager.on('bookmarks-changed', (bookmarks) => {
       bookmarkPanel.render(bookmarks);
       bookmarkCountSpan.textContent = bookmarks.length.toString();
+      if (bookmarkListCount) {
+        bookmarkListCount.textContent = bookmarks.length.toString();
+      }
     });
 
     // Enable/disable save button based on bbox state
@@ -193,14 +248,18 @@ async function initializeApp(): Promise<void> {
       // Store in centralized state
       appState.setBbox(bbox);
 
-      // Display coordinates
-      const displayText = `Min X: ${bbox.minX.toFixed(2)} m
-Min Y: ${bbox.minY.toFixed(2)} m
-Max X: ${bbox.maxX.toFixed(2)} m
-Max Y: ${bbox.maxY.toFixed(2)} m
-CRS: ${bbox.crs}`;
-
-      coordinatesDisplay.textContent = displayText;
+      // Update header area display
+      const area = bboxDrawer.getCurrentBBoxArea();
+      if (area) {
+        const areaKm2 = area.areaM2 / 1_000_000;
+        const areaDisplay = document.getElementById('area-display');
+        const bboxStatus = document.getElementById('bbox-status');
+        if (areaDisplay && bboxStatus) {
+          areaDisplay.textContent = `${areaKm2.toFixed(2)} km²`;
+          bboxStatus.classList.remove('hidden');
+          bboxStatus.classList.add('flex');
+        }
+      }
 
       // Fetch and show dataset selection dialog
       try {
@@ -236,6 +295,14 @@ CRS: ${bbox.crs}`;
       }
     });
 
+    // Handle back button (return to dataset list)
+    datasetDialog.onBack(() => {
+      const datasets = appState.getDatasets();
+      if (datasets && datasets.length > 0) {
+        datasetDialog.showDatasetList(datasets);
+      }
+    });
+
     // Handle form submission
     datasetDialog.onSubmit(
       async (datasetName: string, values: Record<string, unknown>) => {
@@ -249,6 +316,24 @@ CRS: ${bbox.crs}`;
         datasetDialog.updateSubmissionStatus({
           state: SubmissionState.VALIDATING,
         });
+
+        // Validate bounding box area
+        const bboxArea = bboxDrawer.getCurrentBBoxArea();
+        if (!bboxArea) {
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.ERROR,
+            message: 'Invalid bounding box. Please draw a new bounding box.',
+          });
+          return;
+        }
+
+        if (!bboxArea.isValid) {
+          datasetDialog.updateSubmissionStatus({
+            state: SubmissionState.ERROR,
+            message: `Bounding box area (${bboxArea.areaM2.toFixed(2)} m²) is too small. Minimum area is ${MIN_BBOX_AREA_M2} m².`,
+          });
+          return;
+        }
 
         // Small delay to show validating state
         await new Promise((resolve) => setTimeout(resolve, 300));

@@ -28,6 +28,7 @@ export class DatasetDialog {
   private onFormSubmit:
     | ((datasetName: string, values: Record<string, unknown>) => void)
     | null = null;
+  private onBackButtonClick: (() => void) | null = null;
 
   constructor() {
     const dialog = document.getElementById('dataset-dialog');
@@ -55,7 +56,7 @@ export class DatasetDialog {
   showDatasetList(datasets: string[]): void {
     this.currentView = DialogView.DATASET_LIST;
     this.renderDatasetList(datasets);
-    this.dialog.classList.add('visible');
+    this.dialog.classList.remove('hidden');
   }
 
   /**
@@ -66,14 +67,14 @@ export class DatasetDialog {
     this.currentDataset = formConfig.datasetName;
 
     this.renderDatasetForm(formConfig);
-    this.dialog.classList.add('visible');
+    this.dialog.classList.remove('hidden');
   }
 
   /**
    * Hide dialog
    */
   hide(): void {
-    this.dialog.classList.remove('visible');
+    this.dialog.classList.add('hidden');
     this.formRenderer = null;
   }
 
@@ -102,6 +103,13 @@ export class DatasetDialog {
     this.onFormSubmit = callback;
   }
 
+  /**
+   * Register callback for back button
+   */
+  onBack(callback: () => void): void {
+    this.onBackButtonClick = callback;
+  }
+
   // PRIVATE METHODS
 
   /**
@@ -109,18 +117,22 @@ export class DatasetDialog {
    */
   private renderDatasetList(datasets: string[]): void {
     this.content.innerHTML = `
-      <div class="dialog-header">
-        <h3>Select Dataset</h3>
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-dtcc-border-light">
+        <h3 class="m-0 text-base font-semibold text-dtcc-navy">Select Dataset</h3>
+        <span class="text-xs text-dtcc-gray-dark">${datasets.length} available</span>
       </div>
-      <div class="dataset-buttons" id="dataset-buttons"></div>
+      <div id="dataset-buttons" class="flex flex-col gap-0 border border-dtcc-border-light rounded-lg overflow-hidden"></div>
     `;
 
     const buttonsContainer = this.content.querySelector('#dataset-buttons')!;
 
-    datasets.forEach((datasetName) => {
+    datasets.forEach((datasetName, index) => {
       const button = document.createElement('button');
-      button.className = 'dataset-button';
-      button.textContent = datasetName;
+      button.className = 'w-full px-4 py-3 bg-white hover:bg-dtcc-gray-lighter text-left border-b border-dtcc-border-light last:border-b-0 transition-colors flex items-center justify-between group';
+      button.innerHTML = `
+        <span class="font-mono text-sm text-dtcc-navy">${datasetName}</span>
+        <span class="text-dtcc-gray opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+      `;
       button.addEventListener('click', () => {
         if (this.onDatasetSelected) {
           this.onDatasetSelected(datasetName);
@@ -135,17 +147,27 @@ export class DatasetDialog {
    */
   private renderDatasetForm(formConfig: FormConfig): void {
     this.content.innerHTML = `
-      <div class="dialog-header">
-        <button class="back-button" id="back-button">← Back</button>
-        <h3>${formConfig.title}</h3>
+      <div class="flex items-center gap-3 mb-4 pb-3 border-b border-dtcc-border-light">
+        <button class="p-2 hover:bg-dtcc-gray-lighter rounded transition-colors" id="back-button" title="Back to dataset list">
+          <span class="w-4 h-4 block text-dtcc-gray-dark" id="back-icon"></span>
+        </button>
+        <h3 class="flex-1 m-0 text-base font-semibold text-dtcc-navy">${formConfig.title}</h3>
       </div>
-      <div class="form-container" id="form-container"></div>
+      <div id="form-container"></div>
     `;
+
+    // Add back icon
+    const backIcon = this.content.querySelector('#back-icon');
+    if (backIcon) {
+      backIcon.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>`;
+    }
 
     // Setup back button
     const backButton = this.content.querySelector('#back-button');
     backButton?.addEventListener('click', () => {
-      this.hide();
+      if (this.onBackButtonClick) {
+        this.onBackButtonClick();
+      }
     });
 
     // Render form

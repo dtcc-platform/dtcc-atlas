@@ -142,5 +142,7 @@ build/
 # IDEs and editors
 .idea/
 .vscode/
+
+# web build output
 /server/static/
 *.egg-info/

@@ -1,529 +1,64 @@
+@import "tailwindcss";
 @import 'ol/ol.css';
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@theme {
+  /* Brand Colors (keep existing) */
+  --color-dtcc-navy: #2c3e50;
+  --color-dtcc-blue: #3498db;
+  --color-dtcc-blue-dark: #2980b9;
+  --color-dtcc-blue-darker: #1c5f8f;
+  --color-dtcc-red: #e74c3c;
+  --color-dtcc-red-dark: #c0392b;
+  --color-dtcc-red-darker: #a93226;
+  --color-dtcc-green: #27ae60;
+  --color-dtcc-green-dark: #229954;
+  --color-dtcc-green-darker: #1e8449;
+  --color-dtcc-gray: #95a5a6;
+  --color-dtcc-gray-dark: #7f8c8d;
+  --color-dtcc-gray-darker: #707b7c;
+  --color-dtcc-gray-light: #ecf0f1;
+  --color-dtcc-gray-lighter: #f8f9fa;
+  --color-dtcc-border: #bdc3c7;
+  --color-dtcc-border-light: #dee2e6;
+
+  /* Typography Scale */
+  --font-size-xs: 0.6875rem;    /* 11px - badges, labels */
+  --font-size-sm: 0.8125rem;    /* 13px - body text */
+  --font-size-base: 0.875rem;   /* 14px - buttons, UI */
+  --font-size-md: 1rem;         /* 16px - headings */
+
+  /* Spacing System (4px grid) */
+  --spacing-1: 0.25rem;   /* 4px */
+  --spacing-2: 0.5rem;    /* 8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-6: 1.5rem;    /* 24px */
+
+  /* Semantic Colors */
+  --color-text-primary: var(--color-dtcc-navy);
+  --color-text-secondary: #5a6c7d;
+  --color-bg-overlay: rgba(255, 255, 255, 0.95);
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
+/* Custom utilities and component overrides */
 
-#app {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  height: 100vh;
-}
-
-header {
-  background: #2c3e50;
-  color: white;
-  padding: 1rem;
-  text-align: center;
-}
-
-header h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-#controls {
-  padding: 1rem;
-  background: #ecf0f1;
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 1px solid #bdc3c7;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.2s;
-}
-
-button:hover {
-  background: #2980b9;
-}
-
-button:active {
-  background: #1c5f8f;
-}
-
-button:disabled {
-  background: #95a5a6;
-  cursor: not-allowed;
-}
-
-#clear-bbox {
-  background: #e74c3c;
-}
-
-#clear-bbox:hover {
-  background: #c0392b;
-}
-
-#clear-bbox:active {
-  background: #a93226;
-}
-
-.map-container {
-  width: 100%;
-  height: 100%;
-  min-height: 400px;
-  position: relative;
-}
-
-#info {
-  padding: 1rem;
-  background: #f8f9fa;
-  border-top: 1px solid #dee2e6;
-}
-
-#info h3 {
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-}
-
-#coordinates {
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  color: #34495e;
-  background: white;
-  padding: 0.75rem;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  overflow-x: auto;
-}
-
-.help-text {
-  margin-top: 0.75rem;
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  font-style: italic;
-}
-
-/* Show move cursor when hovering over extent box */
+/* OpenLayers cursor overrides */
 .ol-ext-extent {
   cursor: move;
 }
 
-/* Show pointer cursor when hovering over extent corners/edges */
-.ol-ext-extent:hover {
-  cursor: move;
+/* App root grid layout (complex grid not suitable for inline utilities) */
+#app {
+  display: grid;
+  grid-template-rows: 40px 1fr;  /* Changed from: auto auto 1fr auto */
+  height: 100vh;
 }
 
-/* Tooltip that follows mouse cursor during bbox drawing/editing */
-.bbox-tooltip {
-  position: fixed;
-  background: rgba(44, 62, 80, 0.95);
-  color: white;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  pointer-events: none;
-  z-index: 9999;
-  display: none;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.bbox-tooltip.visible {
-  display: block;
-}
-
-/* ========================================
-   SEARCH BOX STYLES
-   ======================================== */
-
-.search-box {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 0.75rem;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 350px;
-  max-width: 500px;
-}
-
-.search-input-container {
-  display: flex;
-  gap: 0.5rem;
-}
-
-#search-input {
-  flex: 1;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-#search-input:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-#search-input::placeholder {
-  color: #95a5a6;
-  font-style: italic;
-}
-
-.search-button {
-  padding: 0.6rem 1rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background 0.2s;
-  flex-shrink: 0;
-}
-
-.search-button:hover {
-  background: #2980b9;
-}
-
-.search-button:active {
-  background: #1c5f8f;
-}
-
-.search-results {
-  display: none;
-  margin-top: 0.5rem;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.search-results.visible {
-  display: block;
-}
-
-.search-results-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.search-result-item {
-  padding: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #2c3e50;
-  transition: background 0.2s;
-}
-
-.search-result-item:hover {
-  background: #e3f2fd;
-}
-
-.search-loading {
-  padding: 1rem;
-  text-align: center;
-  color: #7f8c8d;
-  font-style: italic;
-}
-
-.search-error {
-  padding: 0.75rem;
-  background: #fadbd8;
-  color: #922b21;
-  border-left: 4px solid #e74c3c;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-/* ========================================
-   ENHANCED DATASET DIALOG STYLES
-   ======================================== */
-
-/* Dataset selection dialog */
-.dataset-dialog {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 1.5rem;
-  min-width: 250px;
-  max-width: 450px;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 1000;
-  display: none;
-}
-
-.dataset-dialog.visible {
-  display: block;
-}
-
-.dataset-dialog-content h3 {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.dataset-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.dataset-buttons button {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: background 0.2s;
-  text-align: center;
-}
-
-.dataset-buttons button:hover {
-  background: #2980b9;
-}
-
-.dataset-buttons button:active {
-  background: #1c5f8f;
-}
-
-/* Dialog Header */
-.dialog-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  gap: 0.75rem;
-}
-
-.dialog-header h3 {
-  flex: 1;
-  margin: 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.back-button {
-  background: #95a5a6;
-  color: white;
-  border: none;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background 0.2s;
-}
-
-.back-button:hover {
-  background: #7f8c8d;
-}
-
-/* ========================================
-   FORM STYLES
-   ======================================== */
-
-.dataset-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-/* Form Field Container */
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-/* Field Label */
-.field-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #2c3e50;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.field-label .required {
-  color: #e74c3c;
-  font-weight: bold;
-}
-
-/* Field Description */
-.field-description {
-  font-size: 0.85rem;
-  color: #7f8c8d;
-  margin: 0;
-  font-style: italic;
-}
-
-/* Input Styles */
-.field-input,
-.field-select {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.field-input:focus,
-.field-select:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-.field-input::placeholder {
-  color: #95a5a6;
-  font-style: italic;
-}
-
-/* Number input specific */
-.field-input[type='number'] {
-  -moz-appearance: textfield;
-}
-
-.field-input[type='number']::-webkit-inner-spin-button,
-.field-input[type='number']::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* Checkbox Container */
-.field-checkbox {
-  width: 1.25rem;
-  height: 1.25rem;
-  cursor: pointer;
-  accent-color: #3498db;
-}
-
-/* Smart Union Field (special styling) */
-.field-smart-union {
-  font-family: 'Courier New', monospace;
-  background: #f8f9fa;
-}
-
-/* Field Error Message */
-.field-error {
-  font-size: 0.85rem;
-  color: #e74c3c;
-  display: none;
-  margin-top: -0.25rem;
-}
-
-.field-error.visible {
-  display: block;
-}
-
-/* Form Actions */
-.form-actions {
-  margin-top: 0.5rem;
-  display: flex;
-  justify-content: center;
-}
-
-.submit-button {
-  padding: 0.75rem 2rem;
-  background: #27ae60;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.submit-button:hover {
-  background: #229954;
-}
-
-.submit-button:active {
-  background: #1e8449;
-}
-
-.submit-button:disabled {
-  background: #95a5a6;
-  cursor: not-allowed;
-}
-
-/* ========================================
-   FORM STATUS STYLES
-   ======================================== */
-
-.form-status {
-  display: none;
-  margin: 1rem 0;
-}
-
-.form-status.visible {
-  display: block;
-}
-
-.status-message {
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.status-info {
-  background: #d6eaf8;
-  color: #1f618d;
-  border-left: 4px solid #3498db;
-}
-
-.status-success {
-  background: #d5f4e6;
-  color: #0e6251;
-  border-left: 4px solid #27ae60;
-}
-
-.status-error {
-  background: #fadbd8;
-  color: #922b21;
-  border-left: 4px solid #e74c3c;
-}
-
-/* Spinner Animation */
 .spinner {
   display: inline-block;
   width: 16px;
@@ -534,308 +69,114 @@ button:disabled {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ========================================
-   BOOKMARK PANEL STYLES
-   ======================================== */
-
-.bookmark-panel {
-  position: fixed;
-  top: 80px;
-  left: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 1.5rem;
-  min-width: 300px;
-  max-width: 400px;
-  max-height: 80vh;
-  overflow-y: auto;
-  z-index: 1000;
-  display: block;
-}
-
-.bookmark-panel.hidden {
-  display: none;
-}
-
-.bookmark-panel-header {
+/* Toolbar Styles */
+.toolbar-btn {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid #ecf0f1;
-}
-
-.bookmark-panel-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  color: #2c3e50;
-}
-
-.bookmark-panel .close-button {
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
   background: transparent;
-  color: #7f8c8d;
   border: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+  color: var(--color-dtcc-navy);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 120ms ease;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s, color 0.2s;
+  width: 100%;
 }
 
-.bookmark-panel .close-button:hover {
-  background: #ecf0f1;
-  color: #2c3e50;
+.toolbar-btn:hover:not([disabled]) {
+  background-color: var(--color-dtcc-gray-lighter);
 }
 
-.bookmark-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.toolbar-btn:active:not([disabled]) {
+  background-color: var(--color-dtcc-gray-light);
 }
 
-.bookmark-list.hidden {
-  display: none;
+.toolbar-btn[disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
-.bookmark-item {
-  display: flex;
+.toolbar-btn[data-state="active"] {
+  background-color: #e8f4fd;
+  color: var(--color-dtcc-blue);
+}
+
+.toolbar-badge {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #dee2e6;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.bookmark-item:hover {
-  background: #ecf0f1;
-  border-color: #bdc3c7;
-}
-
-.bookmark-color {
-  width: 4px;
-  height: 40px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.bookmark-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.bookmark-name {
-  font-size: 0.95rem;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  background: var(--color-dtcc-blue);
+  color: white;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 0.25rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-family: ui-monospace, monospace;
+  border-radius: 0.625rem;
+}
+
+/* Shadow System */
+.shadow-float {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.05),
+    0 2px 4px -1px rgb(0 0 0 / 0.03);
+}
+
+.shadow-panel {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.05),
+    0 10px 15px -3px rgb(0 0 0 / 0.05);
+}
+
+.shadow-overlay {
+  box-shadow:
+    0 10px 25px -5px rgb(0 0 0 / 0.1),
+    0 10px 10px -5px rgb(0 0 0 / 0.04);
+}
+
+/* Tooltips */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 0.5rem 0.75rem;
+  background: var(--color-dtcc-navy);
+  color: white;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
   white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  z-index: 10000;
 }
 
-.bookmark-meta {
-  font-size: 0.8rem;
-  color: #7f8c8d;
+[data-tooltip]:hover::after {
+  opacity: 1;
 }
 
-.bookmark-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.bookmark-actions button {
-  background: transparent;
-  border: none;
-  font-size: 1.2rem;
-  padding: 0.25rem 0.5rem;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.bookmark-load:hover {
-  background: #d5f4e6;
-}
-
-.bookmark-delete:hover {
-  background: #fadbd8;
-}
-
-.bookmark-empty-state {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: #7f8c8d;
-  font-style: italic;
-  font-size: 0.9rem;
-}
-
-.bookmark-empty-state.hidden {
-  display: none;
-}
-
-/* ========================================
-   SAVE BOOKMARK DIALOG STYLES
-   ======================================== */
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.modal-overlay.hidden {
-  display: none;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  padding: 2rem;
-  min-width: 350px;
-  max-width: 500px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-}
-
-.modal-content h3 {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.2rem;
-  color: #2c3e50;
-  text-align: center;
-}
-
-.modal-content input[type="text"] {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-family: inherit;
-  margin-bottom: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.modal-content input[type="text"]:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-.bookmark-area-preview {
-  padding: 0.75rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  font-size: 0.9rem;
-  color: #7f8c8d;
-}
-
-.bookmark-area-preview span {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.modal-actions button {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.btn-primary {
-  background: #27ae60;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #229954;
-}
-
-.btn-primary:active {
-  background: #1e8449;
-}
-
-.btn-secondary {
-  background: #95a5a6;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #7f8c8d;
-}
-
-.btn-secondary:active {
-  background: #707b7c;
-}
-
-/* ========================================
-   RESPONSIVE ADJUSTMENTS
-   ======================================== */
-
-@media (max-width: 600px) {
-  .dataset-dialog {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
-    max-height: calc(100vh - 20px);
+/* Animations */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
   }
-
-  .bookmark-panel {
-    top: 10px;
-    left: 10px;
-    right: 10px;
-    min-width: auto;
-    max-width: none;
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
+}
 
-  .modal-content {
-    min-width: auto;
-    width: calc(100% - 2rem);
-    margin: 1rem;
-  }
-
-  .form-field {
-    gap: 0.4rem;
-  }
-
-  .field-label {
-    font-size: 0.85rem;
-  }
-
-  .field-input,
-  .field-select {
-    padding: 0.5rem;
-    font-size: 0.85rem;
-  }
+.animate-slide-in {
+  animation: slideInFromRight 200ms ease-out;
 }
