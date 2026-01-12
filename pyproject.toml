@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10,<=3.13"
 dependencies = [
-    "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@dev/datasets",
+    "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@develop",
     "fastapi>=0.125.0",
     "uvicorn>=0.38.0",
 ]
@@ -13,4 +13,4 @@ dependencies = [
 include = ["server"]
 
 [tool.uv.sources]
-dtcc-core = { git = "https://github.com/dtcc-platform/dtcc-core.git", rev = "dev/datasets" }
+dtcc-core = { git = "https://github.com/dtcc-platform/dtcc-core.git", rev = "develop" }
