@@ -61,9 +61,10 @@ export class FormValidator {
       return errors; // Don't validate further if missing
     }
 
-    // Skip validation for optional empty fields
+    // Skip validation for optional empty fields (except SELECT fields which need special handling)
     if (
       !field.required &&
+      field.type !== FormFieldType.SELECT &&
       (value === undefined || value === null || value === '')
     ) {
       return errors;
@@ -184,6 +185,15 @@ export class FormValidator {
     value: unknown,
     errors: FieldValidationError[]
   ): void {
+    // Check if a valid option has been selected (not the placeholder)
+    if (value === undefined || value === null || value === '') {
+      errors.push({
+        fieldName: field.name,
+        message: `Please select a ${field.label.toLowerCase()}`,
+      });
+      return;
+    }
+
     const validValues = field.options.map((opt) => opt.value);
     if (!validValues.includes(value as string | number)) {
       errors.push({

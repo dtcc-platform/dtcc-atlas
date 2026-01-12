@@ -54,23 +54,20 @@ export class BookmarkPanel {
   }
 
   /**
-   * Format timestamp as readable date
+   * Get relative time display
    */
-  private formatDate(timestamp: number): string {
-    const date = new Date(timestamp);
+  private getRelativeTime(date: Date): string {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffDays === 0) {
-      return 'Today';
-    } else if (diffDays === 1) {
-      return 'Yesterday';
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   }
 
   /**
@@ -78,21 +75,35 @@ export class BookmarkPanel {
    */
   private renderBookmarkItem(bookmark: SavedBookmark): HTMLElement {
     const item = document.createElement('div');
-    item.className = 'flex items-center gap-3 px-3 py-3 bg-dtcc-gray-lighter rounded-md border border-dtcc-border-light transition-all hover:bg-dtcc-gray-light hover:border-dtcc-border';
+    item.className = 'border-b border-dtcc-border-light last:border-b-0 px-4 py-3 hover:bg-dtcc-gray-lighter transition-colors group';
     item.dataset.bookmarkId = bookmark.id;
 
     const areaKm2 = this.calculateArea(bookmark);
-    const dateStr = this.formatDate(bookmark.createdAt);
+    const date = new Date(bookmark.createdAt);
+    const relativeTime = this.getRelativeTime(date);
 
     item.innerHTML = `
-      <div class="w-1 h-10 rounded flex-shrink-0" style="background-color: ${bookmark.color || '#3498db'}"></div>
-      <div class="flex-1 min-w-0">
-        <div class="text-base font-semibold text-dtcc-navy mb-1 overflow-hidden text-ellipsis whitespace-nowrap">${this.escapeHtml(bookmark.name)}</div>
-        <div class="text-xs text-dtcc-gray-dark">${areaKm2.toFixed(2)} km² • ${dateStr}</div>
-      </div>
-      <div class="flex gap-2 flex-shrink-0">
-        <button class="bookmark-load bg-transparent border-none text-xl px-2 py-1 cursor-pointer rounded transition-colors hover:bg-green-50" title="Load this bookmark">📍</button>
-        <button class="bookmark-delete bg-transparent border-none text-xl px-2 py-1 cursor-pointer rounded transition-colors hover:bg-red-50" title="Delete this bookmark">🗑️</button>
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-dtcc-navy truncate">${this.escapeHtml(bookmark.name)}</div>
+          <div class="flex items-center gap-3 mt-1 text-xs text-dtcc-gray-dark font-mono">
+            <span>${areaKm2.toFixed(2)} km²</span>
+            <span>•</span>
+            <span>${relativeTime}</span>
+          </div>
+        </div>
+        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button class="bookmark-load p-1.5 hover:bg-white rounded transition-colors" title="Load bookmark">
+            <span class="w-4 h-4 block text-dtcc-blue">
+              <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </span>
+          </button>
+          <button class="bookmark-delete p-1.5 hover:bg-white rounded transition-colors" title="Delete bookmark">
+            <span class="w-4 h-4 block text-dtcc-red">
+              <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            </span>
+          </button>
+        </div>
       </div>
     `;
 

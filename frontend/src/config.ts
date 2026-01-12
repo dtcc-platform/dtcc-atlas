@@ -9,7 +9,7 @@
  * To change this value, modify the constant below.
  * This is not exposed in the UI and must be changed in source code.
  */
-export const MAX_BBOX_AREA_KM2 = 10;
+export const MAX_BBOX_AREA_KM2 = 25;
 
 /**
  * Maximum allowed bounding box area in square meters

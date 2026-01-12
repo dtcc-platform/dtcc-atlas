@@ -117,18 +117,22 @@ export class DatasetDialog {
    */
   private renderDatasetList(datasets: string[]): void {
     this.content.innerHTML = `
-      <div class="flex items-center mb-6 gap-3">
-        <h3 class="flex-1 m-0 text-lg text-dtcc-navy text-center">Select Dataset</h3>
+      <div class="flex items-center justify-between mb-4 pb-3 border-b border-dtcc-border-light">
+        <h3 class="m-0 text-base font-semibold text-dtcc-navy">Select Dataset</h3>
+        <span class="text-xs text-dtcc-gray-dark">${datasets.length} available</span>
       </div>
-      <div id="dataset-buttons" class="flex flex-col gap-3 items-center"></div>
+      <div id="dataset-buttons" class="flex flex-col gap-0 border border-dtcc-border-light rounded-lg overflow-hidden"></div>
     `;
 
     const buttonsContainer = this.content.querySelector('#dataset-buttons')!;
 
-    datasets.forEach((datasetName) => {
+    datasets.forEach((datasetName, index) => {
       const button = document.createElement('button');
-      button.className = 'w-full px-4 py-3 bg-dtcc-blue text-white rounded cursor-pointer text-base transition-colors hover:bg-dtcc-blue-dark active:bg-dtcc-blue-darker text-center';
-      button.textContent = datasetName;
+      button.className = 'w-full px-4 py-3 bg-white hover:bg-dtcc-gray-lighter text-left border-b border-dtcc-border-light last:border-b-0 transition-colors flex items-center justify-between group';
+      button.innerHTML = `
+        <span class="font-mono text-sm text-dtcc-navy">${datasetName}</span>
+        <span class="text-dtcc-gray opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+      `;
       button.addEventListener('click', () => {
         if (this.onDatasetSelected) {
           this.onDatasetSelected(datasetName);
@@ -143,12 +147,20 @@ export class DatasetDialog {
    */
   private renderDatasetForm(formConfig: FormConfig): void {
     this.content.innerHTML = `
-      <div class="flex items-center mb-6 gap-3">
-        <button class="bg-dtcc-gray text-white border-none px-3 py-2 rounded cursor-pointer text-sm transition-colors hover:bg-dtcc-gray-dark" id="back-button">← Back</button>
-        <h3 class="flex-1 m-0 text-lg text-dtcc-navy text-center">${formConfig.title}</h3>
+      <div class="flex items-center gap-3 mb-4 pb-3 border-b border-dtcc-border-light">
+        <button class="p-2 hover:bg-dtcc-gray-lighter rounded transition-colors" id="back-button" title="Back to dataset list">
+          <span class="w-4 h-4 block text-dtcc-gray-dark" id="back-icon"></span>
+        </button>
+        <h3 class="flex-1 m-0 text-base font-semibold text-dtcc-navy">${formConfig.title}</h3>
       </div>
       <div id="form-container"></div>
     `;
+
+    // Add back icon
+    const backIcon = this.content.querySelector('#back-icon');
+    if (backIcon) {
+      backIcon.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>`;
+    }
 
     // Setup back button
     const backButton = this.content.querySelector('#back-button');

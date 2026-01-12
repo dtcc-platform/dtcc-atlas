@@ -7,7 +7,7 @@ import { searchLocation } from '../api/geocoding-api';
 export class SearchBox {
   private container: HTMLElement;
   private input: HTMLInputElement;
-  private searchButton: HTMLButtonElement;
+  private searchButton: HTMLButtonElement | null;
   private resultsContainer: HTMLElement;
   private onResultSelectCallback: ((lat: number, lon: number, boundingbox?: number[]) => void) | null = null;
   private debounceTimer: number | null = null;
@@ -15,10 +15,10 @@ export class SearchBox {
   constructor() {
     this.container = document.getElementById('search-box') as HTMLElement;
     this.input = document.getElementById('search-input') as HTMLInputElement;
-    this.searchButton = document.getElementById('search-button') as HTMLButtonElement;
+    this.searchButton = document.getElementById('search-button') as HTMLButtonElement | null;
     this.resultsContainer = document.getElementById('search-results') as HTMLElement;
 
-    if (!this.container || !this.input || !this.searchButton || !this.resultsContainer) {
+    if (!this.container || !this.input || !this.resultsContainer) {
       throw new Error('Search box elements not found in DOM');
     }
 
@@ -33,11 +33,13 @@ export class SearchBox {
   }
 
   private setupEventListeners(): void {
-    // Search button click
-    this.searchButton.addEventListener('click', () => {
-      this.clearDebounce();
-      this.handleSearch();
-    });
+    // Search button click (if button exists)
+    if (this.searchButton) {
+      this.searchButton.addEventListener('click', () => {
+        this.clearDebounce();
+        this.handleSearch();
+      });
+    }
 
     // Type-ahead search with debouncing
     this.input.addEventListener('input', () => {

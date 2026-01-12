@@ -13,10 +13,11 @@ app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 available_datasets = datasets.list()
@@ -93,7 +94,7 @@ def download_dataset(request: DatasetDownloadRequest):
             content=data,
             media_type=content_type,
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
 

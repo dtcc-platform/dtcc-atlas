@@ -43,7 +43,7 @@ export class FormRenderer {
         <div class="flex flex-col gap-5" id="form-fields"></div>
         <div class="hidden my-4" id="form-status"></div>
         <div class="mt-2 flex justify-center">
-          <button type="submit" class="px-8 py-3 bg-dtcc-green text-white rounded cursor-pointer text-base font-semibold transition-colors hover:bg-dtcc-green-dark active:bg-dtcc-green-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed" id="submit-button">
+          <button type="submit" class="px-8 py-3 bg-dtcc-green text-white rounded-lg cursor-pointer text-sm font-semibold transition-all hover:bg-dtcc-green-dark active:bg-dtcc-green-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed shadow-sm" id="submit-button">
             Download Dataset
           </button>
         </div>
@@ -360,8 +360,9 @@ export class FormRenderer {
 
       case SubmissionState.VALIDATING:
         this.statusContainer.innerHTML = `
-          <div class="px-4 py-3 rounded bg-blue-50 text-blue-900 border-l-4 border-dtcc-blue flex items-center gap-2">
-            <div class="spinner"></div><span>Validating...</span>
+          <div class="px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 flex items-center gap-3">
+            <div class="spinner"></div>
+            <span class="text-sm font-medium">Validating form...</span>
           </div>
         `;
         this.statusContainer.className = 'block my-4';
@@ -369,8 +370,9 @@ export class FormRenderer {
 
       case SubmissionState.SUBMITTING:
         this.statusContainer.innerHTML = `
-          <div class="px-4 py-3 rounded bg-blue-50 text-blue-900 border-l-4 border-dtcc-blue flex items-center gap-2">
-            <div class="spinner"></div><span>Submitting request...</span>
+          <div class="px-4 py-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 flex items-center gap-3">
+            <div class="spinner"></div>
+            <span class="text-sm font-medium">Submitting request...</span>
           </div>
         `;
         this.statusContainer.className = 'block my-4';
@@ -378,8 +380,11 @@ export class FormRenderer {
 
       case SubmissionState.SUCCESS:
         this.statusContainer.innerHTML = `
-          <div class="px-4 py-3 rounded bg-green-50 text-green-900 border-l-4 border-dtcc-green flex items-center gap-2">
-            <span>${status.message || 'Download request submitted successfully!'}</span>
+          <div class="px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-900 flex items-center gap-3">
+            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-sm font-medium">${status.message || 'Download request submitted successfully!'}</span>
           </div>
         `;
         this.statusContainer.className = 'block my-4';
@@ -387,8 +392,11 @@ export class FormRenderer {
 
       case SubmissionState.ERROR:
         this.statusContainer.innerHTML = `
-          <div class="px-4 py-3 rounded bg-red-50 text-red-900 border-l-4 border-dtcc-red flex items-center gap-2">
-            <span>${status.message || 'An error occurred. Please try again.'}</span>
+          <div class="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-900 flex items-center gap-3">
+            <svg class="w-5 h-5 text-red-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <span class="text-sm font-medium">${status.message || 'An error occurred. Please try again.'}</span>
           </div>
         `;
         this.statusContainer.className = 'block my-4';
