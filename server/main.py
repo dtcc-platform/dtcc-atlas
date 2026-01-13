@@ -77,8 +77,6 @@ def download_dataset(request: DatasetDownloadRequest):
         if not filename:
             filename = request.dataset
 
-        filename = f"{filename}.{file_format}"
-
         # Determine content type based on format
         content_type_map = {
             "tif": "image/tiff",
@@ -91,6 +89,11 @@ def download_dataset(request: DatasetDownloadRequest):
             "json": "application/json",
         }
         content_type = content_type_map.get(file_format, "application/octet-stream")
+
+        if file_format == "cityjson":
+            # to conform with cityjson spec
+            file_format = "city.json"
+        filename = f"{filename}.{file_format}"
         print(f"Returning file '{filename}' with content type '{content_type}'")
         # Return binary data as downloadable file
         return Response(
