@@ -3,6 +3,7 @@ import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, ValidationError
 from typing import Dict, Any
 import io
@@ -20,12 +21,16 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=10000)
+
 available_datasets = datasets.list()
 available_dataset_names = list(available_datasets.keys())
+
+
 @app.get("/api/v1/datasets/list")
 def list_datasets():
-
     return {"datasets": available_dataset_names}
+
 
 @app.get("/api/v1/datasets/get_args/{dataset_name}")
 def get_dataset_args(dataset_name: str):
@@ -48,16 +53,14 @@ def download_dataset(request: DatasetDownloadRequest):
     Generate and download dataset based on parameters
     """
     if request.dataset not in available_datasets:
-        raise fastapi.HTTPException(status_code=404, detail=f"Dataset '{request.dataset}' not found")
+        raise fastapi.HTTPException(
+            status_code=404, detail=f"Dataset '{request.dataset}' not found"
+        )
 
     dataset = available_datasets[request.dataset]
 
     # Merge bounds with parameters
-    params = {
-        "bounds": request.bounds,
-        **request.parameters
-    }
-
+    params = {"bounds": request.bounds, **request.parameters}
 
     print(f"Download request for dataset '{request.dataset}' with params: {params}")
     try:
@@ -72,7 +75,7 @@ def download_dataset(request: DatasetDownloadRequest):
         file_format = request.parameters.get("format", "bin")
         filename = request.filename
         if not filename:
-            filename= request.dataset
+            filename = request.dataset
 
         filename = f"{filename}.{file_format}"
 
@@ -93,21 +96,18 @@ def download_dataset(request: DatasetDownloadRequest):
         return Response(
             content=data,
             media_type=content_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            }
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
 
     except ValidationError as e:
         raise fastapi.HTTPException(
-            status_code=422,
-            detail=f"Invalid parameters: {e.errors()}"
+            status_code=422, detail=f"Invalid parameters: {e.errors()}"
         )
     except Exception as e:
         raise fastapi.HTTPException(
-            status_code=500,
-            detail=f"Error generating dataset: {str(e)}"
+            status_code=500, detail=f"Error generating dataset: {str(e)}"
         )
+
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"
