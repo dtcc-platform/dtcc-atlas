@@ -211,6 +211,20 @@ export class BBoxDrawer {
       type: 'Circle',
       geometryFunction: createBox(),
       style: this.boxStyle,
+      // Prevent finishing if area exceeds limits
+      finishCondition: () => {
+        const sketchFeature = (this.drawInteraction as any)?.sketchFeature_;
+        if (!sketchFeature) return false;
+
+        const geometry = sketchFeature.getGeometry();
+        if (!geometry) return false;
+
+        const extent = geometry.getExtent() as ExtentType;
+        if (!this.isValidExtent(extent)) return false;
+
+        const validation = this.validateExtent(extent);
+        return validation.valid;
+      },
     });
 
     // Handle draw end
