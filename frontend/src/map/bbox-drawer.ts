@@ -80,11 +80,11 @@ export class BBoxDrawer {
       // Clicking on corners/edges allows resizing
       boxStyle: new Style({
         stroke: new Stroke({
-          color: '#3498db',
+          color: '#E35A1D',
           width: 2,
         }),
         fill: new Fill({
-          color: 'rgba(52, 152, 219, 0.2)',
+          color: 'rgba(227, 90, 29, 0.2)',
         }),
       }),
       wrapX: false,
@@ -247,11 +247,11 @@ export class BBoxDrawer {
       drag: true,
       boxStyle: new Style({
         stroke: new Stroke({
-          color: '#3498db',
+          color: '#E35A1D',
           width: 2,
         }),
         fill: new Fill({
-          color: 'rgba(52, 152, 219, 0.2)',
+          color: 'rgba(227, 90, 29, 0.2)',
         }),
       }),
       wrapX: false,

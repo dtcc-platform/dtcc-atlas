@@ -43,7 +43,7 @@ export class FormRenderer {
         <div class="flex flex-col gap-5" id="form-fields"></div>
         <div class="hidden my-4" id="form-status"></div>
         <div class="mt-2 flex justify-center">
-          <button type="submit" class="px-8 py-3 bg-dtcc-green text-white rounded-lg cursor-pointer text-sm font-semibold transition-all hover:bg-dtcc-green-dark active:bg-dtcc-green-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed shadow-sm" id="submit-button">
+          <button type="submit" class="px-8 py-3 bg-dtcc-orange text-white rounded-lg cursor-pointer text-sm font-semibold transition-all hover:bg-dtcc-orange-dark active:bg-dtcc-orange-darker disabled:bg-dtcc-gray disabled:cursor-not-allowed shadow-sm" id="submit-button">
             Download Dataset
           </button>
         </div>
@@ -142,7 +142,7 @@ export class FormRenderer {
     input.type = 'text';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10 placeholder:text-dtcc-gray placeholder:italic';
 
     if (field.placeholder) input.placeholder = field.placeholder;
     if (field.defaultValue) input.value = String(field.defaultValue);
@@ -162,7 +162,7 @@ export class FormRenderer {
     input.type = 'number';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10 placeholder:text-dtcc-gray placeholder:italic';
 
     if (field.defaultValue !== undefined)
       input.value = String(field.defaultValue);
@@ -195,7 +195,7 @@ export class FormRenderer {
     const select = document.createElement('select');
     select.id = `field-${field.name}`;
     select.name = field.name;
-    select.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10';
+    select.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10';
 
     if (field.required) select.required = true;
 
@@ -229,7 +229,7 @@ export class FormRenderer {
     input.type = 'text';
     input.id = `field-${field.name}`;
     input.name = field.name;
-    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10 placeholder:text-dtcc-gray placeholder:italic font-mono bg-dtcc-gray-lighter';
+    input.className = 'w-full px-3 py-2 border border-dtcc-border rounded text-sm transition-all focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10 placeholder:text-dtcc-gray placeholder:italic font-mono bg-dtcc-gray-lighter';
     input.placeholder = field.placeholder;
 
     if (field.defaultValue) input.value = String(field.defaultValue);
