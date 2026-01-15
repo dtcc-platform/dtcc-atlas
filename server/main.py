@@ -1,4 +1,7 @@
 from dtcc_core import datasets
+
+import dtcc_lod2_roofer
+
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse

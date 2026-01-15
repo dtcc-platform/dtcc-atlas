@@ -14,3 +14,9 @@ include = ["server"]
 
 [tool.uv.sources]
 dtcc-core = { git = "https://github.com/dtcc-platform/dtcc-core.git", rev = "dev/datasets" }
+dtcc-lod2-roofer = { git = "https://github.com/dtcc-platform/dtcc-lod2-roofer.git" }
+
+[dependency-groups]
+lod2 = [
+    "dtcc-lod2-roofer@git+https://github.com/dtcc-platform/dtcc-lod2-roofer.git",
+]
