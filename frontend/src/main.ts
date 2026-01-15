@@ -210,9 +210,9 @@ async function initializeApp(): Promise<void> {
         duration: 500, // Smooth animation duration in ms
       });
 
-      // Update UI to reflect drawing active state
-      drawButton.disabled = true;
-      drawButton.textContent = 'Drawing Active';
+      // Update UI to reflect that a bbox is loaded (not actively drawing)
+      drawButton.setAttribute('data-state', 'idle');
+      drawButton.disabled = false;
 
       // Hide bookmark panel
       bookmarkPanel.hide();
@@ -246,8 +246,9 @@ async function initializeApp(): Promise<void> {
 
     // Handle bounding box drawn event
     bboxDrawer.onBBoxDrawn(async (bbox: BoundingBox) => {
-      // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
-      // Users can continue to resize and move the box after initial draw
+      // Reset draw button state - drawing auto-disables after completion
+      drawButton.setAttribute('data-state', 'idle');
+      drawButton.disabled = false;
 
       // Store in centralized state (immediate feedback)
       appState.setBbox(bbox);

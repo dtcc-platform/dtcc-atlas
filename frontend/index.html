@@ -4,6 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DTCC Dataset Downloader</title>
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" href="/favicon.ico">
+  <!-- Google Fonts - Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -112,12 +121,12 @@
     <div id="save-bookmark-dialog" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[2000]">
       <div class="bg-white rounded-lg p-8 min-w-[350px] max-w-[500px] shadow-2xl">
         <h3 class="m-0 mb-6 text-xl text-dtcc-navy text-center">Save Bookmark</h3>
-        <input type="text" id="bookmark-name-input" placeholder="Enter bookmark name..." maxlength="100" class="w-full px-3 py-3 border-2 border-dtcc-border rounded text-base mb-4 transition-all focus:outline-none focus:border-dtcc-blue focus:ring-2 focus:ring-dtcc-blue/10" />
+        <input type="text" id="bookmark-name-input" placeholder="Enter bookmark name..." maxlength="100" class="w-full px-3 py-3 border-2 border-dtcc-border rounded text-base mb-4 transition-all focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10" />
         <div class="px-3 py-3 bg-dtcc-gray-lighter rounded mb-6 text-center text-sm text-dtcc-gray-dark">
           Area: <span id="preview-area" class="font-semibold text-dtcc-navy"></span> km²
         </div>
         <div class="flex gap-3 justify-center">
-          <button id="save-confirm" class="px-6 py-3 bg-dtcc-green text-white rounded cursor-pointer font-semibold transition-colors hover:bg-dtcc-green-dark active:bg-dtcc-green-darker">Save</button>
+          <button id="save-confirm" class="px-6 py-3 bg-dtcc-orange text-white rounded cursor-pointer font-semibold transition-colors hover:bg-dtcc-orange-dark active:bg-dtcc-orange-darker">Save</button>
           <button id="save-cancel" class="px-6 py-3 bg-dtcc-gray text-white rounded cursor-pointer font-semibold transition-colors hover:bg-dtcc-gray-dark active:bg-dtcc-gray-darker">Cancel</button>
         </div>
       </div>

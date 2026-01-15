@@ -7,14 +7,14 @@ type EventHandler = (data: any) => void;
  * Color palette for bookmarks
  */
 const BOOKMARK_COLORS = [
-  '#3498db', // Blue
-  '#e74c3c', // Red
-  '#2ecc71', // Green
-  '#f39c12', // Orange
-  '#9b59b6', // Purple
-  '#1abc9c', // Turquoise
-  '#e67e22', // Dark orange
-  '#34495e', // Dark gray
+  '#78C8BE', // DTCC Teal
+  '#E35A1D', // DTCC Orange
+  '#FADA36', // DTCC Yellow
+  '#27252A', // DTCC Dark
+  '#54545a', // DTCC Muted
+  '#5fb3a8', // Teal dark
+  '#c94d18', // Orange dark
+  '#7a7a80', // Gray
 ];
 
 /**
