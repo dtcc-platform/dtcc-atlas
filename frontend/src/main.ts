@@ -23,6 +23,10 @@ import proj4 from 'proj4';
 import { fromLonLat } from 'ol/proj';
 import { Icons } from './ui/icons';
 
+// Debounce timer for bbox changes to prevent excessive API calls
+let bboxDebounceTimer: number | null = null;
+const BBOX_DEBOUNCE_DELAY = 500; // ms - wait for user to finish adjusting bbox
+
 // Main application initialization
 async function initializeApp(): Promise<void> {
   try {
@@ -245,10 +249,10 @@ async function initializeApp(): Promise<void> {
       // Note: Don't disable drawing - the Extent interaction handles both drawing and editing
       // Users can continue to resize and move the box after initial draw
 
-      // Store in centralized state
+      // Store in centralized state (immediate feedback)
       appState.setBbox(bbox);
 
-      // Update header area display
+      // Update header area display (immediate feedback)
       const area = bboxDrawer.getCurrentBBoxArea();
       if (area) {
         const areaKm2 = area.areaM2 / 1_000_000;
@@ -261,14 +265,32 @@ async function initializeApp(): Promise<void> {
         }
       }
 
-      // Fetch and show dataset selection dialog
-      try {
-        const datasets = await fetchDatasetList();
-        appState.setDatasets(datasets);
-        datasetDialog.showDatasetList(datasets);
-      } catch (error) {
-        console.error('Error fetching dataset list:', error);
-        alert('Failed to fetch dataset list. Make sure the server is running.');
+      // Clear any existing debounce timer
+      if (bboxDebounceTimer !== null) {
+        window.clearTimeout(bboxDebounceTimer);
+      }
+
+      // If dialog is not visible (first draw), fetch immediately
+      // If dialog is already visible (adjusting bbox), debounce the API call
+      const isDialogVisible = datasetDialog.isVisible();
+
+      const fetchAndShowDatasets = async () => {
+        try {
+          const datasets = await fetchDatasetList();
+          appState.setDatasets(datasets);
+          datasetDialog.showDatasetList(datasets);
+        } catch (error) {
+          console.error('Error fetching dataset list:', error);
+          alert('Failed to fetch dataset list. Make sure the server is running.');
+        }
+      };
+
+      if (isDialogVisible) {
+        // Dialog already visible - debounce to prevent excessive calls during adjustment
+        bboxDebounceTimer = window.setTimeout(fetchAndShowDatasets, BBOX_DEBOUNCE_DELAY);
+      } else {
+        // First draw - fetch immediately for better UX
+        await fetchAndShowDatasets();
       }
     });
 

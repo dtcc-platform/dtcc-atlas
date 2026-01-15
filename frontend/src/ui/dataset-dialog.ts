@@ -79,6 +79,13 @@ export class DatasetDialog {
   }
 
   /**
+   * Check if dialog is currently visible
+   */
+  isVisible(): boolean {
+    return !this.dialog.classList.contains('hidden');
+  }
+
+  /**
    * Update submission status
    */
   updateSubmissionStatus(status: FormSubmissionStatus): void {
@@ -126,7 +133,7 @@ export class DatasetDialog {
 
     const buttonsContainer = this.content.querySelector('#dataset-buttons')!;
 
-    datasets.forEach((datasetName, index) => {
+    datasets.forEach((datasetName) => {
       const button = document.createElement('button');
       button.className = 'w-full px-4 py-3 bg-white hover:bg-dtcc-gray-lighter text-left border-b border-dtcc-border-light last:border-b-0 transition-colors flex items-center justify-between group';
       button.innerHTML = `
