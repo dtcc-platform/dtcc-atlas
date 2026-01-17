@@ -149,3 +149,16 @@ build/
 
 # virtual envs
 venv/
+
+# Frontend build output
+frontend/dist/
+
+# Job queue temp files (auto-cleaned but just in case)
+/tmp/dtcc_jobs_*
+
+# macOS
+.DS_Store
+
+# Test output
+*.test.log
+coverage/
