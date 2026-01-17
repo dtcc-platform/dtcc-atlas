@@ -69,6 +69,11 @@ body {
   cursor: move;
 }
 
+/* Dark map layer - boost contrast for better label visibility */
+.dark-map-layer {
+  filter: brightness(1.4) contrast(1.3) saturate(1.2);
+}
+
 /* App root grid layout (complex grid not suitable for inline utilities) */
 #app {
   display: grid;
