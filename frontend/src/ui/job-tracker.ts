@@ -21,6 +21,8 @@ export class JobTracker {
   private jobs: Map<string, Job> = new Map();
   private downloadCallback: DownloadCallback | null = null;
   private unsubscribe: (() => void) | null = null;
+  private retryTimers: Map<string, number> = new Map();
+  private static readonly RETRY_COOLDOWN_MS = 10000;
 
   constructor() {
     // Get DOM elements
@@ -237,9 +239,37 @@ export class JobTracker {
         </button>
       `;
     } else if (job.status === 'failed') {
+      let retryBtn = '';
+      if (job.params) {
+        const completedAt = job.completed_at ? new Date(job.completed_at).getTime() : Date.now();
+        const elapsed = Date.now() - completedAt;
+        const remaining = Math.max(0, JobTracker.RETRY_COOLDOWN_MS - elapsed);
+        const remainingSeconds = Math.ceil(remaining / 1000);
+
+        if (remainingSeconds > 0) {
+          retryBtn = `
+            <button class="job-retry px-3 py-1.5 bg-dtcc-gray text-white text-xs font-medium rounded cursor-not-allowed opacity-75" disabled data-cooldown="${remainingSeconds}">
+              Retry in ${remainingSeconds}s
+            </button>
+          `;
+        } else {
+          retryBtn = `
+            <button class="job-retry px-3 py-1.5 bg-dtcc-blue text-white text-xs font-medium rounded hover:bg-dtcc-blue-dark transition-colors">
+              Try Again
+            </button>
+          `;
+        }
+      }
       actionsHtml = `
+        ${retryBtn}
         <button class="job-dismiss p-1.5 hover:bg-dtcc-gray-lighter rounded transition-colors" title="Dismiss">
           <span class="w-4 h-4 block text-dtcc-gray-dark">${Icons.close}</span>
+        </button>
+      `;
+    } else if (job.status === 'queued' || job.status === 'processing') {
+      actionsHtml = `
+        <button class="job-cancel px-3 py-1.5 bg-dtcc-gray text-white text-xs font-medium rounded hover:bg-dtcc-gray-dark transition-colors">
+          Cancel
         </button>
       `;
     }
@@ -296,6 +326,86 @@ export class JobTracker {
       this.removeJob(job.id);
     });
 
+    // Retry button
+    const retryBtn = item.querySelector('.job-retry') as HTMLButtonElement;
+    retryBtn?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!job.params) return;
+
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Retrying...';
+
+      try {
+        // Extract bounds from params
+        const { bounds, ...parameters } = job.params as { bounds: number[]; [key: string]: unknown };
+
+        // Submit new job with same parameters
+        const response = await jobService.submitJob({
+          dataset: job.dataset,
+          bounds: bounds,
+          parameters: parameters,
+          filename: job.filename?.replace(/\.[^.]+$/, '') || job.dataset,
+        });
+
+        // Remove the failed job from the list
+        this.removeJob(job.id);
+
+        console.log('Retry job submitted:', response.job_id);
+      } catch (error) {
+        console.error('Failed to retry job:', error);
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Try Again';
+      }
+    });
+
+    // Cancel button
+    const cancelBtn = item.querySelector('.job-cancel') as HTMLButtonElement;
+    cancelBtn?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = 'Cancelling...';
+      try {
+        await jobService.cancelJob(job.id);
+      } catch (error) {
+        console.error('Failed to cancel job:', error);
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = 'Cancel';
+      }
+    });
+
+    // Set up cooldown timer for retry button if needed
+    if (retryBtn?.dataset.cooldown) {
+      const startCooldown = parseInt(retryBtn.dataset.cooldown, 10);
+      if (startCooldown > 0) {
+        // Clear any existing timer for this job
+        const existingTimer = this.retryTimers.get(job.id);
+        if (existingTimer) {
+          clearInterval(existingTimer);
+        }
+
+        const timerId = window.setInterval(() => {
+          const currentText = retryBtn.textContent || '';
+          const match = currentText.match(/Retry in (\d+)s/);
+          if (match) {
+            const current = parseInt(match[1], 10);
+            if (current > 1) {
+              retryBtn.textContent = `Retry in ${current - 1}s`;
+            } else {
+              // Cooldown complete - enable the button
+              clearInterval(timerId);
+              this.retryTimers.delete(job.id);
+              retryBtn.disabled = false;
+              retryBtn.textContent = 'Try Again';
+              retryBtn.classList.remove('bg-dtcc-gray', 'cursor-not-allowed', 'opacity-75');
+              retryBtn.classList.add('bg-dtcc-blue', 'hover:bg-dtcc-blue-dark');
+            }
+          }
+        }, 1000);
+
+        this.retryTimers.set(job.id, timerId);
+      }
+    }
+
     return item;
   }
 
@@ -345,6 +455,12 @@ export class JobTracker {
    * Remove a job from the tracker
    */
   removeJob(jobId: string): void {
+    // Clear any retry timer for this job
+    const timer = this.retryTimers.get(jobId);
+    if (timer) {
+      clearInterval(timer);
+      this.retryTimers.delete(jobId);
+    }
     this.jobs.delete(jobId);
     this.render();
     this.updateJobCount();
@@ -360,7 +476,15 @@ export class JobTracker {
         toRemove.push(id);
       }
     });
-    toRemove.forEach((id) => this.jobs.delete(id));
+    toRemove.forEach((id) => {
+      // Clear any retry timer for this job
+      const timer = this.retryTimers.get(id);
+      if (timer) {
+        clearInterval(timer);
+        this.retryTimers.delete(id);
+      }
+      this.jobs.delete(id);
+    });
     this.render();
     this.updateJobCount();
   }
@@ -407,6 +531,9 @@ export class JobTracker {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
+    // Clear all retry timers
+    this.retryTimers.forEach((timer) => clearInterval(timer));
+    this.retryTimers.clear();
     jobService.disconnectSSE();
   }
 }

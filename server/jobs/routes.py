@@ -96,6 +96,24 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
 
         return response
 
+    @router.post("/{job_id}/cancel")
+    async def cancel_job(job_id: str):
+        """
+        Cancel a running or queued job.
+
+        Returns 404 if job not found, 400 if already complete.
+        """
+        success = await job_manager.cancel_job(job_id)
+        if not success:
+            job = job_manager.get_status(job_id)
+            if not job:
+                raise HTTPException(status_code=404, detail="Job not found")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot cancel job with status: {job.status.value}"
+            )
+        return {"success": True, "message": "Job cancelled"}
+
     @router.get("/{job_id}/download")
     async def download_job_result(job_id: str):
         """

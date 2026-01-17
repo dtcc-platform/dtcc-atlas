@@ -15,6 +15,8 @@ export interface Job {
   created_at: string;
   completed_at: string | null;
   download_url: string | null;
+  // Original request params for retry
+  params?: Record<string, unknown>;
 }
 
 export interface JobSubmitRequest {
@@ -70,6 +72,22 @@ class JobService {
     }
 
     return response.json();
+  }
+
+  /**
+   * Cancel a running or queued job
+   */
+  async cancelJob(jobId: string): Promise<boolean> {
+    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/cancel`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to cancel job');
+    }
+
+    return true;
   }
 
   /**

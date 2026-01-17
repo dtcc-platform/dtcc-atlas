@@ -39,4 +39,5 @@ class Job:
             "error": self.error,
             "created_at": self.created_at.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "params": self.params,
         }
