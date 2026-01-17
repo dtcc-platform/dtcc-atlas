@@ -3,6 +3,43 @@
 from typing import Dict, Any, Tuple
 import json
 import re
+import os
+import tempfile
+from pathlib import Path
+
+
+def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
+    """
+    Patched version of DatasetDescriptor.export_to_bytes that ensures
+    the file is fully written before reading.
+    """
+    # Use delete=False so we control when the file is deleted
+    tmpfile = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+    tmp_path = tmpfile.name
+    tmpfile.close()  # Close so obj.save() can write to it
+
+    try:
+        obj.save(tmp_path, **save_kwargs)
+
+        # Ensure all writes are flushed to disk
+        # Open the file, fsync, then read
+        with open(tmp_path, 'rb') as f:
+            fd = f.fileno()
+            os.fsync(fd)
+            data = f.read()
+
+        file_size = len(data)
+        print(f"[job worker] Save complete: {tmp_path} ({file_size} bytes, fsync done)")
+
+        if as_text:
+            return data.decode('utf-8')
+        return data
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def extract_error_message(error: Exception) -> str:
@@ -70,6 +107,10 @@ def process_dataset_job(
         Exception: Any error during dataset generation (with cleaned message).
     """
     from dtcc_core import datasets
+    from dtcc_core.datasets.dataset import DatasetDescriptor
+
+    # Monkey-patch export_to_bytes to ensure proper file sync
+    DatasetDescriptor.export_to_bytes = staticmethod(_patched_export_to_bytes)
 
     try:
         import dtcc_lod2_roofer
@@ -91,6 +132,14 @@ def process_dataset_job(
         # Re-raise with cleaned error message
         clean_message = extract_error_message(e)
         raise RuntimeError(clean_message) from None
+
+    # dtcc_core returns bytes when format is specified
+    if data is None:
+        raise RuntimeError("Dataset returned no data")
+    if not isinstance(data, bytes):
+        raise RuntimeError(f"Dataset returned unexpected type: {type(data).__name__}")
+    if len(data) == 0:
+        raise RuntimeError("Dataset returned empty data")
 
     # Determine file format from parameters
     file_format = params.get("format", "bin")

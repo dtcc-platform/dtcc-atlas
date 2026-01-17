@@ -39,13 +39,21 @@ class JobStorage:
 
         Returns:
             Path to the saved file.
+
+        Raises:
+            ValueError: If data is empty or invalid.
         """
+        if not data or not isinstance(data, bytes):
+            raise ValueError("Invalid or empty data received")
+
         filename = f"{job_id}.{extension}"
         filepath = self._temp_dir / filename
 
         with self._lock:
             with open(filepath, "wb") as f:
                 f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
             self._file_times[job_id] = datetime.now()
 
         return str(filepath)
