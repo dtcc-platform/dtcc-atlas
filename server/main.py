@@ -1,8 +1,8 @@
 from dtcc_core import datasets
 
-try:                                                                                                                                                      
-   import dtcc_lod2_roofer                                                                                                                               
-except ImportError:                                                                                                                                       
+try:
+   import dtcc_lod2_roofer
+except ImportError:
     pass
 
 import fastapi
@@ -14,8 +14,27 @@ from pydantic import BaseModel, ValidationError
 from typing import Dict, Any
 import io
 from pathlib import Path
+from contextlib import asynccontextmanager
 
-app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0")
+from server.jobs import JobManager, create_jobs_router
+
+# Create job manager at module level so routes can be registered before catch-all
+job_manager = JobManager(max_workers=4, job_timeout=120.0)
+print("Job manager initialized with 4 workers, 2min timeout")
+
+
+@asynccontextmanager
+async def lifespan(app: fastapi.FastAPI):
+    """Manage application lifecycle - startup and shutdown."""
+    yield
+
+    # Cleanup on shutdown
+    if job_manager:
+        job_manager.shutdown()
+        print("Job manager shutdown complete")
+
+
+app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0", lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -118,7 +137,12 @@ def download_dataset(request: DatasetDownloadRequest):
         )
 
 
-# Mount static files
+# Mount jobs router BEFORE the catch-all SPA route
+jobs_router = create_jobs_router(job_manager)
+app.include_router(jobs_router, prefix="/api/v1")
+
+
+# Mount static files (must be last due to catch-all route)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")

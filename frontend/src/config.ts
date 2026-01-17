@@ -19,5 +19,6 @@ export const MAX_BBOX_AREA_M2 = MAX_BBOX_AREA_KM2 * 1_000_000;
 
 export const MIN_BBOX_AREA_M2 = 25;
 
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Use relative URL - works for both dev (via proxy) and production (same origin)
+export const API_BASE_URL = '/api/v1';
 

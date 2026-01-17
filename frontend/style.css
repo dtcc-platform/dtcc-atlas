@@ -202,3 +202,23 @@ body {
 .animate-slide-in {
   animation: slideInFromRight 200ms ease-out;
 }
+
+/* Indeterminate progress bar animation */
+@keyframes progressIndeterminate {
+  0% {
+    transform: translateX(-100%);
+    width: 40%;
+  }
+  50% {
+    transform: translateX(100%);
+    width: 60%;
+  }
+  100% {
+    transform: translateX(300%);
+    width: 40%;
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: progressIndeterminate 1.5s ease-in-out infinite;
+}

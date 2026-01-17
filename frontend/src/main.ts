@@ -5,7 +5,6 @@ import { BBoxDrawer } from './map/bbox-drawer';
 import {
   fetchDatasetList,
   fetchDatasetSchema,
-  submitDatasetDownload,
   bboxToArray,
 } from './api/dataset-api';
 import { BoundingBox } from './types';
@@ -18,6 +17,8 @@ import { BookmarkManager } from './bookmarks/bookmark-manager';
 import { SaveBookmarkDialog } from './ui/save-bookmark-dialog';
 import { BookmarkPanel } from './ui/bookmark-panel';
 import { SearchBox } from './ui/search-box';
+import { JobTracker } from './ui/job-tracker';
+import { jobService } from './services/job-service';
 import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { fromLonLat } from 'ol/proj';
@@ -43,6 +44,8 @@ async function initializeApp(): Promise<void> {
     const listIcon = document.getElementById('list-icon');
     const searchIcon = document.getElementById('search-icon');
     const closeBookmarksIcon = document.getElementById('close-bookmarks-icon');
+    const jobsIcon = document.getElementById('jobs-icon');
+    const closeJobsIcon = document.getElementById('close-jobs-icon');
 
     if (drawIcon) drawIcon.innerHTML = Icons.draw;
     if (clearIcon) clearIcon.innerHTML = Icons.clear;
@@ -50,6 +53,8 @@ async function initializeApp(): Promise<void> {
     if (listIcon) listIcon.innerHTML = Icons.list;
     if (searchIcon) searchIcon.innerHTML = Icons.search;
     if (closeBookmarksIcon) closeBookmarksIcon.innerHTML = Icons.close;
+    if (jobsIcon) jobsIcon.innerHTML = Icons.download;
+    if (closeJobsIcon) closeJobsIcon.innerHTML = Icons.close;
 
     // Initialize search icons
     const searchInputIcon = document.getElementById('search-input-icon');
@@ -74,6 +79,10 @@ async function initializeApp(): Promise<void> {
 
     // Create search box
     const searchBox = new SearchBox();
+
+    // Initialize job tracker
+    const jobTracker = new JobTracker();
+    await jobTracker.initialize();
 
     // Handle search result selection
     searchBox.onResultSelect((lat: number, lon: number, boundingbox?: number[]) => {
@@ -175,6 +184,12 @@ async function initializeApp(): Promise<void> {
     // Toggle bookmarks panel
     toggleBookmarksBtn.addEventListener('click', () => {
       bookmarkPanel.toggle();
+    });
+
+    // Toggle job tracker panel
+    const toggleJobsBtn = document.getElementById('toggle-jobs') as HTMLButtonElement;
+    toggleJobsBtn?.addEventListener('click', () => {
+      jobTracker.toggle();
     });
 
     // Save bookmark dialog callback
@@ -326,7 +341,7 @@ async function initializeApp(): Promise<void> {
       }
     });
 
-    // Handle form submission
+    // Handle form submission - submit to job queue
     datasetDialog.onSubmit(
       async (datasetName: string, values: Record<string, unknown>) => {
         const bbox = appState.getBbox();
@@ -373,40 +388,54 @@ async function initializeApp(): Promise<void> {
           // Remove filename from parameters (it's not a dataset parameter)
           const { filename: _, ...parameters } = values;
 
-          // Prepare request
+          // Prepare request for job queue
           const request = {
             dataset: datasetName,
             bounds: bboxToArray(bbox),
             parameters,
-            filename, // Pass filename separately
+            filename,
           };
 
-          // Submit to backend
-          const response = await submitDatasetDownload(request);
+          // Submit to job queue
+          const response = await jobService.submitJob(request);
+
+          // Add job to tracker with initial state
+          jobTracker.addJob({
+            id: response.job_id,
+            dataset: datasetName,
+            status: response.status as 'queued',
+            filename: null,
+            error: null,
+            created_at: new Date().toISOString(),
+            completed_at: null,
+            download_url: null,
+          });
 
           // Update status: success
           datasetDialog.updateSubmissionStatus({
             state: SubmissionState.SUCCESS,
-            message:
-              response.message || 'Download request submitted successfully!',
+            message: 'Job submitted! Track progress in Datasets panel.',
           });
 
-          // Auto-close dialog after 3 seconds
+          // Show job tracker panel
+          jobTracker.show();
+
+          // Return to dataset list after brief delay
           setTimeout(() => {
             const datasets = appState.getDatasets();
             if (datasets && datasets.length > 0) {
-            datasetDialog.showDatasetList(datasets);
+              datasetDialog.showDatasetList(datasets);
             } else {
-            datasetDialog.hide();
+              datasetDialog.hide();
             }
-          }, 3000);
+          }, 2000);
         } catch (error: any) {
-          console.error('Error submitting download request:', error);
+          console.error('Error submitting job:', error);
 
           // Update status: error
           datasetDialog.updateSubmissionStatus({
             state: SubmissionState.ERROR,
-            message: error.message || 'Failed to submit download request',
+            message: error.message || 'Failed to submit job',
           });
         }
       }
