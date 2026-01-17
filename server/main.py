@@ -1,6 +1,9 @@
 from dtcc_core import datasets
 
-import dtcc_lod2_roofer
+try:                                                                                                                                                      
+   import dtcc_lod2_roofer                                                                                                                               
+except ImportError:                                                                                                                                       
+    pass
 
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
