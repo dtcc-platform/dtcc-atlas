@@ -95,6 +95,8 @@ def process_dataset_job(
     This function runs in a separate process via ProcessPoolExecutor.
     It imports dtcc_core here to ensure it's available in the worker process.
 
+    Handles both dtcc-core datasets (raster) and published vector datasets.
+
     Args:
         dataset_name: Name of the dataset to generate.
         params: Parameters for the dataset generation.
@@ -119,9 +121,26 @@ def process_dataset_job(
 
     available_datasets = datasets.list()
 
-    if dataset_name not in available_datasets:
-        raise ValueError(f"Dataset '{dataset_name}' not found")
+    # Check if it's a dtcc-core dataset
+    if dataset_name in available_datasets:
+        return _process_core_dataset(dataset_name, params, available_datasets)
 
+    # Check if it's a published vector dataset
+    from server.vector.discovery import get_dataset_geojson_path
+    geojson_path = get_dataset_geojson_path(dataset_name)
+    if geojson_path:
+        return _process_vector_dataset(dataset_name, params, geojson_path)
+
+    # Dataset not found in either source
+    raise ValueError(f"Dataset '{dataset_name}' not found")
+
+
+def _process_core_dataset(
+    dataset_name: str,
+    params: Dict[str, Any],
+    available_datasets: Dict,
+) -> Tuple[bytes, str, str]:
+    """Process a dtcc-core dataset."""
     dataset = available_datasets[dataset_name]
 
     try:
@@ -161,3 +180,32 @@ def process_dataset_job(
     extension = "city.json" if file_format == "cityjson" else file_format
 
     return (data, extension, content_type)
+
+
+def _process_vector_dataset(
+    dataset_name: str,
+    params: Dict[str, Any],
+    geojson_path: Path,
+) -> Tuple[bytes, str, str]:
+    """Process a published vector dataset."""
+    from server.vector.routes import clip_features_to_bounds
+
+    bounds = params.get("bounds")
+    if not bounds or len(bounds) != 4:
+        raise ValueError("Bounds must be [minX, minY, maxX, maxY]")
+
+    try:
+        with open(geojson_path, "r", encoding="utf-8") as f:
+            geojson = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        raise RuntimeError(f"Error reading dataset: {e}") from None
+
+    # Filter features to bounds
+    filtered = clip_features_to_bounds(geojson, bounds)
+    feature_count = len(filtered.get("features", []))
+    print(f"[job worker] Vector dataset '{dataset_name}': {feature_count} features within bounds")
+
+    # Convert to bytes
+    data = json.dumps(filtered).encode("utf-8")
+
+    return (data, "geojson", "application/geo+json")

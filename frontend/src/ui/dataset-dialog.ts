@@ -1,7 +1,7 @@
 import { FormConfig } from '../types/form-fields';
 import { FormSubmissionStatus } from '../types/form-state';
 import { FormRenderer } from './form-renderer';
-import { BoundingBox } from '../types';
+import { BoundingBox, DatasetInfo } from '../types';
 
 /**
  * Dialog view states
@@ -53,7 +53,7 @@ export class DatasetDialog {
   /**
    * Show dataset selection view
    */
-  showDatasetList(datasets: string[]): void {
+  showDatasetList(datasets: DatasetInfo[]): void {
     this.currentView = DialogView.DATASET_LIST;
     this.renderDatasetList(datasets);
     this.dialog.classList.remove('hidden');
@@ -122,31 +122,74 @@ export class DatasetDialog {
   /**
    * Render dataset selection buttons
    */
-  private renderDatasetList(datasets: string[]): void {
-    this.content.innerHTML = `
-      <div class="flex items-center justify-between mb-4 pb-3 border-b border-dtcc-border-light">
-        <h3 class="m-0 text-base font-semibold text-dtcc-navy">Select Dataset</h3>
-        <span class="text-xs text-dtcc-gray-dark">${datasets.length} available</span>
-      </div>
-      <div id="dataset-buttons" class="flex flex-col gap-0 border border-dtcc-border-light rounded-lg overflow-hidden"></div>
-    `;
+  private renderDatasetList(datasets: DatasetInfo[]): void {
+    // Count by type
+    const vectorCount = datasets.filter(d => d.type === 'vector').length;
+    const rasterCount = datasets.filter(d => d.type === 'raster').length;
 
-    const buttonsContainer = this.content.querySelector('#dataset-buttons')!;
+    // Clear and rebuild content safely
+    this.content.textContent = '';
 
-    datasets.forEach((datasetName) => {
+    // Header
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between mb-4 pb-3 border-b border-dtcc-border-light';
+
+    const title = document.createElement('h3');
+    title.className = 'm-0 text-base font-semibold text-dtcc-navy';
+    title.textContent = 'Select Dataset';
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'text-xs text-dtcc-gray-dark';
+    countSpan.textContent = `${datasets.length} available${vectorCount > 0 ? ` (${vectorCount} vector, ${rasterCount} raster)` : ''}`;
+
+    header.appendChild(title);
+    header.appendChild(countSpan);
+    this.content.appendChild(header);
+
+    // Buttons container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.className = 'flex flex-col gap-0 border border-dtcc-border-light rounded-lg overflow-hidden max-h-96 overflow-y-auto';
+
+    datasets.forEach((dataset) => {
       const button = document.createElement('button');
       button.className = 'w-full px-4 py-3 bg-white hover:bg-dtcc-gray-lighter text-left border-b border-dtcc-border-light last:border-b-0 transition-colors flex items-center justify-between group';
-      button.innerHTML = `
-        <span class="font-mono text-sm text-dtcc-navy">${datasetName}</span>
-        <span class="text-dtcc-gray opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-      `;
+
+      const leftDiv = document.createElement('div');
+      leftDiv.className = 'flex items-center gap-2';
+
+      // Type indicator dot
+      const dot = document.createElement('span');
+      if (dataset.type === 'vector') {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-blue-500 flex-shrink-0';
+      }
+      leftDiv.appendChild(dot);
+
+      // Dataset name
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'font-mono text-sm text-dtcc-navy';
+      nameSpan.textContent = dataset.title || dataset.name.replace(/_/g, ' ');
+      leftDiv.appendChild(nameSpan);
+
+      // Arrow
+      const arrow = document.createElement('span');
+      arrow.className = 'text-dtcc-gray opacity-0 group-hover:opacity-100 transition-opacity';
+      arrow.textContent = '→';
+
+      button.appendChild(leftDiv);
+      button.appendChild(arrow);
+
       button.addEventListener('click', () => {
         if (this.onDatasetSelected) {
-          this.onDatasetSelected(datasetName);
+          this.onDatasetSelected(dataset.name);
         }
       });
+
       buttonsContainer.appendChild(button);
     });
+
+    this.content.appendChild(buttonsContainer);
   }
 
   /**

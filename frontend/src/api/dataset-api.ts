@@ -3,14 +3,16 @@ import {
   DatasetRequest,
   DatasetDownloadRequest,
   DatasetDownloadResponse,
+  DatasetInfo,
 } from '../types';
 import { DatasetSchemaResponse } from '../types/json-schema';
 import { API_BASE_URL } from '../config';
 
 /**
  * Fetches the list of available datasets from the API
+ * Returns DatasetInfo objects with name, type, and source
  */
-export async function fetchDatasetList(): Promise<string[]> {
+export async function fetchDatasetList(): Promise<DatasetInfo[]> {
   const response = await fetch(`${API_BASE_URL}/datasets/list`);
 
   if (!response.ok) {
@@ -18,7 +20,22 @@ export async function fetchDatasetList(): Promise<string[]> {
   }
 
   const data = await response.json();
-  return data.datasets;
+
+  // Handle both old format (string[]) and new format (DatasetInfo[])
+  if (data.datasets && data.datasets.length > 0) {
+    if (typeof data.datasets[0] === 'string') {
+      // Old format: convert to DatasetInfo
+      return data.datasets.map((name: string) => ({
+        name,
+        type: 'raster',
+        source: 'dtcc-core'
+      }));
+    }
+    // New format: already DatasetInfo[]
+    return data.datasets;
+  }
+
+  return [];
 }
 
 /**

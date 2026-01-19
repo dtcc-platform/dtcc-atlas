@@ -10,6 +10,17 @@ export interface DatasetRequest {
   bounds: BoundingBox;
 }
 
+/**
+ * Dataset information from the API
+ */
+export interface DatasetInfo {
+  name: string;
+  type?: string;  // 'raster' | 'vector'
+  source?: string;  // 'dtcc-core' | 'lm-geotorget' | 'test-data'
+  title?: string;
+  path?: string;
+}
+
 export interface MapConfig {
   center: [number, number];
   zoom: number;

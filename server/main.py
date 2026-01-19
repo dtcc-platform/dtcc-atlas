@@ -17,8 +17,10 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from server.jobs import JobManager, create_jobs_router
-from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata
+from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata, get_dataset_geojson_path
+from server.vector.routes import clip_features_to_bounds
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
+import json
 
 # Create job manager at module level so routes can be registered before catch-all
 job_manager = JobManager(max_workers=JOB_MAX_WORKERS, job_timeout=JOB_TIMEOUT)
@@ -96,25 +98,37 @@ class DatasetDownloadRequest(BaseModel):
 @app.post("/api/v1/datasets/download")
 def download_dataset(request: DatasetDownloadRequest):
     """
-    Generate and download dataset based on parameters
+    Generate and download dataset based on parameters.
+    Handles both dtcc-core (raster) and published vector datasets.
     """
-    if request.dataset not in available_datasets:
-        raise fastapi.HTTPException(
-            status_code=404, detail=f"Dataset '{request.dataset}' not found"
-        )
+    # Check if it's a dtcc-core dataset
+    if request.dataset in available_datasets:
+        return _download_core_dataset(request)
 
+    # Check if it's a published vector dataset
+    geojson_path = get_dataset_geojson_path(request.dataset)
+    if geojson_path:
+        return _download_vector_dataset(request, geojson_path)
+
+    # Dataset not found in either source
+    raise fastapi.HTTPException(
+        status_code=404, detail=f"Dataset '{request.dataset}' not found"
+    )
+
+
+def _download_core_dataset(request: DatasetDownloadRequest):
+    """Handle download for dtcc-core datasets."""
     dataset = available_datasets[request.dataset]
 
     # Merge bounds with parameters
     params = {"bounds": request.bounds, **request.parameters}
 
-    print(f"Download request for dataset '{request.dataset}' with params: {params}")
+    print(f"Download request for dtcc-core dataset '{request.dataset}' with params: {params}")
     try:
         # Validate parameters using the dataset's ArgsModel
         _ = dataset.ArgsModel(**params)
 
         # Call the dataset with validated parameters as kwargs
-        # The ArgsModel validation ensures the params are correct
         data = dataset(**params)
 
         # Determine file extension from format parameter or use default
@@ -137,11 +151,10 @@ def download_dataset(request: DatasetDownloadRequest):
         content_type = content_type_map.get(file_format, "application/octet-stream")
 
         if file_format == "cityjson":
-            # to conform with cityjson spec
             file_format = "city.json"
         filename = f"{filename}.{file_format}"
         print(f"Returning file '{filename}' with content type '{content_type}'")
-        # Return binary data as downloadable file
+
         return Response(
             content=data,
             media_type=content_type,
@@ -155,6 +168,43 @@ def download_dataset(request: DatasetDownloadRequest):
     except Exception as e:
         raise fastapi.HTTPException(
             status_code=500, detail=f"Error generating dataset: {str(e)}"
+        )
+
+
+def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path):
+    """Handle download for published vector datasets."""
+    print(f"Download request for vector dataset '{request.dataset}' with bounds: {request.bounds}")
+
+    # Validate bounds
+    if len(request.bounds) != 4:
+        raise fastapi.HTTPException(
+            status_code=422, detail="Bounds must be [minX, minY, maxX, maxY]"
+        )
+
+    try:
+        # Load GeoJSON
+        with open(geojson_path, "r", encoding="utf-8") as f:
+            geojson = json.load(f)
+
+        # Filter features to bounds
+        filtered = clip_features_to_bounds(geojson, request.bounds)
+
+        feature_count = len(filtered.get("features", []))
+        print(f"Filtered to {feature_count} features within bounds")
+
+        # Return as GeoJSON
+        filename = request.filename or request.dataset
+        return Response(
+            content=json.dumps(filtered),
+            media_type="application/geo+json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}.geojson"'
+            }
+        )
+
+    except (json.JSONDecodeError, IOError) as e:
+        raise fastapi.HTTPException(
+            status_code=500, detail=f"Error reading dataset: {e}"
         )
 
 

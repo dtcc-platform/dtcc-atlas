@@ -1,4 +1,4 @@
-import { BoundingBox } from '../types';
+import { BoundingBox, DatasetInfo } from '../types';
 
 type EventHandler = (data: any) => void;
 
@@ -9,7 +9,7 @@ type EventHandler = (data: any) => void;
 export class AppState {
   // State properties
   private bbox: BoundingBox | null = null;
-  private datasets: string[] = [];
+  private datasets: DatasetInfo[] = [];
 
   // Event listeners registry
   private listeners: Map<string, EventHandler[]> = new Map();
@@ -25,12 +25,12 @@ export class AppState {
   }
 
   // Datasets state management
-  setDatasets(datasets: string[]): void {
+  setDatasets(datasets: DatasetInfo[]): void {
     this.datasets = datasets;
     this.emit('datasets-changed', datasets);
   }
 
-  getDatasets(): string[] {
+  getDatasets(): DatasetInfo[] {
     return this.datasets;
   }
 
