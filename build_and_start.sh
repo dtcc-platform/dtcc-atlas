@@ -22,4 +22,4 @@ mkdir -p server/static
 cp -r frontend/dist/* server/static/
 
 echo "Starting FastAPI server..."
-uvicorn server.main:app --host 0.0.0.0 --port 8000
+uvicorn server.main:app --host 0.0.0.0 --port 8000 --loop asyncio

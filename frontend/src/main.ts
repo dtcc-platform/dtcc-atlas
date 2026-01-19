@@ -1,4 +1,5 @@
 import '../style.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { registerProjections } from './map/projections';
 import { mapManager } from './map/map-manager';
 import { BBoxDrawer } from './map/bbox-drawer';
@@ -21,7 +22,6 @@ import { JobTracker } from './ui/job-tracker';
 import { jobService } from './services/job-service';
 import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
-import { fromLonLat } from 'ol/proj';
 import { Icons } from './ui/icons';
 
 // Debounce timer for bbox changes to prevent excessive API calls
@@ -86,26 +86,19 @@ async function initializeApp(): Promise<void> {
 
     // Handle search result selection
     searchBox.onResultSelect((lat: number, lon: number, boundingbox?: number[]) => {
-      const view = map.getView();
-
       if (boundingbox && boundingbox.length === 4) {
         // If we have a bounding box, fit the view to it
         // Nominatim format: [south, north, west, east] in WGS84
         const [south, north, west, east] = boundingbox;
-        const southWest = fromLonLat([west, south]);
-        const northEast = fromLonLat([east, north]);
-        const extent = [...southWest, ...northEast];
-
-        view.fit(extent, {
-          padding: [50, 50, 50, 50],
-          duration: 500,
-        });
+        map.fitBounds(
+          [[west, south], [east, north]],
+          { padding: 50, duration: 500 }
+        );
       } else {
         // Otherwise, just center on the coordinates with appropriate zoom
-        const center = fromLonLat([lon, lat]);
-        view.animate({
-          center: center,
-          zoom: 12, // Default zoom for specific locations
+        map.flyTo({
+          center: [lon, lat],
+          zoom: 12,
           duration: 500,
         });
       }
@@ -155,6 +148,15 @@ async function initializeApp(): Promise<void> {
       bboxDrawer.enableDrawing();
       drawButton.setAttribute('data-state', 'active');
       drawButton.disabled = true;
+    });
+
+    // Cancel drawing with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && bboxDrawer.isDrawing()) {
+        bboxDrawer.cancelDrawing();
+        drawButton.setAttribute('data-state', 'idle');
+        drawButton.disabled = false;
+      }
     });
 
     // Clear bounding box
@@ -212,18 +214,17 @@ async function initializeApp(): Promise<void> {
       bboxDrawer.loadExtent(bookmark.bbox);
 
       // Center and zoom map to fit the bookmark extent
-      const view = map.getView();
       const bbox = bookmark.bbox;
 
-      // Transform bbox corners from EPSG:3006 to EPSG:3857 for map view
-      const [minX, minY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.minX, bbox.minY]);
-      const [maxX, maxY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.maxX, bbox.maxY]);
+      // Transform bbox corners from EPSG:3006 to WGS84 (lon/lat) for MapLibre
+      const [minLon, minLat] = proj4('EPSG:3006', 'EPSG:4326', [bbox.minX, bbox.minY]);
+      const [maxLon, maxLat] = proj4('EPSG:3006', 'EPSG:4326', [bbox.maxX, bbox.maxY]);
 
       // Fit the view to the extent with some padding
-      view.fit([minX, minY, maxX, maxY], {
-        padding: [500, 500, 500, 50], // Add 50px padding on all sides
-        duration: 500, // Smooth animation duration in ms
-      });
+      map.fitBounds(
+        [[minLon, minLat], [maxLon, maxLat]],
+        { padding: 50, duration: 500 }
+      );
 
       // Update UI to reflect that a bbox is loaded (not actively drawing)
       drawButton.setAttribute('data-state', 'idle');

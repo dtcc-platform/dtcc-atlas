@@ -1,68 +1,32 @@
-import Map from 'ol/Map';
-import Draw from 'ol/interaction/Draw';
-import { createBox } from 'ol/interaction/Draw';
-import VectorSource from 'ol/source/Vector';
-import VectorLayer from 'ol/layer/Vector';
-import Feature from 'ol/Feature';
-import Polygon from 'ol/geom/Polygon';
+import maplibregl from 'maplibre-gl';
 import proj4 from 'proj4';
-import { Style, Stroke, Fill } from 'ol/style';
 import type { BoundingBox } from '../types';
 import { MAX_BBOX_AREA_M2, MAX_BBOX_AREA_KM2, MIN_BBOX_AREA_M2 } from '../config';
-import type { Extent as ExtentType } from 'ol/extent';
+
+// Register EPSG:3006 projection
+proj4.defs('EPSG:3006', '+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
 
 /**
  * BBoxDrawer - Handles drawing and editing axis-aligned bounding boxes on the map
  *
- * Uses OpenLayers' Draw interaction with createBox() for click-click drawing:
+ * Uses click-click drawing:
  * - First click sets one corner
  * - Moving mouse expands the rectangle
  * - Second click confirms the opposite corner
  */
 export class BBoxDrawer {
-  private map: Map;
-  private vectorSource: VectorSource;
-  private vectorLayer: VectorLayer<VectorSource>;
-  private drawInteraction: Draw | null = null;
-  private currentFeature: Feature<Polygon> | null = null;
+  private map: maplibregl.Map;
   private callback: ((bbox: BoundingBox) => void) | null = null;
   private readonly tooltip: HTMLElement;
-  private pointermoveHandler: ((event: any) => void) | null = null;
-  private mouseoutHandler: (() => void) | null = null;
   private isDrawingActive: boolean = false;
+  private firstCorner: [number, number] | null = null;
+  private currentBbox: BoundingBox | null = null;
 
-  private readonly boxStyle = new Style({
-    stroke: new Stroke({
-      color: '#E35A1D',
-      width: 2,
-    }),
-    fill: new Fill({
-      color: 'rgba(227, 90, 29, 0.2)',
-    }),
-  });
+  private readonly BBOX_SOURCE = 'bbox-source';
+  private readonly BBOX_FILL_LAYER = 'bbox-fill';
+  private readonly BBOX_LINE_LAYER = 'bbox-line';
 
-  /**
-   * Type guard to validate that an extent has valid coordinate values
-   */
-  private isValidExtent(extent: ExtentType | null | undefined): extent is ExtentType {
-    if (
-      !extent ||
-      !Array.isArray(extent) ||
-      extent.length !== 4 ||
-      extent.some(val => val === undefined || val === null || isNaN(val))
-    ) {
-      return false;
-    }
-
-    // Check for zero-area extents
-    if (extent[0] === extent[2] || extent[1] === extent[3]) {
-      return false;
-    }
-
-    return true;
-  }
-
-  constructor(map: Map) {
+  constructor(map: maplibregl.Map) {
     this.map = map;
 
     // Get tooltip element
@@ -71,32 +35,122 @@ export class BBoxDrawer {
       throw new Error('Tooltip element not found');
     }
 
-    // Create vector source and layer for displaying the drawn box
-    this.vectorSource = new VectorSource();
-    this.vectorLayer = new VectorLayer({
-      source: this.vectorSource,
-      style: this.boxStyle,
-      zIndex: 100,
-    });
+    // Add source and layers when map is loaded
+    this.map.on('load', () => this.setupLayers());
 
-    this.map.addLayer(this.vectorLayer);
+    // If map is already loaded, set up immediately
+    if (this.map.loaded()) {
+      this.setupLayers();
+    }
+  }
+
+  private setupLayers(): void {
+    // Add GeoJSON source for the bbox
+    if (!this.map.getSource(this.BBOX_SOURCE)) {
+      this.map.addSource(this.BBOX_SOURCE, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      });
+
+      // Add fill layer
+      this.map.addLayer({
+        id: this.BBOX_FILL_LAYER,
+        type: 'fill',
+        source: this.BBOX_SOURCE,
+        paint: {
+          'fill-color': '#E35A1D',
+          'fill-opacity': 0.2,
+        },
+      });
+
+      // Add line layer
+      this.map.addLayer({
+        id: this.BBOX_LINE_LAYER,
+        type: 'line',
+        source: this.BBOX_SOURCE,
+        paint: {
+          'line-color': '#E35A1D',
+          'line-width': 2,
+        },
+      });
+    }
+  }
+
+  /**
+   * Convert lon/lat to EPSG:3006
+   */
+  private toEPSG3006(lon: number, lat: number): [number, number] {
+    return proj4('EPSG:4326', 'EPSG:3006', [lon, lat]) as [number, number];
+  }
+
+  /**
+   * Convert EPSG:3006 to lon/lat
+   */
+  private fromEPSG3006(x: number, y: number): [number, number] {
+    return proj4('EPSG:3006', 'EPSG:4326', [x, y]) as [number, number];
+  }
+
+  /**
+   * Calculate area in EPSG:3006 (meters)
+   */
+  private calculateArea(minLon: number, minLat: number, maxLon: number, maxLat: number): number {
+    const [minX, minY] = this.toEPSG3006(minLon, minLat);
+    const [maxX, maxY] = this.toEPSG3006(maxLon, maxLat);
+    const width = Math.abs(maxX - minX);
+    const height = Math.abs(maxY - minY);
+    return width * height;
+  }
+
+  /**
+   * Update the GeoJSON source with current bbox
+   */
+  private updateBboxDisplay(minLon: number, minLat: number, maxLon: number, maxLat: number): void {
+    const source = this.map.getSource(this.BBOX_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+
+    const coordinates = [
+      [minLon, minLat],
+      [maxLon, minLat],
+      [maxLon, maxLat],
+      [minLon, maxLat],
+      [minLon, minLat],
+    ];
+
+    source.setData({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates],
+          },
+        },
+      ],
+    });
+  }
+
+  /**
+   * Clear the bbox display
+   */
+  private clearBboxDisplay(): void {
+    const source = this.map.getSource(this.BBOX_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+
+    source.setData({
+      type: 'FeatureCollection',
+      features: [],
+    });
   }
 
   /**
    * Updates the tooltip content with current area in km² or m²
    */
-  private updateTooltipContent(extent: ExtentType): void {
-    if (!this.isValidExtent(extent)) {
-      return;
-    }
-
-    // Transform corners to EPSG:3006 for accurate area calculation
-    const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
-    const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
-
-    const width = Math.abs(maxX - minX);
-    const height = Math.abs(maxY - minY);
-    const areaM2 = width * height;
+  private updateTooltipContent(areaM2: number): void {
     const areaKm2 = areaM2 / 1_000_000;
 
     // Show area in m² if less than 1000 m², otherwise in km²
@@ -118,82 +172,110 @@ export class BBoxDrawer {
   }
 
   /**
-   * Validates an extent against the minimum and maximum area constraints
+   * Handle mouse click during drawing
    */
-  private validateExtent(extent: ExtentType): { valid: boolean; area: number; reason?: string } {
-    if (!this.isValidExtent(extent)) {
-      return { valid: false, area: 0, reason: 'Invalid extent' };
-    }
+  private onClick = (e: maplibregl.MapMouseEvent): void => {
+    if (!this.isDrawingActive) return;
 
-    // Transform corners to EPSG:3006 for accurate area calculation
-    const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
-    const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
+    const { lng, lat } = e.lngLat;
 
-    const width = Math.abs(maxX - minX);
-    const height = Math.abs(maxY - minY);
-    const area = width * height;
+    if (!this.firstCorner) {
+      // First click - set the first corner
+      this.firstCorner = [lng, lat];
+      this.map.getCanvas().style.cursor = 'crosshair';
+    } else {
+      // Second click - complete the bbox
+      const [lon1, lat1] = this.firstCorner;
+      const minLon = Math.min(lon1, lng);
+      const maxLon = Math.max(lon1, lng);
+      const minLat = Math.min(lat1, lat);
+      const maxLat = Math.max(lat1, lat);
 
-    if (area < MIN_BBOX_AREA_M2) {
-      return { valid: false, area, reason: 'too_small' };
-    }
+      // Calculate area and validate
+      const areaM2 = this.calculateArea(minLon, minLat, maxLon, maxLat);
 
-    if (area > MAX_BBOX_AREA_M2) {
-      return { valid: false, area, reason: 'too_large' };
-    }
+      if (areaM2 < MIN_BBOX_AREA_M2) {
+        console.warn(`Area is too small (minimum ${MIN_BBOX_AREA_M2} m²). Please draw a larger area.`);
+        return;
+      }
 
-    return { valid: true, area };
-  }
+      if (areaM2 > MAX_BBOX_AREA_M2) {
+        console.warn(`Area exceeds ${MAX_BBOX_AREA_KM2} km² limit. Please draw a smaller area.`);
+        return;
+      }
 
-  /**
-   * Handles when a box is completed
-   */
-  private handleDrawEnd(feature: Feature<Polygon>): void {
-    const geometry = feature.getGeometry();
-    if (!geometry) return;
+      // Convert to EPSG:3006 for the callback
+      const [minX, minY] = this.toEPSG3006(minLon, minLat);
+      const [maxX, maxY] = this.toEPSG3006(maxLon, maxLat);
 
-    const extent = geometry.getExtent() as ExtentType;
-
-    // Validate the drawn extent
-    const validation = this.validateExtent(extent);
-
-    if (!validation.valid) {
-      // Remove invalid feature
-      this.vectorSource.removeFeature(feature);
-      const message = validation.reason === 'too_large'
-        ? `Area exceeds ${MAX_BBOX_AREA_KM2} km² limit. Please draw a smaller area.`
-        : `Area is too small (minimum ${MIN_BBOX_AREA_M2} m²). Please draw a larger area.`;
-      console.warn(message);
-      return;
-    }
-
-    // Clear any previous feature and keep the new one
-    if (this.currentFeature && this.currentFeature !== feature) {
-      this.vectorSource.removeFeature(this.currentFeature);
-    }
-    this.currentFeature = feature;
-
-    // Transform to EPSG:3006 for the callback
-    const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
-    const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
-
-    // Call the callback with the bounding box
-    if (this.callback) {
-      this.callback({
+      this.currentBbox = {
         minX: Math.min(minX, maxX),
         minY: Math.min(minY, maxY),
         maxX: Math.max(minX, maxX),
         maxY: Math.max(minY, maxY),
         crs: 'EPSG:3006',
-      });
-    }
+      };
 
-    // Disable drawing after successful draw - user can click "Draw Area" to draw again
-    this.disableDrawing();
-  }
+      // Update display with final bbox
+      this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
+
+      // Call the callback
+      if (this.callback) {
+        this.callback(this.currentBbox);
+      }
+
+      // Disable drawing
+      this.disableDrawing();
+    }
+  };
+
+  /**
+   * Handle mouse move during drawing
+   */
+  private onMouseMove = (e: maplibregl.MapMouseEvent): void => {
+    // Update tooltip position
+    this.tooltip.style.left = `${e.originalEvent.clientX + 15}px`;
+    this.tooltip.style.top = `${e.originalEvent.clientY + 15}px`;
+
+    if (this.isDrawingActive && this.firstCorner) {
+      const { lng, lat } = e.lngLat;
+      const [lon1, lat1] = this.firstCorner;
+
+      const minLon = Math.min(lon1, lng);
+      const maxLon = Math.max(lon1, lng);
+      const minLat = Math.min(lat1, lat);
+      const maxLat = Math.max(lat1, lat);
+
+      // Update preview bbox
+      this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
+
+      // Update tooltip with area
+      const areaM2 = this.calculateArea(minLon, minLat, maxLon, maxLat);
+      this.updateTooltipContent(areaM2);
+      this.tooltip.classList.remove('hidden');
+    } else if (this.currentBbox) {
+      // Show tooltip for existing bbox
+      const [minX, minY] = [this.currentBbox.minX, this.currentBbox.minY];
+      const [maxX, maxY] = [this.currentBbox.maxX, this.currentBbox.maxY];
+      const width = Math.abs(maxX - minX);
+      const height = Math.abs(maxY - minY);
+      const areaM2 = width * height;
+      this.updateTooltipContent(areaM2);
+      this.tooltip.classList.remove('hidden');
+    } else {
+      this.tooltip.classList.add('hidden');
+    }
+  };
+
+  /**
+   * Handle mouse leave
+   */
+  private onMouseLeave = (): void => {
+    this.tooltip.classList.add('hidden');
+  };
 
   /**
    * Enables the Draw interaction on the map
-   * Uses click-click behavior: first click starts, second click finishes
    */
   enableDrawing(): void {
     if (this.isDrawingActive) {
@@ -202,114 +284,59 @@ export class BBoxDrawer {
     }
 
     // Clear any existing box when starting a new draw
-    this.vectorSource.clear();
-    this.currentFeature = null;
+    this.clearBboxDisplay();
+    this.currentBbox = null;
+    this.firstCorner = null;
 
-    // Create a new Draw interaction with createBox geometry function
-    this.drawInteraction = new Draw({
-      source: this.vectorSource,
-      type: 'Circle',
-      geometryFunction: createBox(),
-      style: this.boxStyle,
-      // Prevent finishing if area exceeds limits
-      finishCondition: () => {
-        const sketchFeature = (this.drawInteraction as any)?.sketchFeature_;
-        if (!sketchFeature) return false;
-
-        const geometry = sketchFeature.getGeometry();
-        if (!geometry) return false;
-
-        const extent = geometry.getExtent() as ExtentType;
-        if (!this.isValidExtent(extent)) return false;
-
-        const validation = this.validateExtent(extent);
-        return validation.valid;
-      },
-    });
-
-    // Handle draw end
-    this.drawInteraction.on('drawend', (event) => {
-      this.handleDrawEnd(event.feature as Feature<Polygon>);
-    });
-
-    this.map.addInteraction(this.drawInteraction);
     this.isDrawingActive = true;
+    this.map.getCanvas().style.cursor = 'crosshair';
 
-    // Set up tooltip tracking during drawing
-    this.pointermoveHandler = (event) => {
-      // During active drawing, get the sketch feature's extent
-      const sketchFeature = (this.drawInteraction as any)?.sketchFeature_;
-      if (sketchFeature) {
-        const geometry = sketchFeature.getGeometry();
-        if (geometry) {
-          const extent = geometry.getExtent() as ExtentType;
-          if (this.isValidExtent(extent)) {
-            const originalEvent = event.originalEvent;
-            if ('clientX' in originalEvent && 'clientY' in originalEvent) {
-              this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
-              this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
-              this.updateTooltipContent(extent);
-              this.tooltip.classList.remove('hidden');
-              return;
-            }
-          }
-        }
-      }
-
-      // Show tooltip for existing feature
-      if (this.currentFeature) {
-        const geometry = this.currentFeature.getGeometry();
-        if (geometry) {
-          const extent = geometry.getExtent() as ExtentType;
-          if (this.isValidExtent(extent)) {
-            const originalEvent = event.originalEvent;
-            if ('clientX' in originalEvent && 'clientY' in originalEvent) {
-              this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
-              this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
-              this.updateTooltipContent(extent);
-              this.tooltip.classList.remove('hidden');
-              return;
-            }
-          }
-        }
-      }
-
-      this.tooltip.classList.add('hidden');
-    };
-
-    this.mouseoutHandler = () => {
-      this.tooltip.classList.add('hidden');
-    };
-
-    this.map.on('pointermove', this.pointermoveHandler);
-    this.map.getViewport().addEventListener('mouseout', this.mouseoutHandler);
+    // Add event listeners
+    this.map.on('click', this.onClick);
+    this.map.on('mousemove', this.onMouseMove);
+    this.map.getCanvas().addEventListener('mouseleave', this.onMouseLeave);
 
     console.log('Bounding box drawing enabled (click-click mode)');
+  }
+
+  /**
+   * Cancels the current drawing operation without keeping any partial box
+   */
+  cancelDrawing(): boolean {
+    if (!this.isDrawingActive) {
+      return false;
+    }
+
+    this.clearBboxDisplay();
+    this.disableDrawing();
+    console.log('Bounding box drawing cancelled');
+    return true;
+  }
+
+  /**
+   * Returns whether drawing mode is currently active
+   */
+  isDrawing(): boolean {
+    return this.isDrawingActive;
   }
 
   /**
    * Disables the Draw interaction
    */
   disableDrawing(): void {
-    if (!this.isDrawingActive || !this.drawInteraction) {
+    if (!this.isDrawingActive) {
       console.debug('Drawing already disabled, skipping');
       return;
     }
 
-    this.map.removeInteraction(this.drawInteraction);
-    this.drawInteraction = null;
     this.isDrawingActive = false;
+    this.firstCorner = null;
+    this.map.getCanvas().style.cursor = '';
 
-    // Clean up event listeners
-    if (this.pointermoveHandler) {
-      this.map.un('pointermove', this.pointermoveHandler);
-      this.pointermoveHandler = null;
-    }
-
-    if (this.mouseoutHandler) {
-      this.map.getViewport().removeEventListener('mouseout', this.mouseoutHandler);
-      this.mouseoutHandler = null;
-    }
+    // Remove event listeners
+    this.map.off('click', this.onClick);
+    this.map.off('mousemove', this.onMouseMove);
+    this.map.getCanvas().removeEventListener('mouseleave', this.onMouseLeave);
 
     this.tooltip.classList.add('hidden');
     console.log('Bounding box drawing disabled');
@@ -322,8 +349,8 @@ export class BBoxDrawer {
     console.log('Clearing bounding box');
 
     this.disableDrawing();
-    this.vectorSource.clear();
-    this.currentFeature = null;
+    this.clearBboxDisplay();
+    this.currentBbox = null;
     this.tooltip.classList.add('hidden');
 
     console.log('Bounding box cleared');
@@ -338,62 +365,21 @@ export class BBoxDrawer {
 
   /**
    * Programmatically load a bounding box extent onto the map
-   * Used when loading saved bookmarks
    */
   loadExtent(bbox: BoundingBox): void {
     // Clear any existing drawing
     this.disableDrawing();
-    this.vectorSource.clear();
 
-    // Transform from EPSG:3006 to EPSG:3857 for map display
-    const [minX, minY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.minX, bbox.minY]);
-    const [maxX, maxY] = proj4('EPSG:3006', 'EPSG:3857', [bbox.maxX, bbox.maxY]);
+    // Convert from EPSG:3006 to lon/lat for display
+    const [minLon, minLat] = this.fromEPSG3006(bbox.minX, bbox.minY);
+    const [maxLon, maxLat] = this.fromEPSG3006(bbox.maxX, bbox.maxY);
 
-    // Create a polygon feature for the extent
-    const coordinates = [
-      [
-        [minX, minY],
-        [maxX, minY],
-        [maxX, maxY],
-        [minX, maxY],
-        [minX, minY],
-      ],
-    ];
+    this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
+    this.currentBbox = bbox;
 
-    const polygon = new Polygon(coordinates);
-    const feature = new Feature({ geometry: polygon });
-    feature.setStyle(this.boxStyle);
-
-    this.vectorSource.addFeature(feature);
-    this.currentFeature = feature as Feature<Polygon>;
-
-    // Re-setup tooltip handler for the loaded extent
-    this.pointermoveHandler = (event) => {
-      if (this.currentFeature) {
-        const geometry = this.currentFeature.getGeometry();
-        if (geometry) {
-          const extent = geometry.getExtent() as ExtentType;
-          if (this.isValidExtent(extent)) {
-            const originalEvent = event.originalEvent;
-            if ('clientX' in originalEvent && 'clientY' in originalEvent) {
-              this.tooltip.style.left = `${originalEvent.clientX + 15}px`;
-              this.tooltip.style.top = `${originalEvent.clientY + 15}px`;
-              this.updateTooltipContent(extent);
-              this.tooltip.classList.remove('hidden');
-              return;
-            }
-          }
-        }
-      }
-      this.tooltip.classList.add('hidden');
-    };
-
-    this.mouseoutHandler = () => {
-      this.tooltip.classList.add('hidden');
-    };
-
-    this.map.on('pointermove', this.pointermoveHandler);
-    this.map.getViewport().addEventListener('mouseout', this.mouseoutHandler);
+    // Set up tooltip handler for the loaded extent
+    this.map.on('mousemove', this.onMouseMove);
+    this.map.getCanvas().addEventListener('mouseleave', this.onMouseLeave);
 
     // Trigger the callback
     if (this.callback) {
@@ -405,26 +391,12 @@ export class BBoxDrawer {
    * Check if current bounding box meets minimum area requirement
    */
   getCurrentBBoxArea(): { areaM2: number; isValid: boolean } | null {
-    if (!this.currentFeature) {
+    if (!this.currentBbox) {
       return null;
     }
 
-    const geometry = this.currentFeature.getGeometry();
-    if (!geometry) {
-      return null;
-    }
-
-    const extent = geometry.getExtent() as ExtentType;
-    if (!this.isValidExtent(extent)) {
-      return null;
-    }
-
-    // Transform corners to EPSG:3006 for accurate area calculation
-    const [minX, minY] = proj4('EPSG:3857', 'EPSG:3006', [extent[0], extent[1]]);
-    const [maxX, maxY] = proj4('EPSG:3857', 'EPSG:3006', [extent[2], extent[3]]);
-
-    const width = Math.abs(maxX - minX);
-    const height = Math.abs(maxY - minY);
+    const width = Math.abs(this.currentBbox.maxX - this.currentBbox.minX);
+    const height = Math.abs(this.currentBbox.maxY - this.currentBbox.minY);
     const areaM2 = width * height;
 
     return {

@@ -136,7 +136,8 @@ __pycache__/
 *.pyo
 *.pyd
 .venv/
-*.lock
+poetry.lock
+uv.lock
 build/
 
 # IDEs and editors
