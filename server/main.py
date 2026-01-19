@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from server.jobs import JobManager, create_jobs_router
 from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata, get_dataset_geojson_path
 from server.vector.routes import clip_features_to_bounds
+from server.admin import create_admin_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 import json
 
@@ -217,11 +218,24 @@ vector_router = create_vector_router()
 app.include_router(vector_router, prefix="/api/v1")
 print("Vector datasets router mounted at /api/v1/vector")
 
+# Mount admin router
+admin_router = create_admin_router()
+app.include_router(admin_router, prefix="/api/v1")
+print("Admin router mounted at /api/v1/admin")
+
 
 # Mount static files (must be last due to catch-all route)
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+    @app.get("/admin")
+    async def serve_admin():
+        """Serve the admin panel."""
+        admin_path = static_dir / "admin.html"
+        if admin_path.exists():
+            return FileResponse(admin_path)
+        raise fastapi.HTTPException(status_code=404, detail="Admin page not found")
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
