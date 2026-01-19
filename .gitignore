@@ -163,3 +163,9 @@ frontend/dist/
 # Test output
 *.test.log
 coverage/
+
+# Published datasets (large GeoJSON files from LM Geotorget)
+data/published/
+
+# Temp folder (cloned repos, downloaded orders)
+temp/

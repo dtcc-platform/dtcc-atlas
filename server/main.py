@@ -17,10 +17,12 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from server.jobs import JobManager, create_jobs_router
+from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata
+from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 
 # Create job manager at module level so routes can be registered before catch-all
-job_manager = JobManager(max_workers=4, job_timeout=120.0)
-print("Job manager initialized with 4 workers, 2min timeout")
+job_manager = JobManager(max_workers=JOB_MAX_WORKERS, job_timeout=JOB_TIMEOUT)
+print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
 
 
 @asynccontextmanager
@@ -54,15 +56,34 @@ available_dataset_names = list(available_datasets.keys())
 
 @app.get("/api/v1/datasets/list")
 def list_datasets():
-    return {"datasets": available_dataset_names}
+    """List all available datasets (dtcc-core + published vector datasets)."""
+    # Start with dtcc-core datasets
+    all_datasets = [
+        {"name": name, "type": "raster", "source": "dtcc-core"}
+        for name in available_dataset_names
+    ]
+
+    # Add published vector datasets
+    published = discover_published_datasets()
+    all_datasets.extend(published)
+
+    return {"datasets": all_datasets}
 
 
 @app.get("/api/v1/datasets/get_args/{dataset_name}")
 def get_dataset_args(dataset_name: str):
-    if dataset_name not in available_datasets:
-        raise fastapi.HTTPException(status_code=404, detail="Dataset not found")
-    dataset = available_datasets[dataset_name]
-    return dataset.show_options()
+    """Get parameter schema for a dataset (dtcc-core or published vector)."""
+    # Check dtcc-core datasets first
+    if dataset_name in available_datasets:
+        dataset = available_datasets[dataset_name]
+        return dataset.show_options()
+
+    # Check published vector datasets
+    metadata = get_dataset_metadata(dataset_name)
+    if metadata:
+        return metadata.get("schema", {})
+
+    raise fastapi.HTTPException(status_code=404, detail="Dataset not found")
 
 
 class DatasetDownloadRequest(BaseModel):
@@ -140,6 +161,11 @@ def download_dataset(request: DatasetDownloadRequest):
 # Mount jobs router BEFORE the catch-all SPA route
 jobs_router = create_jobs_router(job_manager)
 app.include_router(jobs_router, prefix="/api/v1")
+
+# Mount vector datasets router
+vector_router = create_vector_router()
+app.include_router(vector_router, prefix="/api/v1")
+print("Vector datasets router mounted at /api/v1/vector")
 
 
 # Mount static files (must be last due to catch-all route)
