@@ -4,55 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DTCC Admin</title>
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="icon" href="/favicon.ico">
+    <!-- Google Fonts - Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dtcc: {
+                            dark: '#27252A',
+                            navy: '#27252A',
+                            orange: '#E35A1D',
+                            'orange-dark': '#c94d18',
+                            yellow: '#FADA36',
+                            teal: '#78C8BE',
+                            bg: '#FAFAFA',
+                            muted: '#54545a',
+                            gray: '#7a7a80',
+                            'gray-dark': '#54545a',
+                            'gray-light': '#e8e8ea',
+                            'gray-lighter': '#FAFAFA',
+                            border: '#d0d0d4',
+                            'border-light': '#e8e8ea',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Montserrat', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
+        body {
+            font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+        }
         .spinner {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
+            display: inline-block;
             width: 16px;
             height: 16px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
+            border: 2px solid rgba(227, 90, 29, 0.3);
+            border-top-color: #E35A1D;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
         }
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            to { transform: rotate(360deg); }
+        }
+        .shadow-panel {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 10px 15px -3px rgb(0 0 0 / 0.05);
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-6 max-w-6xl">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-8 pb-4 border-b border-gray-700">
-            <h1 class="text-2xl font-bold text-white">DTCC Admin</h1>
-            <button onclick="refreshAll()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium transition-colors">
+<body class="bg-dtcc-bg text-dtcc-dark min-h-screen">
+    <!-- Header -->
+    <header class="bg-dtcc-navy/95 backdrop-blur-sm text-white px-6 py-2.5 flex items-center justify-between border-b border-white/10">
+        <div class="flex items-center gap-3">
+            <h1 class="text-sm font-semibold tracking-tight leading-none">DTCC Admin</h1>
+            <span class="text-xs text-white/50 font-mono hidden sm:inline">v0.1.0</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="/" class="text-xs text-white/70 hover:text-white transition-colors">Back to Map</a>
+            <button onclick="refreshAll()" class="px-3 py-1.5 bg-dtcc-orange hover:bg-dtcc-orange-dark rounded text-xs font-semibold transition-colors">
                 Refresh
             </button>
-        </header>
+        </div>
+    </header>
 
+    <div class="container mx-auto px-6 py-6 max-w-6xl">
         <!-- Published Datasets Section -->
         <section class="mb-8">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">
-                    Published Datasets
-                    <span id="datasets-summary" class="text-sm font-normal text-gray-400"></span>
-                </h2>
+                <div>
+                    <h2 class="text-base font-semibold text-dtcc-navy">Published Datasets</h2>
+                    <p id="datasets-summary" class="text-xs text-dtcc-muted font-mono mt-1">Loading...</p>
+                </div>
             </div>
-            <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <div class="bg-white rounded-lg shadow-panel border border-dtcc-border overflow-hidden">
                 <table class="w-full">
-                    <thead class="bg-gray-700">
+                    <thead class="bg-dtcc-gray-lighter border-b border-dtcc-border-light">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Features</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Size</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Updated</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-dtcc-muted uppercase tracking-wider">Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-dtcc-muted uppercase tracking-wider">Features</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-dtcc-muted uppercase tracking-wider">Size</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-dtcc-muted uppercase tracking-wider">Updated</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-dtcc-muted uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="datasets-table" class="divide-y divide-gray-700">
+                    <tbody id="datasets-table" class="divide-y divide-dtcc-border-light">
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-400">Loading...</td>
+                            <td colspan="5" class="px-4 py-8 text-center text-dtcc-muted text-sm">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -62,23 +111,23 @@
         <!-- Download and Orders Section -->
         <div class="grid md:grid-cols-2 gap-6 mb-8">
             <!-- Download New Order -->
-            <section class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-lg font-semibold mb-4">Download New Order</h2>
+            <section class="bg-white rounded-lg shadow-panel border border-dtcc-border p-6">
+                <h2 class="text-base font-semibold text-dtcc-navy mb-4">Download New Order</h2>
                 <form id="download-form" onsubmit="downloadOrder(event)">
                     <div class="mb-4">
-                        <label for="order-id" class="block text-sm font-medium text-gray-300 mb-2">Order ID</label>
+                        <label for="order-id" class="block text-xs font-semibold text-dtcc-muted uppercase tracking-wider mb-2">Order ID</label>
                         <input
                             type="text"
                             id="order-id"
                             name="order_id"
                             placeholder="Enter Geotorget order UUID"
-                            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            class="w-full px-3 py-2.5 bg-white border-2 border-dtcc-border rounded text-sm placeholder-dtcc-gray focus:outline-none focus:border-dtcc-orange focus:ring-2 focus:ring-dtcc-orange/10 transition-all"
                         >
                     </div>
                     <button
                         type="submit"
                         id="download-btn"
-                        class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-medium transition-colors"
+                        class="w-full px-4 py-2.5 bg-dtcc-teal hover:bg-dtcc-teal/90 text-dtcc-dark disabled:bg-dtcc-gray-light disabled:text-dtcc-gray disabled:cursor-not-allowed rounded font-semibold text-sm transition-colors"
                     >
                         Download
                     </button>
@@ -86,19 +135,19 @@
             </section>
 
             <!-- Downloaded Orders -->
-            <section class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-lg font-semibold mb-4">Downloaded Orders</h2>
+            <section class="bg-white rounded-lg shadow-panel border border-dtcc-border p-6">
+                <h2 class="text-base font-semibold text-dtcc-navy mb-4">Downloaded Orders</h2>
                 <div id="orders-list" class="space-y-3 max-h-64 overflow-y-auto">
-                    <p class="text-gray-400 text-sm">Loading...</p>
+                    <p class="text-dtcc-muted text-sm">Loading...</p>
                 </div>
             </section>
         </div>
 
         <!-- Status Bar -->
-        <footer class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 px-4 py-3">
+        <footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-dtcc-border px-6 py-3">
             <div class="container mx-auto max-w-6xl flex items-center">
-                <span class="text-sm text-gray-400">Status:</span>
-                <span id="status-text" class="ml-2 text-sm text-gray-300">Ready</span>
+                <span class="text-xs text-dtcc-muted font-mono">Status:</span>
+                <span id="status-text" class="ml-2 text-xs text-dtcc-dark font-medium">Ready</span>
                 <span id="status-spinner" class="ml-2 hidden"><span class="spinner"></span></span>
             </div>
         </footer>
@@ -142,14 +191,14 @@
 
         function renderDatasets(data) {
             const summary = document.getElementById('datasets-summary');
-            summary.textContent = `(${data.total_count} datasets, ${data.total_size_mb} MB)`;
+            summary.textContent = `${data.total_count} datasets, ${data.total_size_mb} MB total`;
 
             const tbody = document.getElementById('datasets-table');
             tbody.replaceChildren();
 
             if (data.datasets.length === 0) {
                 const tr = document.createElement('tr');
-                const td = createTextElement('td', 'No published datasets', 'px-4 py-8 text-center text-gray-400');
+                const td = createTextElement('td', 'No published datasets', 'px-4 py-8 text-center text-dtcc-muted text-sm');
                 td.colSpan = 5;
                 tr.appendChild(td);
                 tbody.appendChild(tr);
@@ -158,32 +207,32 @@
 
             data.datasets.forEach(ds => {
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-700/50';
+                tr.className = 'hover:bg-dtcc-gray-lighter/50 transition-colors';
 
                 // Name cell
                 const nameCell = document.createElement('td');
                 nameCell.className = 'px-4 py-3';
-                const nameDiv = createTextElement('div', ds.name, 'font-medium text-white');
-                const titleDiv = createTextElement('div', ds.title, 'text-xs text-gray-400');
+                const nameDiv = createTextElement('div', ds.name, 'font-medium text-dtcc-dark text-sm');
+                const titleDiv = createTextElement('div', ds.title, 'text-xs text-dtcc-muted mt-0.5');
                 nameCell.appendChild(nameDiv);
                 nameCell.appendChild(titleDiv);
                 tr.appendChild(nameCell);
 
                 // Features cell
-                tr.appendChild(createTextElement('td', formatNumber(ds.feature_count), 'px-4 py-3 text-gray-300'));
+                tr.appendChild(createTextElement('td', formatNumber(ds.feature_count), 'px-4 py-3 text-dtcc-gray-dark text-sm font-mono'));
 
                 // Size cell
-                tr.appendChild(createTextElement('td', ds.size_mb + ' MB', 'px-4 py-3 text-gray-300'));
+                tr.appendChild(createTextElement('td', ds.size_mb + ' MB', 'px-4 py-3 text-dtcc-gray-dark text-sm font-mono'));
 
                 // Updated cell
-                tr.appendChild(createTextElement('td', formatDate(ds.updated), 'px-4 py-3 text-gray-300 text-sm'));
+                tr.appendChild(createTextElement('td', formatDate(ds.updated), 'px-4 py-3 text-dtcc-muted text-xs'));
 
                 // Actions cell
                 const actionsCell = document.createElement('td');
                 actionsCell.className = 'px-4 py-3';
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete';
-                deleteBtn.className = 'px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-medium transition-colors';
+                deleteBtn.className = 'px-2.5 py-1 bg-dtcc-orange/10 text-dtcc-orange hover:bg-dtcc-orange hover:text-white rounded text-xs font-semibold transition-colors';
                 deleteBtn.addEventListener('click', () => deleteDataset(ds.name));
                 actionsCell.appendChild(deleteBtn);
                 tr.appendChild(actionsCell);
@@ -207,26 +256,26 @@
             container.replaceChildren();
 
             if (orders.length === 0) {
-                container.appendChild(createTextElement('p', 'No downloaded orders', 'text-gray-400 text-sm'));
+                container.appendChild(createTextElement('p', 'No downloaded orders', 'text-dtcc-muted text-sm'));
                 return;
             }
 
             orders.forEach(order => {
                 const card = document.createElement('div');
-                card.className = 'bg-gray-700 rounded p-3';
+                card.className = 'bg-dtcc-gray-lighter rounded-lg p-3 border border-dtcc-border-light';
 
                 const topRow = document.createElement('div');
                 topRow.className = 'flex justify-between items-start mb-2';
 
                 const orderId = document.createElement('div');
-                orderId.className = 'text-sm font-mono text-gray-300 truncate flex-1 mr-2';
+                orderId.className = 'text-xs font-mono text-dtcc-gray-dark truncate flex-1 mr-2';
                 orderId.title = order.order_id;
                 orderId.textContent = order.order_id.substring(0, 20) + '...';
                 topRow.appendChild(orderId);
 
                 const publishBtn = document.createElement('button');
                 publishBtn.textContent = 'Publish';
-                publishBtn.className = 'px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors whitespace-nowrap';
+                publishBtn.className = 'px-3 py-1 bg-dtcc-orange hover:bg-dtcc-orange-dark text-white rounded text-xs font-semibold transition-colors whitespace-nowrap';
                 publishBtn.addEventListener('click', () => publishOrder(order.order_id));
                 topRow.appendChild(publishBtn);
 
@@ -236,7 +285,7 @@
                 if (order.download_date) {
                     infoText += ' | ' + formatDate(order.download_date);
                 }
-                card.appendChild(createTextElement('div', infoText, 'text-xs text-gray-400'));
+                card.appendChild(createTextElement('div', infoText, 'text-xs text-dtcc-muted'));
 
                 container.appendChild(card);
             });
