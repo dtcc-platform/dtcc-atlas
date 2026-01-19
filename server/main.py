@@ -229,20 +229,18 @@ static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
-    @app.get("/admin")
-    async def serve_admin():
-        """Serve the admin panel."""
-        admin_path = static_dir / "admin.html"
-        if admin_path.exists():
-            return FileResponse(admin_path)
-        raise fastapi.HTTPException(status_code=404, detail="Admin page not found")
-
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """
         Serve the SPA for all routes not matched by API endpoints.
         This allows client-side routing to work properly.
         """
+        # Serve admin panel for /admin or /admin/
+        if full_path in ("admin", "admin/"):
+            admin_path = static_dir / "admin.html"
+            if admin_path.exists():
+                return FileResponse(admin_path)
+
         # If path looks like a file request, try to serve it
         file_path = static_dir / full_path
         if file_path.is_file():
