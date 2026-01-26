@@ -62,6 +62,10 @@ async function initializeApp(): Promise<void> {
     if (searchInputIcon) searchInputIcon.innerHTML = Icons.search;
     if (closeSearchIcon) closeSearchIcon.innerHTML = Icons.close;
 
+    // Initialize view toggle icon
+    const viewIcon = document.getElementById('view-icon');
+    if (viewIcon) viewIcon.innerHTML = Icons.view3d;
+
     // Create bounding box drawer
     const bboxDrawer = new BBoxDrawer(map);
 
@@ -141,6 +145,20 @@ async function initializeApp(): Promise<void> {
       if (e.key === 'Escape') {
         searchBoxEl?.classList.add('hidden');
       }
+    });
+
+    // View toggle button
+    const toggleViewBtn = document.getElementById('toggle-view') as HTMLButtonElement;
+    const viewLabel = document.getElementById('view-label');
+
+    toggleViewBtn?.addEventListener('click', () => {
+      const is3D = mapManager.toggle3DView();
+
+      // Update button appearance
+      if (viewIcon) viewIcon.innerHTML = is3D ? Icons.view2d : Icons.view3d;
+      if (viewLabel) viewLabel.textContent = is3D ? '2D View' : '3D View';
+      toggleViewBtn.setAttribute('data-view', is3D ? '3d' : '2d');
+      toggleViewBtn.setAttribute('data-tooltip', is3D ? 'Switch to 2D view' : 'Switch to 3D view');
     });
 
     // Enable drawing when button is clicked

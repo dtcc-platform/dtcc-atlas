@@ -2,6 +2,16 @@ import maplibregl from 'maplibre-gl';
 
 export class MapManager {
   private map: maplibregl.Map | null = null;
+  private is3D: boolean = false;
+
+  private skyConfig: maplibregl.SkySpecification = {
+    "sky-color": "#68a0f9",
+    "horizon-color": "#f8fbff",
+    "sky-horizon-blend": 0.85,
+    "fog-color": "#999ba2",
+    "horizon-fog-blend": 0.6,
+    "fog-ground-blend": 0.15
+  };
 
   initializeMap(targetId: string): maplibregl.Map {
     this.map = new maplibregl.Map({
@@ -46,6 +56,26 @@ export class MapManager {
 
   getMap(): maplibregl.Map | null {
     return this.map;
+  }
+
+  toggle3DView(): boolean {
+    if (!this.map) return false;
+
+    this.is3D = !this.is3D;
+
+    if (this.is3D) {
+      this.map.easeTo({ pitch: 60, bearing: -60, duration: 500 });
+      this.map.setSky(this.skyConfig);
+    } else {
+      this.map.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+      this.map.setSky({});
+    }
+
+    return this.is3D;
+  }
+
+  is3DView(): boolean {
+    return this.is3D;
   }
 }
 
