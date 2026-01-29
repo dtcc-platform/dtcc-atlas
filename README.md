@@ -32,3 +32,18 @@ Build the frontend and serve everything from the FastAPI server:
 
 - `start_dev.sh`: Checks for dependencies, handles port conflicts, starts both servers concurrently
 - `build_and_start.sh`: Builds frontend, copies static files to `server/static/`, starts FastAPI server
+
+## Installation instructions (AL)
+
+This works for me:
+
+    cd dtcc-dataset-downloader
+    python3.12 -m venv venv
+    source venv/bin/activate
+    pip install -e .
+    ./build_and_start.sh
+
+Also had to do:
+
+    cd frontend
+    npm install -D @tailwindcss/vite
