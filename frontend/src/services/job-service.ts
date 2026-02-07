@@ -6,12 +6,21 @@ import { API_BASE_URL } from '../config';
 
 export type JobStatus = 'queued' | 'processing' | 'complete' | 'failed';
 
+export interface JobProgress {
+  percent: number;
+  message: string;
+  phase: string | null;
+  eta_formatted: string | null;
+  phases?: Record<string, unknown> | null;
+}
+
 export interface Job {
   id: string;
   dataset: string;
   status: JobStatus;
   filename: string | null;
   error: string | null;
+  progress?: JobProgress | null;
   created_at: string;
   completed_at: string | null;
   download_url: string | null;

@@ -32,6 +32,7 @@ class JobStatusResponse(BaseModel):
     status: str
     filename: Optional[str]
     error: Optional[str]
+    progress: Optional[Dict[str, Any]] = None
     created_at: str
     completed_at: Optional[str]
     download_url: Optional[str] = None
@@ -87,6 +88,7 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
             status=job.status.value,
             filename=job.filename,
             error=job.error,
+            progress=job.progress,
             created_at=job.created_at.isoformat(),
             completed_at=job.completed_at.isoformat() if job.completed_at else None,
         )

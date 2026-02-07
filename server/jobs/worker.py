@@ -1,11 +1,16 @@
 """Worker function for processing jobs in separate processes."""
 
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Callable, Optional
 import json
 import re
 import os
 import tempfile
+import time
 from pathlib import Path
+
+
+_PROGRESS_MIN_INTERVAL = 0.2
+_PROGRESS_MIN_DELTA = 0.5
 
 
 def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
@@ -85,9 +90,57 @@ def extract_error_message(error: Exception) -> str:
     return error_str
 
 
+def _make_progress_emitter(
+    on_progress: Optional[Callable[[Dict[str, Any]], None]]
+) -> Optional[Callable[[Dict[str, Any]], None]]:
+    """Wrap raw progress callbacks with normalization and throttling."""
+    if on_progress is None:
+        return None
+
+    last_emit_time = 0.0
+    last_percent = -1.0
+
+    def emit(state: Dict[str, Any]) -> None:
+        nonlocal last_emit_time, last_percent
+        if not isinstance(state, dict):
+            return
+
+        try:
+            percent = float(state.get("percent", 0.0))
+        except (TypeError, ValueError):
+            percent = 0.0
+
+        percent = max(0.0, min(100.0, percent))
+        now = time.monotonic()
+        should_emit = (
+            percent >= 100.0
+            or last_emit_time == 0.0
+            or now - last_emit_time >= _PROGRESS_MIN_INTERVAL
+            or abs(percent - last_percent) >= _PROGRESS_MIN_DELTA
+        )
+        if not should_emit:
+            return
+
+        payload = {
+            "percent": round(percent, 2),
+            "message": "" if state.get("message") is None else str(state.get("message")),
+            "phase": None if state.get("phase") is None else str(state.get("phase")),
+            "eta_formatted": (
+                None if state.get("eta_formatted") is None else str(state.get("eta_formatted"))
+            ),
+            "phases": state.get("phases") if isinstance(state.get("phases"), dict) else None,
+        }
+        on_progress(payload)
+        last_emit_time = now
+        last_percent = percent
+
+    return emit
+
+
 def process_dataset_job(
     dataset_name: str,
     params: Dict[str, Any],
+    on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """
     Process a dataset generation job.
@@ -120,16 +173,27 @@ def process_dataset_job(
         pass
 
     available_datasets = datasets.list()
+    emit_progress = _make_progress_emitter(on_progress)
 
     # Check if it's a dtcc-core dataset
     if dataset_name in available_datasets:
-        return _process_core_dataset(dataset_name, params, available_datasets)
+        return _process_core_dataset(
+            dataset_name,
+            params,
+            available_datasets,
+            on_progress=emit_progress,
+        )
 
     # Check if it's a published vector dataset
     from server.vector.discovery import get_dataset_geojson_path
     geojson_path = get_dataset_geojson_path(dataset_name)
     if geojson_path:
-        return _process_vector_dataset(dataset_name, params, geojson_path)
+        return _process_vector_dataset(
+            dataset_name,
+            params,
+            geojson_path,
+            on_progress=emit_progress,
+        )
 
     # Dataset not found in either source
     raise ValueError(f"Dataset '{dataset_name}' not found")
@@ -139,14 +203,33 @@ def _process_core_dataset(
     dataset_name: str,
     params: Dict[str, Any],
     available_datasets: Dict,
+    on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """Process a dtcc-core dataset."""
     dataset = available_datasets[dataset_name]
+    from dtcc_core.common.progress import ProgressTracker, set_progress_callback
 
     try:
         # Validate and generate dataset
         _ = dataset.ArgsModel(**params)
-        data = dataset(**params)
+        if on_progress:
+            on_progress(
+                {
+                    "percent": 0.0,
+                    "phase": "prepare",
+                    "message": "Preparing dataset request...",
+                    "eta_formatted": None,
+                    "phases": None,
+                }
+            )
+            set_progress_callback(on_progress)
+            try:
+                with ProgressTracker(callback=on_progress, mode="callback"):
+                    data = dataset(**params)
+            finally:
+                set_progress_callback(None)
+        else:
+            data = dataset(**params)
     except Exception as e:
         # Re-raise with cleaned error message
         clean_message = extract_error_message(e)
@@ -179,6 +262,17 @@ def _process_core_dataset(
     # Handle cityjson extension
     extension = "city.json" if file_format == "cityjson" else file_format
 
+    if on_progress:
+        on_progress(
+            {
+                "percent": 100.0,
+                "phase": "complete",
+                "message": "Dataset ready",
+                "eta_formatted": None,
+                "phases": None,
+            }
+        )
+
     return (data, extension, content_type)
 
 
@@ -186,9 +280,21 @@ def _process_vector_dataset(
     dataset_name: str,
     params: Dict[str, Any],
     geojson_path: Path,
+    on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """Process a published vector dataset."""
     from server.vector.routes import clip_features_to_bounds
+
+    if on_progress:
+        on_progress(
+            {
+                "percent": 5.0,
+                "phase": "load",
+                "message": "Loading vector dataset...",
+                "eta_formatted": None,
+                "phases": None,
+            }
+        )
 
     bounds = params.get("bounds")
     if not bounds or len(bounds) != 4:
@@ -200,12 +306,45 @@ def _process_vector_dataset(
     except (json.JSONDecodeError, IOError) as e:
         raise RuntimeError(f"Error reading dataset: {e}") from None
 
+    if on_progress:
+        on_progress(
+            {
+                "percent": 35.0,
+                "phase": "clip",
+                "message": "Clipping features to selected bounds...",
+                "eta_formatted": None,
+                "phases": None,
+            }
+        )
+
     # Filter features to bounds
     filtered = clip_features_to_bounds(geojson, bounds)
     feature_count = len(filtered.get("features", []))
     print(f"[job worker] Vector dataset '{dataset_name}': {feature_count} features within bounds")
 
+    if on_progress:
+        on_progress(
+            {
+                "percent": 80.0,
+                "phase": "encode",
+                "message": "Preparing GeoJSON download...",
+                "eta_formatted": None,
+                "phases": None,
+            }
+        )
+
     # Convert to bytes
     data = json.dumps(filtered).encode("utf-8")
+
+    if on_progress:
+        on_progress(
+            {
+                "percent": 100.0,
+                "phase": "complete",
+                "message": "Dataset ready",
+                "eta_formatted": None,
+                "phases": None,
+            }
+        )
 
     return (data, "geojson", "application/geo+json")

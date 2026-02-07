@@ -2,7 +2,9 @@
 
 import asyncio
 import multiprocessing
+import queue
 import threading
+import time
 from datetime import datetime
 from typing import Dict, Optional, List, Any
 from collections import deque
@@ -19,6 +21,8 @@ class JobManager:
     Uses multiprocessing.Process directly instead of ProcessPoolExecutor
     to allow for reliable job cancellation/termination.
     """
+    _PROGRESS_EVENT_MIN_INTERVAL = 0.25
+    _PROGRESS_EVENT_MIN_DELTA = 1.0
 
     def __init__(
         self,
@@ -119,6 +123,7 @@ class JobManager:
                     )
                     job.status = JobStatus.FAILED
                     job.error = "Cancelled by user"
+                    job.progress = None
                     job.completed_at = datetime.now()
                 except ValueError:
                     pass
@@ -141,6 +146,7 @@ class JobManager:
 
                 job.status = JobStatus.FAILED
                 job.error = "Cancelled by user"
+                job.progress = None
                 job.completed_at = datetime.now()
                 self._active_count -= 1
 
@@ -166,6 +172,13 @@ class JobManager:
 
             if job and job.status == JobStatus.QUEUED:
                 job.status = JobStatus.PROCESSING
+                job.progress = {
+                    "percent": 0.0,
+                    "phase": "queued",
+                    "message": "Starting job...",
+                    "eta_formatted": None,
+                    "phases": None,
+                }
                 self._active_count += 1
                 job_to_process = job
 
@@ -191,23 +204,129 @@ class JobManager:
         process.start()
 
         try:
-            # Wait for result with timeout
-            result = await asyncio.get_event_loop().run_in_executor(
-                None,
-                _wait_for_result,
-                result_queue,
-                process,
-                self._job_timeout,
-            )
+            started_at = time.monotonic()
+            last_progress_emit_at = 0.0
+            last_progress_percent = -1.0
+            result: Any = None
+            worker_error: Optional[str] = None
+            timed_out = False
+            cancelled = False
+            done = False
 
-            # Check if job was already cancelled - if so, skip all handling
+            while not done:
+                with self._lock:
+                    if job.status == JobStatus.FAILED:
+                        cancelled = True
+                        break
+
+                while True:
+                    try:
+                        message = result_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+                    if isinstance(message, dict):
+                        message_type = message.get("type")
+                        if message_type == "progress":
+                            progress = _normalize_progress_state(message.get("data"))
+                            if progress is None:
+                                continue
+
+                            percent = progress["percent"]
+                            now = time.monotonic()
+                            should_emit = (
+                                percent >= 100.0
+                                or last_progress_emit_at == 0.0
+                                or now - last_progress_emit_at >= self._PROGRESS_EVENT_MIN_INTERVAL
+                                or abs(percent - last_progress_percent) >= self._PROGRESS_EVENT_MIN_DELTA
+                            )
+
+                            with self._lock:
+                                if job.status != JobStatus.PROCESSING:
+                                    continue
+                                job.progress = progress
+
+                            if should_emit:
+                                self._broadcast_event("job_update", job.to_dict())
+                                last_progress_emit_at = now
+                                last_progress_percent = percent
+                            continue
+
+                        if message_type == "result":
+                            result = message.get("data")
+                            done = True
+                            break
+
+                        if message_type == "error":
+                            worker_error = str(message.get("error") or "Worker failed")
+                            done = True
+                            break
+
+                    # Backward compatibility for any legacy worker payload format.
+                    if isinstance(message, Exception):
+                        worker_error = str(message)
+                    else:
+                        result = message
+                    done = True
+                    break
+
+                if done:
+                    break
+
+                if time.monotonic() - started_at > self._job_timeout:
+                    timed_out = True
+                    break
+
+                if not process.is_alive():
+                    drained_result = False
+                    drain_deadline = time.monotonic() + 0.5
+                    while time.monotonic() < drain_deadline:
+                        try:
+                            message = result_queue.get(timeout=0.1)
+                        except Exception:
+                            break
+
+                        if isinstance(message, dict):
+                            message_type = message.get("type")
+                            if message_type == "progress":
+                                progress = _normalize_progress_state(message.get("data"))
+                                if progress is not None:
+                                    with self._lock:
+                                        if job.status == JobStatus.PROCESSING:
+                                            job.progress = progress
+                                continue
+                            if message_type == "result":
+                                result = message.get("data")
+                                drained_result = True
+                                break
+                            if message_type == "error":
+                                worker_error = str(message.get("error") or "Worker failed")
+                                drained_result = True
+                                break
+
+                        if isinstance(message, Exception):
+                            worker_error = str(message)
+                        else:
+                            result = message
+                        drained_result = True
+                        break
+
+                    if not drained_result:
+                        worker_error = "Worker process exited unexpectedly without a result"
+                    done = True
+                    break
+
+                await asyncio.sleep(0.05)
+
+            # Check if job was cancelled while executing.
             with self._lock:
                 if job.status == JobStatus.FAILED:
-                    # Job was cancelled while we were waiting, nothing to do
-                    return
+                    cancelled = True
 
-            if result is None:
-                # Timeout - kill the process
+            if cancelled:
+                pass
+            elif timed_out:
+                # Timeout - kill the process.
                 if process.is_alive():
                     process.terminate()
                     process.join(timeout=2)
@@ -216,63 +335,92 @@ class JobManager:
                         process.join(timeout=1)
 
                 with self._lock:
-                    # Double-check job wasn't cancelled during process termination
                     if job.status == JobStatus.FAILED:
-                        return
-                    job.status = JobStatus.FAILED
-                    job.error = f"Job timed out after {self._job_timeout} seconds"
-                    job.completed_at = datetime.now()
-                    self._active_count -= 1
+                        cancelled = True
+                    else:
+                        job.status = JobStatus.FAILED
+                        job.error = f"Job timed out after {self._job_timeout} seconds"
+                        job.progress = None
+                        job.completed_at = datetime.now()
+                        self._active_count -= 1
 
-                self._broadcast_event("job_failed", job.to_dict())
+                if not cancelled:
+                    self._broadcast_event("job_failed", job.to_dict())
 
-            elif isinstance(result, Exception):
-                # Error from worker
+            elif worker_error is not None:
                 with self._lock:
-                    # Check if job was cancelled
                     if job.status == JobStatus.FAILED:
-                        return
-                    job.status = JobStatus.FAILED
-                    job.error = str(result)
-                    job.completed_at = datetime.now()
-                    self._active_count -= 1
+                        cancelled = True
+                    else:
+                        job.status = JobStatus.FAILED
+                        job.error = worker_error
+                        job.progress = None
+                        job.completed_at = datetime.now()
+                        self._active_count -= 1
 
-                self._broadcast_event("job_failed", job.to_dict())
+                if not cancelled:
+                    self._broadcast_event("job_failed", job.to_dict())
+
+            elif result is None:
+                with self._lock:
+                    if job.status == JobStatus.FAILED:
+                        cancelled = True
+                    else:
+                        job.status = JobStatus.FAILED
+                        job.error = "Worker returned no result"
+                        job.progress = None
+                        job.completed_at = datetime.now()
+                        self._active_count -= 1
+
+                if not cancelled:
+                    self._broadcast_event("job_failed", job.to_dict())
 
             else:
-                # Success
+                # Success.
                 data, extension, content_type = result
 
-                # Save result to storage
+                # Save result to storage.
                 result_path = self._storage.save_result(job.id, data, extension)
 
                 with self._lock:
-                    # Check if job was cancelled
                     if job.status == JobStatus.FAILED:
-                        return
-                    job.status = JobStatus.COMPLETE
-                    job.result_path = result_path
-                    job.content_type = content_type
-                    job.filename = f"{job.filename}.{extension}"
-                    job.completed_at = datetime.now()
-                    self._active_count -= 1
+                        cancelled = True
+                    else:
+                        job.status = JobStatus.COMPLETE
+                        job.result_path = result_path
+                        job.content_type = content_type
+                        job.filename = f"{job.filename}.{extension}"
+                        job.progress = {
+                            "percent": 100.0,
+                            "phase": "complete",
+                            "message": "Job complete",
+                            "eta_formatted": None,
+                            "phases": None,
+                        }
+                        job.completed_at = datetime.now()
+                        self._active_count -= 1
 
-                self._broadcast_event("job_complete", {
-                    **job.to_dict(),
-                    "download_url": f"/api/v1/jobs/{job.id}/download",
-                })
+                if not cancelled:
+                    self._broadcast_event("job_complete", {
+                        **job.to_dict(),
+                        "download_url": f"/api/v1/jobs/{job.id}/download",
+                    })
 
         except Exception as e:
+            should_broadcast = False
             with self._lock:
-                # Check if job was cancelled
                 if job.status == JobStatus.FAILED:
-                    return
-                job.status = JobStatus.FAILED
-                job.error = str(e)
-                job.completed_at = datetime.now()
-                self._active_count -= 1
+                    pass
+                else:
+                    job.status = JobStatus.FAILED
+                    job.error = str(e)
+                    job.progress = None
+                    job.completed_at = datetime.now()
+                    self._active_count -= 1
+                    should_broadcast = True
 
-            self._broadcast_event("job_failed", job.to_dict())
+            if should_broadcast:
+                self._broadcast_event("job_failed", job.to_dict())
 
         finally:
             # Cleanup
@@ -368,21 +516,41 @@ class JobManager:
 
 
 def _worker_wrapper(result_queue: multiprocessing.Queue, dataset: str, params: Dict[str, Any]) -> None:
-    """Wrapper function that runs in a separate process and puts result in queue."""
+    """Wrapper function that runs in a separate process and puts typed messages in queue."""
+    def on_progress(state: Dict[str, Any]) -> None:
+        result_queue.put({"type": "progress", "data": state})
+
     try:
-        result = process_dataset_job(dataset, params)
-        result_queue.put(result)
+        result = process_dataset_job(dataset, params, on_progress=on_progress)
+        result_queue.put({"type": "result", "data": result})
     except Exception as e:
-        result_queue.put(e)
+        result_queue.put({"type": "error", "error": str(e)})
 
 
-def _wait_for_result(
-    result_queue: multiprocessing.Queue,
-    process: multiprocessing.Process,
-    timeout: float,
-) -> Any:
-    """Wait for result from queue with timeout. Returns None on timeout."""
-    try:
-        return result_queue.get(timeout=timeout)
-    except:
+def _normalize_progress_state(state: Any) -> Optional[Dict[str, Any]]:
+    """Normalize progress payload shape for API consumers."""
+    if not isinstance(state, dict):
         return None
+
+    try:
+        percent = float(state.get("percent", 0.0))
+    except (TypeError, ValueError):
+        percent = 0.0
+
+    percent = max(0.0, min(100.0, percent))
+    message = "" if state.get("message") is None else str(state.get("message"))
+    phase = None if state.get("phase") is None else str(state.get("phase"))
+    eta_formatted = (
+        None if state.get("eta_formatted") is None else str(state.get("eta_formatted"))
+    )
+    phases = state.get("phases")
+    if not isinstance(phases, dict):
+        phases = None
+
+    return {
+        "percent": round(percent, 2),
+        "message": message,
+        "phase": phase,
+        "eta_formatted": eta_formatted,
+        "phases": phases,
+    }

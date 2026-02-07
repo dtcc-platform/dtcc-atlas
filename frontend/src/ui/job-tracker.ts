@@ -167,11 +167,15 @@ export class JobTracker {
   /**
    * Get status text
    */
-  private getStatusText(status: JobStatus): string {
+  private getStatusText(status: JobStatus, job?: Job): string {
     switch (status) {
       case 'queued':
         return 'Waiting in queue...';
       case 'processing':
+        if (job?.progress && typeof job.progress.percent === 'number' && Number.isFinite(job.progress.percent)) {
+          const percent = Math.max(0, Math.min(100, job.progress.percent));
+          return `Processing ${percent.toFixed(1)}%`;
+        }
         return 'Processing...';
       case 'complete':
         return 'Ready';
@@ -210,7 +214,32 @@ export class JobTracker {
   /**
    * Get progress bar HTML for processing jobs
    */
-  private getProgressBar(): string {
+  private getProgressBar(job: Job): string {
+    if (
+      job.progress &&
+      typeof job.progress.percent === 'number' &&
+      Number.isFinite(job.progress.percent)
+    ) {
+      const percent = Math.max(0, Math.min(100, job.progress.percent));
+      const phase = this.escapeHtml(job.progress.phase || 'Processing');
+      const message = this.escapeHtml(job.progress.message || '');
+      const eta = this.escapeHtml(job.progress.eta_formatted || '');
+      const detail = [message, eta ? `ETA ${eta}` : ''].filter(Boolean).join(' • ');
+
+      return `
+        <div class="mt-2">
+          <div class="flex items-center justify-between text-[11px] text-dtcc-gray-dark mb-1">
+            <span class="truncate">${phase}</span>
+            <span class="font-mono">${percent.toFixed(1)}%</span>
+          </div>
+          <div class="h-1.5 bg-dtcc-gray-lighter rounded-full overflow-hidden">
+            <div class="h-full bg-dtcc-blue rounded-full transition-all duration-300" style="width: ${percent.toFixed(1)}%"></div>
+          </div>
+          ${detail ? `<div class="mt-1 text-[11px] text-dtcc-gray-dark truncate">${detail}</div>` : ''}
+        </div>
+      `;
+    }
+
     return `
       <div class="mt-2 h-1.5 bg-dtcc-gray-lighter rounded-full overflow-hidden">
         <div class="h-full bg-dtcc-blue rounded-full animate-progress-indeterminate"></div>
@@ -228,7 +257,7 @@ export class JobTracker {
     item.id = `job-item-${job.id}`;
 
     const statusIndicator = this.getStatusIndicator(job.status);
-    const statusText = this.getStatusText(job.status);
+    const statusText = this.getStatusText(job.status, job);
     const relativeTime = this.getRelativeTime(job.created_at);
 
     let actionsHtml = '';
@@ -274,7 +303,7 @@ export class JobTracker {
       `;
     }
 
-    const progressBar = job.status === 'processing' ? this.getProgressBar() : '';
+    const progressBar = job.status === 'processing' ? this.getProgressBar(job) : '';
 
     // Error display with background highlight for failed jobs
     let errorHtml = '';
