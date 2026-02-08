@@ -9,7 +9,6 @@ import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, ValidationError
 from typing import Dict, Any
 import io
@@ -21,6 +20,7 @@ from server.vector import create_vector_router, discover_published_datasets, get
 from server.vector.routes import clip_features_to_bounds
 from server.admin import create_admin_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
+from server.middleware import SelectiveGZipMiddleware
 import json
 
 # Create job manager at module level so routes can be registered before catch-all
@@ -51,7 +51,11 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-app.add_middleware(GZipMiddleware, minimum_size=10000)
+app.add_middleware(
+    SelectiveGZipMiddleware,
+    minimum_size=10000,
+    skip_paths=("/api/v1/jobs/events",),
+)
 
 available_datasets = datasets.list()
 available_dataset_names = list(available_datasets.keys())

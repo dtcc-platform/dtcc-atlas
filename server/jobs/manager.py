@@ -2,6 +2,7 @@
 
 import asyncio
 import multiprocessing
+import os
 import queue
 import threading
 import time
@@ -47,6 +48,10 @@ class JobManager:
         self._storage = storage or JobStorage()
         self._subscribers: List[asyncio.Queue] = []
         self._subscriber_lock = threading.Lock()
+        self._debug_subscribers = (
+            os.getenv("JOB_DEBUG_SSE_SUBSCRIBERS", "").strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
         self._running = True
 
         # Track running processes for cancellation
@@ -468,6 +473,8 @@ class JobManager:
         q: asyncio.Queue = asyncio.Queue()
         with self._subscriber_lock:
             self._subscribers.append(q)
+            if self._debug_subscribers:
+                print(f"[job manager] SSE subscriber connected ({len(self._subscribers)} total)")
         return q
 
     def unsubscribe(self, q: asyncio.Queue) -> None:
@@ -475,6 +482,11 @@ class JobManager:
         with self._subscriber_lock:
             if q in self._subscribers:
                 self._subscribers.remove(q)
+                if self._debug_subscribers:
+                    print(
+                        f"[job manager] SSE subscriber disconnected "
+                        f"({len(self._subscribers)} total)"
+                    )
 
     def _broadcast_event(self, event_type: str, data: Dict[str, Any]) -> None:
         """Broadcast an event to all subscribers."""

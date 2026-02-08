@@ -184,7 +184,7 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
             event_generator(),
             media_type="text/event-stream",
             headers={
-                "Cache-Control": "no-cache",
+                "Cache-Control": "no-cache, no-transform",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",  # Disable buffering for nginx
             },

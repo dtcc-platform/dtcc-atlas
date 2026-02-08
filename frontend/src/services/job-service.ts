@@ -60,6 +60,8 @@ class JobService {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private isConnecting = false;
+  private fallbackPollingActive = false;
+  private fallbackPollingIntervalMs: number | null = null;
 
   /**
    * Submit a new job for processing
@@ -140,13 +142,16 @@ class JobService {
       this.eventSource = new EventSource(`${API_BASE_URL}/jobs/events`);
 
       this.eventSource.onopen = () => {
-        console.log('SSE connection established');
+        console.info('SSE connection established; live job updates resumed.');
         this.reconnectAttempts = 0;
         this.isConnecting = false;
       };
 
       this.eventSource.onerror = (error) => {
-        console.error('SSE connection error:', error);
+        console.warn('SSE connection error; switching to fallback polling until reconnect.', {
+          readyState: this.eventSource?.readyState,
+          error,
+        });
         this.isConnecting = false;
         this.handleReconnect();
       };
@@ -224,7 +229,7 @@ class JobService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      console.log(`Reconnecting SSE in ${delay}ms (attempt ${this.reconnectAttempts})`);
+      console.info(`Reconnecting SSE in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
 
       setTimeout(() => {
         this.connectSSE();
@@ -293,6 +298,31 @@ class JobService {
    */
   isConnected(): boolean {
     return this.eventSource !== null && this.eventSource.readyState === EventSource.OPEN;
+  }
+
+  /**
+   * Report polling fallback state for concise diagnostics.
+   */
+  setFallbackPollingState(active: boolean, intervalMs?: number): void {
+    const normalizedInterval = active ? (intervalMs ?? null) : null;
+    const didChange =
+      this.fallbackPollingActive !== active
+      || this.fallbackPollingIntervalMs !== normalizedInterval;
+
+    if (!didChange) {
+      return;
+    }
+
+    this.fallbackPollingActive = active;
+    this.fallbackPollingIntervalMs = normalizedInterval;
+
+    if (active) {
+      const suffix = normalizedInterval ? ` (${normalizedInterval}ms)` : '';
+      console.info(`Job updates fallback polling enabled${suffix}.`);
+      return;
+    }
+
+    console.info('Job updates fallback polling disabled.');
   }
 }
 

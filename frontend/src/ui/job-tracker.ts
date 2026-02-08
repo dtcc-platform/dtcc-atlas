@@ -7,6 +7,7 @@ import { notificationService } from '../services/notification-service';
 import { Icons } from './icons';
 
 type DownloadCallback = (jobId: string, filename: string | null) => void;
+type JobSyncSource = 'initial' | 'sse' | 'poll' | 'local';
 
 /**
  * JobTracker UI component for displaying and managing download jobs
@@ -22,7 +23,15 @@ export class JobTracker {
   private downloadCallback: DownloadCallback | null = null;
   private unsubscribe: (() => void) | null = null;
   private retryTimers: Map<string, number> = new Map();
+  private hiddenTerminalJobs: Set<string> = new Set();
+  private completedNotifiedJobs: Set<string> = new Set();
+  private failedNotifiedJobs: Set<string> = new Set();
+  private pollIntervalId: number | null = null;
+  private pollIntervalMs: number | null = null;
+  private pollInFlight = false;
   private static readonly RETRY_COOLDOWN_MS = 10000;
+  private static readonly ACTIVE_POLL_INTERVAL_MS = 3000;
+  private static readonly DISCONNECTED_IDLE_POLL_INTERVAL_MS = 15000;
 
   constructor() {
     // Get DOM elements
@@ -75,60 +84,218 @@ export class JobTracker {
     try {
       const jobs = await jobService.listJobs();
       console.log('Loaded jobs from server:', jobs);
-      jobs.forEach((job) => {
-        this.jobs.set(job.id, job);
-      });
-      this.render();
-      this.updateJobCount();
+      const didChange = this.applyJobBatch(jobs, 'initial', false);
+      if (!didChange) {
+        this.render();
+        this.updateJobCount();
+      }
     } catch (error) {
       console.error('Failed to load existing jobs:', error);
+      this.render();
+      this.updateJobCount();
     }
+
+    this.updatePollingMode();
   }
 
   /**
    * Handle incoming job events from SSE
    */
   private handleJobEvent(event: JobEvent): void {
-    const job = event.data as Job;
-
-    switch (event.type) {
-      case 'job_update':
-        this.jobs.set(job.id, job);
-        this.render();
-        break;
-
-      case 'job_complete':
-        this.jobs.set(job.id, { ...job, download_url: event.data.download_url || null });
-        this.render();
-        // Show browser notification
-        notificationService.showJobComplete(job.id, job.dataset, () => {
-          this.show();
-          this.highlightJob(job.id);
-        });
-        break;
-
-      case 'job_failed':
-        this.jobs.set(job.id, job);
-        this.render();
-        // Show browser notification
-        notificationService.showJobFailed(job.id, job.dataset, job.error || undefined);
-        break;
+    const payload = event.data as Partial<Job>;
+    if (!payload?.id) {
+      return;
     }
 
-    this.updateJobCount();
+    const jobFromEvent: Job = {
+      ...(payload as Job),
+      download_url: payload.download_url || null,
+    };
+
+    this.applyJobBatch([jobFromEvent], 'sse', true);
+    this.updatePollingMode();
   }
 
   /**
    * Add a new job to the tracker
    */
   addJob(job: Job): void {
-    this.jobs.set(job.id, job);
-    this.render();
-    this.updateJobCount();
+    // Ensure user-submitted jobs are not filtered out by local dismiss state.
+    this.hiddenTerminalJobs.delete(job.id);
+    this.completedNotifiedJobs.delete(job.id);
+    this.failedNotifiedJobs.delete(job.id);
+
+    this.applyJobBatch([job], 'local', false);
+    this.updatePollingMode();
 
     // Request notification permission on first job
     if (this.jobs.size === 1) {
       notificationService.requestPermission();
+    }
+  }
+
+  /**
+   * Merge jobs into local state through a single update path (SSE + polling).
+   */
+  private applyJobBatch(
+    jobs: Job[],
+    _source: JobSyncSource,
+    notifyTransitions: boolean,
+  ): boolean {
+    let didChange = false;
+
+    jobs.forEach((job) => {
+      if (this.shouldSkipTerminalJob(job)) {
+        return;
+      }
+
+      const previous = this.jobs.get(job.id);
+      const merged = this.normalizeJob(job, previous);
+
+      if (previous && this.jobsAreEqual(previous, merged)) {
+        return;
+      }
+
+      this.jobs.set(job.id, merged);
+      if (notifyTransitions) {
+        this.maybeNotifyStatusTransition(previous, merged);
+      }
+      didChange = true;
+    });
+
+    if (didChange) {
+      this.render();
+      this.updateJobCount();
+    }
+
+    return didChange;
+  }
+
+  /**
+   * Poll server state to recover from SSE drops and keep completion status fresh.
+   */
+  private async pollJobs(): Promise<void> {
+    if (this.pollInFlight) {
+      return;
+    }
+
+    this.pollInFlight = true;
+    try {
+      const jobs = await jobService.listJobs();
+      this.applyJobBatch(jobs, 'poll', true);
+    } catch (error) {
+      console.warn('Failed to refresh jobs via polling fallback:', error);
+    } finally {
+      this.pollInFlight = false;
+      this.updatePollingMode();
+    }
+  }
+
+  /**
+   * Reconfigure polling cadence based on activity and SSE connection state.
+   */
+  private updatePollingMode(): void {
+    const intervalMs = this.getPollingIntervalMs();
+    const fallbackActive = !jobService.isConnected() && intervalMs !== null;
+
+    if (intervalMs === null) {
+      if (this.pollIntervalId !== null) {
+        clearInterval(this.pollIntervalId);
+        this.pollIntervalId = null;
+        this.pollIntervalMs = null;
+      }
+      jobService.setFallbackPollingState(false);
+      return;
+    }
+
+    const intervalChanged = this.pollIntervalId === null || this.pollIntervalMs !== intervalMs;
+    if (intervalChanged) {
+      if (this.pollIntervalId !== null) {
+        clearInterval(this.pollIntervalId);
+      }
+      this.pollIntervalMs = intervalMs;
+      this.pollIntervalId = window.setInterval(() => {
+        void this.pollJobs();
+      }, intervalMs);
+    }
+
+    jobService.setFallbackPollingState(fallbackActive, fallbackActive ? intervalMs : undefined);
+
+    if (fallbackActive && intervalChanged) {
+      void this.pollJobs();
+    }
+  }
+
+  private getPollingIntervalMs(): number | null {
+    if (this.hasActiveJobs()) {
+      return JobTracker.ACTIVE_POLL_INTERVAL_MS;
+    }
+
+    if (!jobService.isConnected()) {
+      return JobTracker.DISCONNECTED_IDLE_POLL_INTERVAL_MS;
+    }
+
+    return null;
+  }
+
+  private hasActiveJobs(): boolean {
+    return Array.from(this.jobs.values()).some(
+      (job) => job.status === 'queued' || job.status === 'processing'
+    );
+  }
+
+  private shouldSkipTerminalJob(job: Job): boolean {
+    const isTerminal = job.status === 'complete' || job.status === 'failed';
+    return isTerminal && this.hiddenTerminalJobs.has(job.id);
+  }
+
+  private normalizeJob(job: Job, previous?: Job): Job {
+    const downloadUrl = job.status === 'complete'
+      ? (job.download_url || previous?.download_url || `/api/v1/jobs/${job.id}/download`)
+      : (job.download_url ?? null);
+
+    return {
+      ...previous,
+      ...job,
+      filename: job.filename !== undefined ? job.filename : (previous?.filename ?? null),
+      error: job.error !== undefined ? job.error : (previous?.error ?? null),
+      progress: job.progress !== undefined ? job.progress : (previous?.progress ?? null),
+      completed_at: job.completed_at !== undefined ? job.completed_at : (previous?.completed_at ?? null),
+      download_url: downloadUrl,
+    };
+  }
+
+  private jobsAreEqual(a: Job, b: Job): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+
+  private maybeNotifyStatusTransition(previous: Job | undefined, current: Job): void {
+    if (!previous) {
+      return;
+    }
+
+    const previousStatus = previous.status;
+
+    if (current.status === 'complete' && previousStatus !== 'complete') {
+      if (this.completedNotifiedJobs.has(current.id)) {
+        return;
+      }
+
+      this.completedNotifiedJobs.add(current.id);
+      notificationService.showJobComplete(current.id, current.dataset, () => {
+        this.show();
+        this.highlightJob(current.id);
+      });
+      return;
+    }
+
+    if (current.status === 'failed' && previousStatus !== 'failed') {
+      if (this.failedNotifiedJobs.has(current.id)) {
+        return;
+      }
+
+      this.failedNotifiedJobs.add(current.id);
+      notificationService.showJobFailed(current.id, current.dataset, current.error || undefined);
     }
   }
 
@@ -484,15 +651,22 @@ export class JobTracker {
    * Remove a job from the tracker
    */
   removeJob(jobId: string): void {
+    const job = this.jobs.get(jobId);
+    if (job && (job.status === 'complete' || job.status === 'failed')) {
+      this.hiddenTerminalJobs.add(jobId);
+    }
+
     // Clear any retry timer for this job
     const timer = this.retryTimers.get(jobId);
     if (timer) {
       clearInterval(timer);
       this.retryTimers.delete(jobId);
     }
+
     this.jobs.delete(jobId);
     this.render();
     this.updateJobCount();
+    this.updatePollingMode();
   }
 
   /**
@@ -512,10 +686,12 @@ export class JobTracker {
         clearInterval(timer);
         this.retryTimers.delete(id);
       }
+      this.hiddenTerminalJobs.add(id);
       this.jobs.delete(id);
     });
     this.render();
     this.updateJobCount();
+    this.updatePollingMode();
   }
 
   /**
@@ -560,9 +736,17 @@ export class JobTracker {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
+
+    if (this.pollIntervalId !== null) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+      this.pollIntervalMs = null;
+    }
+
     // Clear all retry timers
     this.retryTimers.forEach((timer) => clearInterval(timer));
     this.retryTimers.clear();
+    jobService.setFallbackPollingState(false);
     jobService.disconnectSSE();
   }
 }
