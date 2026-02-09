@@ -47,13 +47,6 @@ export class SaveBookmarkDialog {
       }
     });
 
-    // Escape key to cancel
-    this.dialog.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.hide();
-      }
-    });
-
     // Click outside to close
     this.dialog.addEventListener('click', (e) => {
       if (e.target === this.dialog) {
@@ -129,6 +122,13 @@ export class SaveBookmarkDialog {
     this.dialog.classList.add('hidden');
     this.nameInput.value = '';
     this.currentBbox = null;
+  }
+
+  /**
+   * Check if dialog is visible
+   */
+  isVisible(): boolean {
+    return !this.dialog.classList.contains('hidden');
   }
 
   /**

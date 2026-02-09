@@ -59,13 +59,6 @@ export class JobTracker {
     this.clearCompletedBtn?.addEventListener('click', () => {
       this.clearCompletedJobs();
     });
-
-    // Escape key to close
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !this.panel.classList.contains('hidden')) {
-        this.hide();
-      }
-    });
   }
 
   /**

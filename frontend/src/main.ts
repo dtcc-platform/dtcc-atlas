@@ -134,6 +134,81 @@ async function initializeApp(): Promise<void> {
     const searchBoxEl = document.getElementById('search-box');
     const searchInput = document.getElementById('search-input') as HTMLInputElement;
     const closeSearchBtn = document.getElementById('close-search') as HTMLButtonElement;
+    const areaDisplay = document.getElementById('area-display');
+    const bboxStatus = document.getElementById('bbox-status');
+
+    const setDrawButtonActive = (): void => {
+      drawButton.setAttribute('data-state', 'active');
+      drawButton.disabled = true;
+    };
+
+    const setDrawButtonIdle = (): void => {
+      drawButton.setAttribute('data-state', 'idle');
+      drawButton.disabled = false;
+    };
+
+    const hideBBoxStatus = (): void => {
+      if (bboxStatus) {
+        bboxStatus.classList.add('hidden');
+        bboxStatus.classList.remove('flex');
+      }
+      if (areaDisplay) {
+        areaDisplay.textContent = '--';
+      }
+    };
+
+    const clearSelectionAndResetUI = (keepDrawMode: boolean): void => {
+      if (keepDrawMode && bboxDrawer.isDrawing()) {
+        bboxDrawer.clearSelectionKeepDrawing();
+        setDrawButtonActive();
+      } else {
+        bboxDrawer.clearBoundingBox();
+        setDrawButtonIdle();
+      }
+
+      datasetDialog.hide();
+      appState.setBbox(null);
+      appState.setDatasets([]);
+      hideBBoxStatus();
+    };
+
+    let lastOpenedPanel: 'bookmarks' | 'jobs' | null = null;
+
+    const closeVisibleSidePanel = (): boolean => {
+      const isBookmarksVisible = bookmarkPanel.isVisible();
+      const isJobsVisible = jobTracker.isVisible();
+
+      if (!isBookmarksVisible && !isJobsVisible) {
+        return false;
+      }
+
+      if (isBookmarksVisible && isJobsVisible) {
+        if (lastOpenedPanel === 'bookmarks') {
+          bookmarkPanel.hide();
+          lastOpenedPanel = 'jobs';
+          return true;
+        }
+
+        if (lastOpenedPanel === 'jobs') {
+          jobTracker.hide();
+          lastOpenedPanel = 'bookmarks';
+          return true;
+        }
+
+        bookmarkPanel.hide();
+        lastOpenedPanel = 'jobs';
+        return true;
+      }
+
+      if (isBookmarksVisible) {
+        bookmarkPanel.hide();
+      } else {
+        jobTracker.hide();
+      }
+
+      lastOpenedPanel = null;
+      return true;
+    };
 
     // Search toggle button
     toggleSearchBtn?.addEventListener('click', () => {
@@ -147,13 +222,6 @@ async function initializeApp(): Promise<void> {
 
     closeSearchBtn?.addEventListener('click', () => {
       searchBoxEl?.classList.add('hidden');
-    });
-
-    // Close search on Escape key
-    searchInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        searchBoxEl?.classList.add('hidden');
-      }
     });
 
     // View toggle button
@@ -173,33 +241,12 @@ async function initializeApp(): Promise<void> {
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
       bboxDrawer.enableDrawing();
-      drawButton.setAttribute('data-state', 'active');
-      drawButton.disabled = true;
-    });
-
-    // Cancel drawing with Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && bboxDrawer.isDrawing()) {
-        bboxDrawer.cancelDrawing();
-        drawButton.setAttribute('data-state', 'idle');
-        drawButton.disabled = false;
-      }
+      setDrawButtonActive();
     });
 
     // Clear bounding box
     clearButton.addEventListener('click', () => {
-      bboxDrawer.clearBoundingBox();
-      drawButton.setAttribute('data-state', 'idle');
-      drawButton.disabled = false;
-      datasetDialog.hide();
-      appState.reset();
-
-      // Hide bbox status in header
-      const bboxStatus = document.getElementById('bbox-status');
-      if (bboxStatus) {
-        bboxStatus.classList.add('hidden');
-        bboxStatus.classList.remove('flex');
-      }
+      clearSelectionAndResetUI(false);
     });
 
     // Save bookmark button
@@ -212,13 +259,67 @@ async function initializeApp(): Promise<void> {
 
     // Toggle bookmarks panel
     toggleBookmarksBtn.addEventListener('click', () => {
-      bookmarkPanel.toggle();
+      if (bookmarkPanel.isVisible()) {
+        bookmarkPanel.hide();
+        if (lastOpenedPanel === 'bookmarks') {
+          lastOpenedPanel = jobTracker.isVisible() ? 'jobs' : null;
+        }
+      } else {
+        bookmarkPanel.show();
+        lastOpenedPanel = 'bookmarks';
+      }
     });
 
     // Toggle job tracker panel
     const toggleJobsBtn = document.getElementById('toggle-jobs') as HTMLButtonElement;
     toggleJobsBtn?.addEventListener('click', () => {
-      jobTracker.toggle();
+      if (jobTracker.isVisible()) {
+        jobTracker.hide();
+        if (lastOpenedPanel === 'jobs') {
+          lastOpenedPanel = bookmarkPanel.isVisible() ? 'bookmarks' : null;
+        }
+      } else {
+        jobTracker.show();
+        lastOpenedPanel = 'jobs';
+      }
+    });
+
+    // Centralized Escape handling - one action per press
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') {
+        return;
+      }
+
+      if (saveBookmarkDialog.isVisible()) {
+        e.preventDefault();
+        saveBookmarkDialog.hide();
+        return;
+      }
+
+      if (searchBoxEl && !searchBoxEl.classList.contains('hidden')) {
+        e.preventDefault();
+        searchBoxEl.classList.add('hidden');
+        return;
+      }
+
+      if (closeVisibleSidePanel()) {
+        e.preventDefault();
+        return;
+      }
+
+      if (!bboxDrawer.isDrawing()) {
+        return;
+      }
+
+      e.preventDefault();
+
+      if (bboxDrawer.hasSelection()) {
+        clearSelectionAndResetUI(true);
+        return;
+      }
+
+      bboxDrawer.cancelDrawing();
+      setDrawButtonIdle();
     });
 
     // Save bookmark dialog callback
@@ -254,11 +355,13 @@ async function initializeApp(): Promise<void> {
       );
 
       // Update UI to reflect that a bbox is loaded (not actively drawing)
-      drawButton.setAttribute('data-state', 'idle');
-      drawButton.disabled = false;
+      setDrawButtonIdle();
 
       // Hide bookmark panel
       bookmarkPanel.hide();
+      if (lastOpenedPanel === 'bookmarks') {
+        lastOpenedPanel = jobTracker.isVisible() ? 'jobs' : null;
+      }
     });
 
     // Delete bookmark callback
@@ -280,9 +383,11 @@ async function initializeApp(): Promise<void> {
 
     // Handle bounding box drawn event
     bboxDrawer.onBBoxDrawn(async (bbox: BoundingBox) => {
-      // Reset draw button state - drawing auto-disables after completion
-      drawButton.setAttribute('data-state', 'idle');
-      drawButton.disabled = false;
+      if (bboxDrawer.isDrawing()) {
+        setDrawButtonActive();
+      } else {
+        setDrawButtonIdle();
+      }
 
       // Store in centralized state (immediate feedback)
       appState.setBbox(bbox);
@@ -291,8 +396,6 @@ async function initializeApp(): Promise<void> {
       const area = bboxDrawer.getCurrentBBoxArea();
       if (area) {
         const areaKm2 = area.areaM2 / 1_000_000;
-        const areaDisplay = document.getElementById('area-display');
-        const bboxStatus = document.getElementById('bbox-status');
         if (areaDisplay && bboxStatus) {
           areaDisplay.textContent = `${areaKm2.toFixed(2)} km²`;
           bboxStatus.classList.remove('hidden');
@@ -438,6 +541,7 @@ async function initializeApp(): Promise<void> {
 
           // Show job tracker panel
           jobTracker.show();
+          lastOpenedPanel = 'jobs';
 
           // Return to dataset list after brief delay
           setTimeout(() => {

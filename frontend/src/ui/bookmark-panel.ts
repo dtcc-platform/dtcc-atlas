@@ -33,13 +33,6 @@ export class BookmarkPanel {
     this.closeButton.addEventListener('click', () => {
       this.hide();
     });
-
-    // Escape key to close
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !this.panel.classList.contains('hidden')) {
-        this.hide();
-      }
-    });
   }
 
   /**
@@ -179,6 +172,13 @@ export class BookmarkPanel {
    */
   toggle(): void {
     this.panel.classList.toggle('hidden');
+  }
+
+  /**
+   * Check if panel is visible
+   */
+  isVisible(): boolean {
+    return !this.panel.classList.contains('hidden');
   }
 
   /**

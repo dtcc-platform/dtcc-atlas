@@ -224,8 +224,9 @@ export class BBoxDrawer {
         this.callback(this.currentBbox);
       }
 
-      // Disable drawing
-      this.disableDrawing();
+      // Keep draw mode active for rapid redraws.
+      // Reset first corner so the next click starts a fresh rectangle.
+      this.firstCorner = null;
     }
   };
 
@@ -308,6 +309,7 @@ export class BBoxDrawer {
     }
 
     this.clearBboxDisplay();
+    this.currentBbox = null;
     this.disableDrawing();
     console.log('Bounding box drawing cancelled');
     return true;
@@ -318,6 +320,13 @@ export class BBoxDrawer {
    */
   isDrawing(): boolean {
     return this.isDrawingActive;
+  }
+
+  /**
+   * Returns whether a completed selection currently exists
+   */
+  hasSelection(): boolean {
+    return this.currentBbox !== null;
   }
 
   /**
@@ -354,6 +363,22 @@ export class BBoxDrawer {
     this.tooltip.classList.add('hidden');
 
     console.log('Bounding box cleared');
+  }
+
+  /**
+   * Clear the current selection while keeping draw mode active
+   */
+  clearSelectionKeepDrawing(): void {
+    if (!this.isDrawingActive) {
+      this.clearBoundingBox();
+      return;
+    }
+
+    this.clearBboxDisplay();
+    this.currentBbox = null;
+    this.firstCorner = null;
+    this.tooltip.classList.add('hidden');
+    this.map.getCanvas().style.cursor = 'crosshair';
   }
 
   /**
