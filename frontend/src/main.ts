@@ -8,7 +8,7 @@ import {
   fetchDatasetSchema,
   bboxToArray,
 } from './api/dataset-api';
-import { BoundingBox } from './types';
+import { BoundingBox, SavedBookmark } from './types';
 import { DatasetDialog } from './ui/dataset-dialog';
 import { schemaParser } from './forms/schema-parser';
 import { SubmissionState } from './types/form-state';
@@ -78,9 +78,6 @@ async function initializeApp(): Promise<void> {
     const saveBookmarkDialog = new SaveBookmarkDialog();
     const bookmarkPanel = new BookmarkPanel();
 
-    // Initialize bookmark manager and load bookmarks
-    await bookmarkManager.initialize();
-
     // Create search box
     const searchBox = new SearchBox();
 
@@ -119,6 +116,18 @@ async function initializeApp(): Promise<void> {
     if (!drawButton || !clearButton || !saveBookmarkBtn || !toggleBookmarksBtn || !bookmarkCountSpan) {
       throw new Error('Required UI elements not found');
     }
+
+    const syncBookmarksUI = (bookmarks: SavedBookmark[]): void => {
+      bookmarkPanel.render(bookmarks);
+      bookmarkCountSpan.textContent = bookmarks.length.toString();
+      if (bookmarkListCount) {
+        bookmarkListCount.textContent = bookmarks.length.toString();
+      }
+    };
+
+    // initialize() emits the initial bookmark state, so subscribe before loading.
+    bookmarkManager.on('bookmarks-changed', syncBookmarksUI);
+    await bookmarkManager.initialize();
 
     // Search toggle elements
     const toggleSearchBtn = document.getElementById('toggle-search') as HTMLButtonElement;
@@ -261,15 +270,6 @@ async function initializeApp(): Promise<void> {
           console.error('Error deleting bookmark:', error);
           alert('Failed to delete bookmark. Please try again.');
         }
-      }
-    });
-
-    // Update UI when bookmarks change
-    bookmarkManager.on('bookmarks-changed', (bookmarks) => {
-      bookmarkPanel.render(bookmarks);
-      bookmarkCountSpan.textContent = bookmarks.length.toString();
-      if (bookmarkListCount) {
-        bookmarkListCount.textContent = bookmarks.length.toString();
       }
     });
 
