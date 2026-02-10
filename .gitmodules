@@ -1,0 +1,4 @@
+[submodule "third_party/PixelStreamingInfrastructure"]
+	path = third_party/PixelStreamingInfrastructure
+	url = https://github.com/EpicGamesExt/PixelStreamingInfrastructure.git
+	branch = UE5.7

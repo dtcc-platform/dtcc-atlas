@@ -154,6 +154,108 @@ body {
     0 10px 10px -5px rgb(0 0 0 / 0.04);
 }
 
+/* Pixel streaming overlay */
+.pixel-stream-surface {
+  width: min(1100px, calc(100vw - 48px));
+  height: min(700px, calc(100vh - 120px));
+  background: #0b0b0e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pixel-stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(11, 11, 14, 0.9);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pixel-stream-status {
+  font-size: 0.6875rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5f5;
+}
+
+.pixel-stream-status[data-state="connecting"] {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+.pixel-stream-status[data-state="connected"] {
+  background: rgba(16, 185, 129, 0.2);
+  color: #bbf7d0;
+}
+
+.pixel-stream-status[data-state="warning"] {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde68a;
+}
+
+.pixel-stream-status[data-state="error"] {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.pixel-stream-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.pixel-stream-close:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.pixel-stream-host {
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-stream-play {
+  position: absolute;
+  inset: auto;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pixel-stream-play:hover {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.pixel-stream-host video,
+.pixel-stream-host canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 /* Tooltips */
 [data-tooltip] {
   position: relative;
