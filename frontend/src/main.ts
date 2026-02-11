@@ -23,13 +23,7 @@ import { jobService } from './services/job-service';
 import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { Icons } from './ui/icons';
-import {
-  Config,
-  Flags,
-  OptionParameters,
-  PixelStreaming,
-  TextParameters,
-} from '@epicgames-ps/lib-pixelstreamingfrontend-ue5.7';
+import { PixelStreamPanel } from './ui/pixel-stream-panel';
 
 // Debounce timer for bbox changes to prevent excessive API calls
 let bboxDebounceTimer: number | null = null;
@@ -54,8 +48,6 @@ async function initializeApp(): Promise<void> {
     const jobsIcon = document.getElementById('jobs-icon');
     const closeJobsIcon = document.getElementById('close-jobs-icon');
     const pixelStreamIcon = document.getElementById('pixel-stream-icon');
-    const pixelStreamPanelIcon = document.getElementById('pixel-stream-panel-icon');
-    const pixelStreamCloseIcon = document.getElementById('pixel-stream-close-icon');
 
     if (drawIcon) drawIcon.innerHTML = Icons.draw;
     if (clearIcon) clearIcon.innerHTML = Icons.clear;
@@ -66,8 +58,6 @@ async function initializeApp(): Promise<void> {
     if (jobsIcon) jobsIcon.innerHTML = Icons.download;
     if (closeJobsIcon) closeJobsIcon.innerHTML = Icons.close;
     if (pixelStreamIcon) pixelStreamIcon.innerHTML = Icons.stream;
-    if (pixelStreamPanelIcon) pixelStreamPanelIcon.innerHTML = Icons.stream;
-    if (pixelStreamCloseIcon) pixelStreamCloseIcon.innerHTML = Icons.close;
 
     // Initialize search icons
     const searchInputIcon = document.getElementById('search-input-icon');
@@ -149,153 +139,7 @@ async function initializeApp(): Promise<void> {
     const closeSearchBtn = document.getElementById('close-search') as HTMLButtonElement;
     const areaDisplay = document.getElementById('area-display');
     const bboxStatus = document.getElementById('bbox-status');
-    const togglePixelStreamBtn = document.getElementById('toggle-pixel-stream') as HTMLButtonElement;
-    const pixelStreamPanel = document.getElementById('pixel-stream-panel');
-    const pixelStreamHost = document.getElementById('pixel-stream-host');
-    const pixelStreamCloseBtn = document.getElementById('pixel-stream-close') as HTMLButtonElement;
-    const pixelStreamLabel = document.getElementById('pixel-stream-label');
-    const pixelStreamStatus = document.getElementById('pixel-stream-status');
-    const pixelStreamPlayBtn = document.getElementById('pixel-stream-play') as HTMLButtonElement;
-
-    let pixelStreaming: PixelStreaming | null = null;
-    let isPixelStreamVisible = false;
-    const preferredStreamerId = import.meta.env.VITE_PIXEL_STREAMING_STREAMER_ID?.trim();
-
-    const getPixelStreamingUrl = (): string => {
-      const configuredUrl = import.meta.env.VITE_PIXEL_STREAMING_SIGNALING_URL;
-      if (configuredUrl && configuredUrl.trim().length > 0) {
-        return configuredUrl;
-      }
-
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const hostname =
-        window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-      return `${protocol}://${hostname}:8888`;
-    };
-
-    const setPixelStreamStatus = (label: string, state: string): void => {
-      if (!pixelStreamStatus) {
-        return;
-      }
-
-      pixelStreamStatus.textContent = label;
-      pixelStreamStatus.setAttribute('data-state', state);
-    };
-
-    const setPixelStreamVisible = (visible: boolean): void => {
-      if (!togglePixelStreamBtn || !pixelStreamPanel) {
-        return;
-      }
-
-      isPixelStreamVisible = visible;
-
-      if (visible) {
-        pixelStreamPanel.classList.remove('hidden');
-        pixelStreamPanel.classList.add('flex');
-        togglePixelStreamBtn.setAttribute('data-state', 'active');
-        togglePixelStreamBtn.setAttribute('data-tooltip', 'Hide pixel streaming');
-        if (pixelStreamLabel) pixelStreamLabel.textContent = 'Hide Pixel Stream';
-      } else {
-        pixelStreamPanel.classList.add('hidden');
-        pixelStreamPanel.classList.remove('flex');
-        togglePixelStreamBtn.setAttribute('data-state', 'idle');
-        togglePixelStreamBtn.setAttribute('data-tooltip', 'Show pixel streaming');
-        if (pixelStreamLabel) pixelStreamLabel.textContent = 'Pixel Streaming';
-        setPixelStreamStatus('Disconnected', 'idle');
-      }
-    };
-
-    const ensurePixelStreaming = (): void => {
-      if (pixelStreaming || !pixelStreamHost) {
-        return;
-      }
-
-      const config = new Config({
-        initialSettings: {
-          [TextParameters.SignallingServerUrl]: getPixelStreamingUrl(),
-          [Flags.AutoConnect]: false,
-          [Flags.AutoPlayVideo]: true,
-          [Flags.StartVideoMuted]: true,
-          ...(preferredStreamerId ? { [OptionParameters.StreamerId]: preferredStreamerId } : {}),
-        },
-      });
-
-      pixelStreaming = new PixelStreaming(config, { videoElementParent: pixelStreamHost });
-      setPixelStreamStatus('Connecting...', 'connecting');
-
-      pixelStreaming.addEventListener('webRtcConnecting', () => {
-        setPixelStreamStatus('Connecting...', 'connecting');
-      });
-
-      pixelStreaming.addEventListener('webRtcConnected', () => {
-        setPixelStreamStatus('Connected', 'connected');
-      });
-
-      pixelStreaming.addEventListener('webRtcFailed', () => {
-        setPixelStreamStatus('Connection failed', 'error');
-      });
-
-      pixelStreaming.addEventListener('webRtcDisconnected', (event: Event) => {
-        const data = (event as { data?: { eventString?: string } }).data;
-        const message = data?.eventString || 'Disconnected';
-        setPixelStreamStatus(message, 'error');
-      });
-
-      pixelStreaming.addEventListener('streamerListMessage', (event: Event) => {
-        const data = (event as { data?: { messageStreamerList?: { ids: string[] } } }).data;
-        const ids = data?.messageStreamerList?.ids ?? [];
-        if (ids.length === 0) {
-          setPixelStreamStatus('Waiting for streamer...', 'warning');
-          return;
-        }
-
-        const currentSelection =
-          pixelStreaming?.config.getSettingOption(OptionParameters.StreamerId).selected ?? '';
-        if (currentSelection) {
-          return;
-        }
-
-        const chosen =
-          (preferredStreamerId && ids.includes(preferredStreamerId) && preferredStreamerId) ||
-          ids.find((id) => id.toLowerCase() !== 'sfu') ||
-          ids[0];
-        if (chosen) {
-          pixelStreaming?.config.setOptionSettingValue(OptionParameters.StreamerId, chosen);
-        }
-      });
-
-      pixelStreaming.addEventListener('playStreamRejected', () => {
-        if (pixelStreamPlayBtn) {
-          pixelStreamPlayBtn.classList.remove('hidden');
-        }
-      });
-
-      if (pixelStreamPlayBtn) {
-        pixelStreamPlayBtn.addEventListener('click', () => {
-          pixelStreamPlayBtn.classList.add('hidden');
-          pixelStreaming?.play();
-        });
-      }
-    };
-
-    const togglePixelStreaming = (): void => {
-      if (!pixelStreamPanel || !pixelStreamHost) {
-        console.warn('Pixel streaming elements not found.');
-        return;
-      }
-
-      if (isPixelStreamVisible) {
-        setPixelStreamVisible(false);
-        return;
-      }
-
-      setPixelStreamVisible(true);
-      ensurePixelStreaming();
-      if (pixelStreamPlayBtn) {
-        pixelStreamPlayBtn.classList.add('hidden');
-      }
-      pixelStreaming?.connect();
-    };
+    const pixelStreamPanel = new PixelStreamPanel();
 
     const setDrawButtonActive = (): void => {
       drawButton.setAttribute('data-state', 'active');
@@ -389,6 +233,10 @@ async function initializeApp(): Promise<void> {
     const viewLabel = document.getElementById('view-label');
 
     toggleViewBtn?.addEventListener('click', () => {
+      if (pixelStreamPanel.isVisible()) {
+        pixelStreamPanel.hide();
+      }
+
       const is3D = mapManager.toggle3DView();
 
       // Update button appearance
@@ -397,9 +245,6 @@ async function initializeApp(): Promise<void> {
       toggleViewBtn.setAttribute('data-view', is3D ? '3d' : '2d');
       toggleViewBtn.setAttribute('data-tooltip', is3D ? 'Switch to 2D view' : 'Switch to 3D view');
     });
-
-    togglePixelStreamBtn?.addEventListener('click', togglePixelStreaming);
-    pixelStreamCloseBtn?.addEventListener('click', () => setPixelStreamVisible(false));
 
     // Enable drawing when button is clicked
     drawButton.addEventListener('click', () => {
@@ -465,9 +310,9 @@ async function initializeApp(): Promise<void> {
         return;
       }
 
-      if (isPixelStreamVisible) {
+      if (pixelStreamPanel.isVisible()) {
         e.preventDefault();
-        setPixelStreamVisible(false);
+        pixelStreamPanel.hide();
         return;
       }
 
