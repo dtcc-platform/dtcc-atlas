@@ -30,11 +30,12 @@ Build the frontend and serve everything from the FastAPI server:
 
 ## Pixel Streaming
 
-This repo vendors the Epic PixelStreamingInfrastructure as a git submodule and runs its Node services alongside the app.
-Initialize the submodule once:
+Pixel Streaming runs as a **separate service** on a dedicated VM under `services/pixel_streaming/`.
+See `services/pixel_streaming/README.md` for VM setup instructions.
+Initialize the submodule once (on the VM):
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init --recursive services/pixel_streaming/PixelStreamingInfrastructure
 ```
 
 Frontend pixel streaming uses the Epic UE 5.7 frontend library. Configure the **player** signaling URL via:
@@ -42,37 +43,13 @@ Frontend pixel streaming uses the Epic UE 5.7 frontend library. Configure the **
 - `VITE_PIXEL_STREAMING_SIGNALING_URL` (example: `wss://your-signaling-host:8888`)
 - `VITE_PIXEL_STREAMING_STREAMER_ID` (optional, e.g. `Editor`) to auto-select the streamer when multiple are present
 
-If unset, the frontend falls back to `ws(s)://<current-hostname>:8888`.
-See `frontend/.env.example` for the expected variable name.
+If unset, the frontend falls back to `ws(s)://<current-hostname>:8888`, which is only
+useful if you are running Pixel Streaming on the same host.
+See `frontend/.env.local` for the expected variable name.
 
-Infrastructure control (used by `start_dev.sh` / `build_and_start.sh`):
-
-- `PIXEL_STREAMING_ENABLE=1` (default) to start Signalling + SFU
-- `PIXEL_STREAMING_SIGNALING_URL` (optional) to set the player URL used by scripts
-- `PIXEL_STREAMING_STREAMER_PORT` (optional) defaults to `PLAYER_PORT + 1`
-- `PIXEL_STREAMING_SFU_PORT` (optional) defaults to `PLAYER_PORT + 2`
-- `PIXEL_STREAMING_TURN_ENABLE=1` to start TURN (disabled by default in dev)
-- `PIXEL_STREAMING_SFU_ENABLE=1` to start SFU (disabled by default)
-- `PIXEL_STREAMING_NO_SUDO=1` (default) to avoid sudo prompts when starting services
-
-Default ports (when `PIXEL_STREAMING_SIGNALING_URL` is unset):
-
-- Player (frontend): `8888`
-- Streamer (Unreal): `8889`
-- SFU: `8890`
-
-Unreal example (streamer port):
-
-```bash
--PixelStreamingURL=ws://<host>:8889
-```
-
-If you override the player port, the streamer + SFU ports will follow unless you set
-`PIXEL_STREAMING_STREAMER_PORT` / `PIXEL_STREAMING_SFU_PORT` explicitly.
-If `PIXEL_STREAMING_SIGNALING_URL` is set without an explicit port, the scripts default
-to `80` for `ws://` and `443` for `wss://`.
+For more information on Pixel Streaming check `services/pixel_streaming/README.md`.
 
 ## What the Scripts Do
 
-- `start_dev.sh`: Checks for dependencies, handles port conflicts, starts Pixel Streaming + both servers concurrently
-- `build_and_start.sh`: Builds frontend, copies static files to `server/static/`, starts Pixel Streaming + FastAPI server
+- `start_dev.sh`: Checks for dependencies, handles port conflicts, starts FastAPI + Vite servers
+- `build_and_start.sh`: Builds frontend, copies static files to `server/static/`, starts FastAPI server

@@ -2,20 +2,26 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd -P -- "$(dirname -- "$0")/.." && pwd -P)"
-PS_ROOT="${ROOT_DIR}/third_party/PixelStreamingInfrastructure"
-PID_FILE="${ROOT_DIR}/temp/pixel_streaming.pids"
+MODULE_DIR="$(cd -P -- "$(dirname -- "$0")/.." && pwd -P)"
+PS_ROOT="${MODULE_DIR}/PixelStreamingInfrastructure"
+PID_FILE="${MODULE_DIR}/temp/pixel_streaming.pids"
+CONFIG_FILE="${PIXEL_STREAMING_CONFIG_FILE:-${MODULE_DIR}/config.env}"
 
-PIXEL_STREAMING_ENABLE="${PIXEL_STREAMING_ENABLE:-1}"
+if [[ -f "${CONFIG_FILE}" ]]; then
+  while IFS='=' read -r key value; do
+    [[ -z "${key}" || "${key}" =~ ^[[:space:]]*# ]] && continue
+    key="$(echo "${key}" | xargs)"
+    value="$(echo "${value}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    if [[ -z "${!key-}" ]]; then
+      export "${key}=${value}"
+    fi
+  done < "${CONFIG_FILE}"
+fi
+
 PIXEL_STREAMING_TURN_ENABLE="${PIXEL_STREAMING_TURN_ENABLE:-0}"
 PIXEL_STREAMING_SFU_ENABLE="${PIXEL_STREAMING_SFU_ENABLE:-0}"
 PIXEL_STREAMING_SIGNALING_URL="${PIXEL_STREAMING_SIGNALING_URL:-}"
 PIXEL_STREAMING_NO_SUDO="${PIXEL_STREAMING_NO_SUDO:-1}"
-
-if [[ "${PIXEL_STREAMING_ENABLE}" == "0" ]]; then
-  echo "Pixel Streaming disabled (PIXEL_STREAMING_ENABLE=0)."
-  exit 0
-fi
 
 if [[ ! -d "${PS_ROOT}" ]]; then
   echo "PixelStreamingInfrastructure not found at ${PS_ROOT}."
@@ -23,9 +29,9 @@ if [[ ! -d "${PS_ROOT}" ]]; then
   exit 1
 fi
 
-LOG_DIR="${ROOT_DIR}/temp/pixel_streaming_logs"
+LOG_DIR="${MODULE_DIR}/temp/pixel_streaming_logs"
 
-mkdir -p "${ROOT_DIR}/temp"
+mkdir -p "${MODULE_DIR}/temp"
 mkdir -p "${LOG_DIR}"
 echo -n "" > "${PID_FILE}"
 
