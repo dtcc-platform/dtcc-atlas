@@ -52,9 +52,7 @@ export class PixelStreamPanel {
       return configuredUrl;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const hostname = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-    return `${protocol}://${hostname}:8888`;
+    return 'ws://cloud.dtcc.chalmers.se:14984';
   }
 
   private setStatus(label: string, state: string): void {

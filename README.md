@@ -43,9 +43,8 @@ Frontend pixel streaming uses the Epic UE 5.7 frontend library. Configure the **
 - `VITE_PIXEL_STREAMING_SIGNALING_URL` (example: `wss://your-signaling-host:8888`)
 - `VITE_PIXEL_STREAMING_STREAMER_ID` (optional, e.g. `Editor`) to auto-select the streamer when multiple are present
 
-If unset, the frontend falls back to `ws(s)://<current-hostname>:8888`, which is only
-useful if you are running Pixel Streaming on the same host.
-See `frontend/.env.local` for the expected variable name.
+If unset, the frontend falls back to `ws://cloud.dtcc.chalmers.se:14984`.
+See `frontend/.env.example` for the expected variable names.
 
 For more information on Pixel Streaming check `services/pixel_streaming/README.md`.
 
