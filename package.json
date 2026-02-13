@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "dtcc-dataset-downloader-frontend": "file:frontend"
+    "dtcc-atlas-frontend": "file:frontend"
   }
 }

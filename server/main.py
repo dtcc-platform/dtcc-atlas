@@ -39,7 +39,7 @@ async def lifespan(app: fastapi.FastAPI):
         print("Job manager shutdown complete")
 
 
-app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0", lifespan=lifespan)
+app = fastapi.FastAPI(title="DTCC Atlas", version="0.1.0", lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
