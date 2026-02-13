@@ -5,6 +5,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import dtcc_sim.datasets
+except ImportError:
+    pass
+
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
