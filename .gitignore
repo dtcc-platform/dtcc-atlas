@@ -169,3 +169,5 @@ data/published/
 
 # Temp folder (cloned repos, downloaded orders)
 temp/
+services/pixel_streaming/temp/
+services/pixel_streaming/config.env

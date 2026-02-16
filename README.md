@@ -28,7 +28,27 @@ Build the frontend and serve everything from the FastAPI server:
 - Python >=3.12 (uses uv for dependency management)
 - Node.js (for frontend build)
 
+## Pixel Streaming
+
+Pixel Streaming runs as a **separate service** on a dedicated VM under `services/pixel_streaming/`.
+See `services/pixel_streaming/README.md` for VM setup instructions.
+Initialize the submodule once (on the VM):
+
+```bash
+git submodule update --init --recursive services/pixel_streaming/PixelStreamingInfrastructure
+```
+
+Frontend pixel streaming uses the Epic UE 5.7 frontend library. Configure the **player** signaling URL via:
+
+- `VITE_PIXEL_STREAMING_SIGNALING_URL` (example: `wss://your-signaling-host:8888`)
+- `VITE_PIXEL_STREAMING_STREAMER_ID` (optional, e.g. `Editor`) to auto-select the streamer when multiple are present
+
+If unset, the frontend falls back to `ws://cloud.dtcc.chalmers.se:14984`.
+See `frontend/.env.example` for the expected variable names.
+
+For more information on Pixel Streaming check `services/pixel_streaming/README.md`.
+
 ## What the Scripts Do
 
-- `start_dev.sh`: Checks for dependencies, handles port conflicts, starts both servers concurrently
+- `start_dev.sh`: Checks for dependencies, handles port conflicts, starts FastAPI + Vite servers
 - `build_and_start.sh`: Builds frontend, copies static files to `server/static/`, starts FastAPI server

@@ -154,6 +154,81 @@ body {
     0 10px 10px -5px rgb(0 0 0 / 0.04);
 }
 
+/* Pixel streaming in-map layer */
+#pixel-stream-layer {
+  overflow: hidden;
+}
+
+.pixel-stream-status {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.3);
+  color: #f8fafc;
+  backdrop-filter: blur(6px);
+}
+
+.pixel-stream-status[data-state="connecting"] {
+  background: rgba(59, 130, 246, 0.35);
+  color: #dbeafe;
+}
+
+.pixel-stream-status[data-state="connected"] {
+  background: rgba(16, 185, 129, 0.35);
+  color: #dcfce7;
+}
+
+.pixel-stream-status[data-state="warning"] {
+  background: rgba(234, 179, 8, 0.35);
+  color: #fef9c3;
+}
+
+.pixel-stream-status[data-state="error"] {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fee2e2;
+}
+
+.pixel-stream-host {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-stream-play {
+  position: absolute;
+  z-index: 2;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pixel-stream-play:hover {
+  background: rgba(30, 41, 59, 0.95);
+}
+
+.pixel-stream-host video,
+.pixel-stream-host canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Tooltips */
 [data-tooltip] {
   position: relative;

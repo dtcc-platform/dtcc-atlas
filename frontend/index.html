@@ -85,10 +85,25 @@
           <span class="w-5 h-5" id="view-icon"></span>
           <span class="text-sm font-medium" id="view-label">3D View</span>
         </button>
+
+        <div class="h-px bg-dtcc-border-light"></div>
+
+        <button id="toggle-pixel-stream" class="toolbar-btn" data-state="idle" data-tooltip="Switch to stream view">
+          <span class="w-5 h-5" id="pixel-stream-icon"></span>
+          <span class="text-sm font-medium" id="pixel-stream-label">Pixel Streaming</span>
+        </button>
       </div>
     </div>
 
-    <div id="map" class="w-full h-full min-h-[400px] relative"></div>
+    <div id="map-stage" class="w-full h-full min-h-[400px] relative">
+      <div id="map" class="w-full h-full"></div>
+      <div id="pixel-stream-layer" class="hidden absolute inset-0 z-[500] bg-black">
+        <span class="pixel-stream-status" id="pixel-stream-status" data-state="idle">Disconnected</span>
+        <div id="pixel-stream-host" class="pixel-stream-host">
+          <button id="pixel-stream-play" class="pixel-stream-play hidden" type="button">Click to play</button>
+        </div>
+      </div>
+    </div>
     <div id="bbox-tooltip" class="fixed bg-dtcc-navy/95 text-white px-3 py-2 rounded text-sm font-medium pointer-events-none z-[9999] hidden whitespace-nowrap shadow-md"></div>
 
     <!-- Search Box -->
