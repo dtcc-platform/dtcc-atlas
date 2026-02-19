@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@epicgames-ps/lib-pixelstreamingfrontend-ue5.7": "latest",
     "maplibre-gl": "^4.7.1",
     "proj4": "^2.11.0"
   },

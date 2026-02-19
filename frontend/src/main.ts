@@ -23,6 +23,7 @@ import { jobService } from './services/job-service';
 import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { Icons } from './ui/icons';
+import { PixelStreamPanel } from './ui/pixel-stream-panel';
 
 // Debounce timer for bbox changes to prevent excessive API calls
 let bboxDebounceTimer: number | null = null;
@@ -46,6 +47,7 @@ async function initializeApp(): Promise<void> {
     const closeBookmarksIcon = document.getElementById('close-bookmarks-icon');
     const jobsIcon = document.getElementById('jobs-icon');
     const closeJobsIcon = document.getElementById('close-jobs-icon');
+    const pixelStreamIcon = document.getElementById('pixel-stream-icon');
 
     if (drawIcon) drawIcon.innerHTML = Icons.draw;
     if (clearIcon) clearIcon.innerHTML = Icons.clear;
@@ -55,6 +57,7 @@ async function initializeApp(): Promise<void> {
     if (closeBookmarksIcon) closeBookmarksIcon.innerHTML = Icons.close;
     if (jobsIcon) jobsIcon.innerHTML = Icons.download;
     if (closeJobsIcon) closeJobsIcon.innerHTML = Icons.close;
+    if (pixelStreamIcon) pixelStreamIcon.innerHTML = Icons.stream;
 
     // Initialize search icons
     const searchInputIcon = document.getElementById('search-input-icon');
@@ -136,6 +139,7 @@ async function initializeApp(): Promise<void> {
     const closeSearchBtn = document.getElementById('close-search') as HTMLButtonElement;
     const areaDisplay = document.getElementById('area-display');
     const bboxStatus = document.getElementById('bbox-status');
+    const pixelStreamPanel = new PixelStreamPanel();
 
     const setDrawButtonActive = (): void => {
       drawButton.setAttribute('data-state', 'active');
@@ -229,6 +233,10 @@ async function initializeApp(): Promise<void> {
     const viewLabel = document.getElementById('view-label');
 
     toggleViewBtn?.addEventListener('click', () => {
+      if (pixelStreamPanel.isVisible()) {
+        pixelStreamPanel.hide();
+      }
+
       const is3D = mapManager.toggle3DView();
 
       // Update button appearance
@@ -299,6 +307,12 @@ async function initializeApp(): Promise<void> {
       if (searchBoxEl && !searchBoxEl.classList.contains('hidden')) {
         e.preventDefault();
         searchBoxEl.classList.add('hidden');
+        return;
+      }
+
+      if (pixelStreamPanel.isVisible()) {
+        e.preventDefault();
+        pixelStreamPanel.hide();
         return;
       }
 
