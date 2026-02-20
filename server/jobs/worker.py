@@ -7,6 +7,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from server.logging import info
+
 
 def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
     """
@@ -29,7 +31,7 @@ def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
             data = f.read()
 
         file_size = len(data)
-        print(f"[job worker] Save complete: {tmp_path} ({file_size} bytes, fsync done)")
+        info(f"Job worker save complete: {tmp_path} ({file_size} bytes, fsync done)")
 
         if as_text:
             return data.decode('utf-8')
@@ -203,7 +205,7 @@ def _process_vector_dataset(
     # Filter features to bounds
     filtered = clip_features_to_bounds(geojson, bounds)
     feature_count = len(filtered.get("features", []))
-    print(f"[job worker] Vector dataset '{dataset_name}': {feature_count} features within bounds")
+    info(f"Job worker vector dataset '{dataset_name}': {feature_count} features within bounds")
 
     # Convert to bytes
     data = json.dumps(filtered).encode("utf-8")

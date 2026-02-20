@@ -21,11 +21,12 @@ from server.vector import create_vector_router, discover_published_datasets, get
 from server.vector.routes import clip_features_to_bounds
 from server.admin import create_admin_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
+from server.logging import info, warning
 import json
 
 # Create job manager at module level so routes can be registered before catch-all
 job_manager = JobManager(max_workers=JOB_MAX_WORKERS, job_timeout=JOB_TIMEOUT)
-print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
+info(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
 
 
 @asynccontextmanager
@@ -36,7 +37,7 @@ async def lifespan(app: fastapi.FastAPI):
     # Cleanup on shutdown
     if job_manager:
         job_manager.shutdown()
-        print("Job manager shutdown complete")
+        info("Job manager shutdown complete")
 
 
 app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0", lifespan=lifespan)
@@ -124,7 +125,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
     # Merge bounds with parameters
     params = {"bounds": request.bounds, **request.parameters}
 
-    print(f"Download request for dtcc-core dataset '{request.dataset}' with params: {params}")
+    info(f"Download request for dtcc-core dataset '{request.dataset}' with params: {params}")
     try:
         # Validate parameters using the dataset's ArgsModel
         _ = dataset.ArgsModel(**params)
@@ -154,7 +155,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
         if file_format == "cityjson":
             file_format = "city.json"
         filename = f"{filename}.{file_format}"
-        print(f"Returning file '{filename}' with content type '{content_type}'")
+        info(f"Returning file '{filename}' with content type '{content_type}'")
 
         return Response(
             content=data,
@@ -174,7 +175,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
 
 def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path):
     """Handle download for published vector datasets."""
-    print(f"Download request for vector dataset '{request.dataset}' with bounds: {request.bounds}")
+    info(f"Download request for vector dataset '{request.dataset}' with bounds: {request.bounds}")
 
     # Validate bounds
     if len(request.bounds) != 4:
@@ -191,7 +192,7 @@ def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path
         filtered = clip_features_to_bounds(geojson, request.bounds)
 
         feature_count = len(filtered.get("features", []))
-        print(f"Filtered to {feature_count} features within bounds")
+        info(f"Filtered to {feature_count} features within bounds")
 
         # Return as GeoJSON
         filename = request.filename or request.dataset
@@ -216,12 +217,12 @@ app.include_router(jobs_router, prefix="/api/v1")
 # Mount vector datasets router
 vector_router = create_vector_router()
 app.include_router(vector_router, prefix="/api/v1")
-print("Vector datasets router mounted at /api/v1/vector")
+info("Vector datasets router mounted at /api/v1/vector")
 
 # Mount admin router
 admin_router = create_admin_router()
 app.include_router(admin_router, prefix="/api/v1")
-print("Admin router mounted at /api/v1/admin")
+info("Admin router mounted at /api/v1/admin")
 
 
 # Mount static files (must be last due to catch-all route)
@@ -253,4 +254,4 @@ if static_dir.exists():
 
         raise fastapi.HTTPException(status_code=404, detail="Not found")
 else:
-    print("Warning: Static directory not found, SPA will not be served.")
+    warning("Static directory not found, SPA will not be served")

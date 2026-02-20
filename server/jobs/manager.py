@@ -10,6 +10,7 @@ from collections import deque
 from .models import Job, JobStatus
 from .storage import JobStorage
 from .worker import process_dataset_job
+from server.logging import info, warning
 
 
 class JobManager:
@@ -347,9 +348,9 @@ class JobManager:
             try:
                 removed = self._storage.cleanup_old()
                 if removed > 0:
-                    print(f"Cleaned up {removed} old job files")
+                    info(f"Cleaned up {removed} old job files")
             except Exception as e:
-                print(f"Error during cleanup: {e}")
+                warning(f"Error during cleanup: {e}")
 
     def shutdown(self) -> None:
         """Shutdown the job manager and cleanup resources."""
