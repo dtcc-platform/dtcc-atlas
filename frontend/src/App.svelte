@@ -4,6 +4,7 @@
   import Toolbar from './lib/components/Toolbar.svelte'
   import SidePanel from './lib/components/SidePanel.svelte'
   import DatasetList from './lib/components/DatasetList.svelte'
+  import DatasetForm from './lib/components/DatasetForm.svelte'
   import { activePanel } from './lib/stores/ui'
 
   let mapView: MapView
@@ -21,7 +22,7 @@
       {#if $activePanel === 'datasets'}
         <DatasetList />
       {:else if $activePanel === 'dataset-form'}
-        <p class="p-5 text-gray-500">DatasetForm coming in Task 8</p>
+        <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
         <p class="p-5 text-gray-500">Bookmarks coming in Task 9</p>
       {/if}
