@@ -19,6 +19,7 @@
   import { BookmarkManager } from './lib/bookmarks/bookmark-manager'
   import { LocalBookmarkStorage } from './lib/storage/local-bookmark-storage'
   import { jobService } from './lib/services/job-service'
+  import type { Job } from './lib/services/job-service'
   import type { SavedBookmark } from './lib/types/bookmarks'
 
   let mapView: MapView
@@ -101,6 +102,16 @@
   function handleClear() {
     mapView?.clearBbox()
   }
+
+  async function handleRetryJob(job: Job) {
+    if (!job.dataset || !job.params) return
+    try {
+      const resp = await jobService.submitJob({ dataset: job.dataset, parameters: job.params })
+      jobs.update($j => [...$j, { id: resp.job_id, dataset: job.dataset, status: 'queued', params: job.params } as Job])
+    } catch (e) {
+      console.error('Failed to retry job:', e)
+    }
+  }
 </script>
 
 <svelte:window onkeydown={(e) => {
@@ -135,6 +146,6 @@
     <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
-    <JobTray />
+    <JobTray onRetry={handleRetryJob} />
   </div>
 </div>

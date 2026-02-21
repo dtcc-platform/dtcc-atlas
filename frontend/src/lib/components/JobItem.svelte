@@ -6,7 +6,29 @@
     job: Job
   }
 
-  let { job }: Props = $props()
+  interface Events {
+    onRetry?: (job: Job) => void
+  }
+
+  let { job, onRetry }: Props & Events = $props()
+
+  let cancelling = $state(false)
+  let retrying = $state(false)
+
+  async function handleCancel() {
+    cancelling = true
+    try {
+      await jobService.cancelJob(job.id)
+    } catch (e) {
+      console.error('Failed to cancel job:', e)
+    }
+    cancelling = false
+  }
+
+  async function handleRetry() {
+    retrying = true
+    onRetry?.(job)
+  }
 
   const statusColors: Record<string, string> = {
     queued: 'text-yellow-600',
@@ -46,14 +68,34 @@
       <span class="truncate text-[#1a1a2e]">{job.dataset || job.id.slice(0, 8)}</span>
       <span class="{statusColors[job.status] || 'text-gray-500'} opacity-70">{statusText(job)}</span>
     </div>
-    {#if job.status === 'complete' && job.download_url}
-      <button
-        class="text-[#e35a1d] hover:underline cursor-pointer ml-2 shrink-0"
-        onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
-      >
-        &#8595;
-      </button>
-    {/if}
+    <div class="flex items-center gap-1 ml-2 shrink-0">
+      {#if job.status === 'complete' && job.download_url}
+        <button
+          class="text-[#e35a1d] hover:underline cursor-pointer"
+          onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
+        >
+          &#8595;
+        </button>
+      {/if}
+      {#if job.status === 'queued' || job.status === 'processing'}
+        <button
+          class="text-[11px] text-[#6b7280] hover:text-red-500 cursor-pointer disabled:opacity-40"
+          disabled={cancelling}
+          onclick={handleCancel}
+        >
+          {cancelling ? '...' : '\u2715'}
+        </button>
+      {/if}
+      {#if job.status === 'failed'}
+        <button
+          class="text-[11px] text-[#e35a1d] hover:underline cursor-pointer disabled:opacity-40"
+          disabled={retrying || !onRetry}
+          onclick={handleRetry}
+        >
+          {retrying ? '...' : '\u21BB'}
+        </button>
+      {/if}
+    </div>
   </div>
 
   <!-- Progress bar for processing jobs -->

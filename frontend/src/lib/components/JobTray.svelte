@@ -1,6 +1,13 @@
 <script lang="ts">
   import { jobs, activeJobCount, jobTrayExpanded } from '../stores/jobs'
+  import type { Job } from '../services/job-service'
   import JobItem from './JobItem.svelte'
+
+  interface Props {
+    onRetry?: (job: Job) => void
+  }
+
+  let { onRetry }: Props = $props()
 
   function clearCompleted() {
     jobs.update($j => $j.filter(j => j.status === 'queued' || j.status === 'processing'))
@@ -17,7 +24,7 @@
         </div>
         <div class="max-h-[240px] overflow-y-auto">
           {#each $jobs as job (job.id)}
-            <JobItem {job} />
+            <JobItem {job} {onRetry} />
           {/each}
         </div>
         {#if $jobs.some(j => j.status === 'complete' || j.status === 'failed')}
