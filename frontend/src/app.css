@@ -76,6 +76,17 @@ body {
   animation: spin 0.8s linear infinite;
 }
 
+/* Indeterminate progress bar animation */
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.animate-progress-indeterminate {
+  width: 25%;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
 /* MapLibre control overrides */
 .maplibregl-ctrl-group {
   background: rgba(255, 255, 255, 0.8) !important;

@@ -14,28 +14,70 @@
     complete: 'text-green-600',
     failed: 'text-red-600',
   }
+
+  function progressPercent(job: Job): number | null {
+    if (job.progress && typeof job.progress.percent === 'number' && Number.isFinite(job.progress.percent)) {
+      return Math.max(0, Math.min(100, job.progress.percent))
+    }
+    return null
+  }
+
+  function statusText(job: Job): string {
+    const pct = progressPercent(job)
+    if (job.status === 'processing' && pct !== null) {
+      return `${pct.toFixed(1)}%`
+    }
+    return job.status
+  }
 </script>
 
-<div class="flex items-center justify-between px-3 py-2 text-[12px]">
-  <div class="flex items-center gap-2 min-w-0">
-    {#if job.status === 'processing'}
-      <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
-    {:else if job.status === 'complete'}
-      <span class="w-3 h-3 text-green-500 shrink-0 text-center">&#10003;</span>
-    {:else if job.status === 'failed'}
-      <span class="w-3 h-3 text-red-500 shrink-0 text-center">&#10005;</span>
-    {:else}
-      <div class="w-3 h-3 rounded-full bg-yellow-400 shrink-0"></div>
+<div class="px-3 py-2 text-[12px]">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2 min-w-0">
+      {#if job.status === 'processing'}
+        <div class="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
+      {:else if job.status === 'complete'}
+        <span class="w-3 h-3 text-green-500 shrink-0 text-center">&#10003;</span>
+      {:else if job.status === 'failed'}
+        <span class="w-3 h-3 text-red-500 shrink-0 text-center">&#10005;</span>
+      {:else}
+        <div class="w-3 h-3 rounded-full bg-yellow-400 shrink-0"></div>
+      {/if}
+      <span class="truncate text-[#1a1a2e]">{job.dataset || job.id.slice(0, 8)}</span>
+      <span class="{statusColors[job.status] || 'text-gray-500'} opacity-70">{statusText(job)}</span>
+    </div>
+    {#if job.status === 'complete' && job.download_url}
+      <button
+        class="text-[#e35a1d] hover:underline cursor-pointer ml-2 shrink-0"
+        onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
+      >
+        &#8595;
+      </button>
     {/if}
-    <span class="truncate text-[#1a1a2e]">{job.dataset || job.id.slice(0, 8)}</span>
-    <span class="{statusColors[job.status] || 'text-gray-500'} opacity-70">{job.status}</span>
   </div>
-  {#if job.status === 'complete' && job.download_url}
-    <button
-      class="text-[#e35a1d] hover:underline cursor-pointer ml-2 shrink-0"
-      onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
-    >
-      &#8595;
-    </button>
+
+  <!-- Progress bar for processing jobs -->
+  {#if job.status === 'processing'}
+    {@const pct = progressPercent(job)}
+    <div class="mt-1.5">
+      {#if job.progress?.phase || job.progress?.message}
+        <div class="flex items-center justify-between text-[11px] text-[#6b7280] mb-1">
+          <span class="truncate">{job.progress?.phase || job.progress?.message || ''}</span>
+          {#if job.progress?.eta_formatted}
+            <span class="shrink-0 ml-2">ETA {job.progress.eta_formatted}</span>
+          {/if}
+        </div>
+      {/if}
+      <div class="h-1.5 bg-black/5 rounded-full overflow-hidden">
+        {#if pct !== null}
+          <div
+            class="h-full bg-blue-500 rounded-full transition-all duration-300"
+            style="width: {pct.toFixed(1)}%"
+          ></div>
+        {:else}
+          <div class="h-full bg-blue-500 rounded-full animate-progress-indeterminate"></div>
+        {/if}
+      </div>
+    </div>
   {/if}
 </div>
