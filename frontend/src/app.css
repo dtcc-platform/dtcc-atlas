@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  /* DTCC Brand Colors */
+  --color-dtcc-dark: #27252A;
+  --color-dtcc-orange: #E35A1D;
+  --color-dtcc-orange-dark: #c94d18;
+  --color-dtcc-orange-darker: #a84014;
+  --color-dtcc-yellow: #FADA36;
+  --color-dtcc-teal: #78C8BE;
+  --color-dtcc-white: #FFFFFF;
+  --color-dtcc-bg: #FAFAFA;
+  --color-dtcc-muted: #54545a;
+  --color-dtcc-eyebrow: #7a7a80;
+
+  /* Semantic color aliases */
+  --color-dtcc-navy: #27252A;
+  --color-dtcc-blue: #78C8BE;
+  --color-dtcc-blue-dark: #5fb3a8;
+  --color-dtcc-blue-darker: #4a9e94;
+  --color-dtcc-red: #E35A1D;
+  --color-dtcc-red-dark: #c94d18;
+  --color-dtcc-red-darker: #a84014;
+  --color-dtcc-green: #78C8BE;
+  --color-dtcc-green-dark: #5fb3a8;
+  --color-dtcc-green-darker: #4a9e94;
+  --color-dtcc-gray: #7a7a80;
+  --color-dtcc-gray-dark: #54545a;
+  --color-dtcc-gray-darker: #3d3d42;
+  --color-dtcc-gray-light: #e8e8ea;
+  --color-dtcc-gray-lighter: #FAFAFA;
+  --color-dtcc-border: #d0d0d4;
+  --color-dtcc-border-light: #e8e8ea;
+
+  /* Typography - Montserrat */
+  --font-family-sans: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+
+  /* Typography Scale */
+  --font-size-xs: 0.6875rem;    /* 11px - badges, labels */
+  --font-size-sm: 0.8125rem;    /* 13px - body text */
+  --font-size-base: 0.875rem;   /* 14px - buttons, UI */
+  --font-size-md: 1rem;         /* 16px - headings */
+
+  /* Spacing System (4px grid) */
+  --spacing-1: 0.25rem;   /* 4px */
+  --spacing-2: 0.5rem;    /* 8px */
+  --spacing-3: 0.75rem;   /* 12px */
+  --spacing-4: 1rem;      /* 16px */
+  --spacing-6: 1.5rem;    /* 24px */
+
+  /* Semantic Colors */
+  --color-text-primary: var(--color-dtcc-dark);
+  --color-text-secondary: var(--color-dtcc-muted);
+  --color-bg-overlay: rgba(255, 255, 255, 0.95);
+}
+
+/* Base typography */
+body {
+  font-family: var(--font-family-sans);
+  color: var(--color-dtcc-dark);
+  background: var(--color-dtcc-bg);
+}
+
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(227, 90, 29, 0.3);
+  border-top-color: #E35A1D;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
