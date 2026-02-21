@@ -15,7 +15,8 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: 'dist',
+    outDir: '../server/static',
+    emptyOutDir: true,
     sourcemap: true,
   }
 })
