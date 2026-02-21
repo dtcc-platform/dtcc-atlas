@@ -6,7 +6,8 @@
   import DatasetList from './lib/components/DatasetList.svelte'
   import DatasetForm from './lib/components/DatasetForm.svelte'
   import BookmarkList from './lib/components/BookmarkList.svelte'
-  import { activePanel } from './lib/stores/ui'
+  import SearchPalette from './lib/components/SearchPalette.svelte'
+  import { activePanel, searchOpen, closeAllPanels } from './lib/stores/ui'
   import type { SavedBookmark } from './lib/types/bookmarks'
 
   let mapView: MapView
@@ -20,6 +21,14 @@
     console.log('Delete bookmark:', id)
   }
 </script>
+
+<svelte:window onkeydown={(e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    searchOpen.update(v => !v)
+  }
+  if (e.key === 'Escape') closeAllPanels()
+}} />
 
 <div class="h-screen w-screen flex flex-col">
   <Header />
@@ -38,5 +47,6 @@
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {/if}
     </SidePanel>
+    <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
   </div>
 </div>
