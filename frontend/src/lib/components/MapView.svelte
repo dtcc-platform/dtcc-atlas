@@ -41,6 +41,7 @@
 
   onDestroy(() => {
     drawer?.clearBoundingBox()
+    mapManager.getMap()?.remove()
   })
 
   export function clearBbox() {

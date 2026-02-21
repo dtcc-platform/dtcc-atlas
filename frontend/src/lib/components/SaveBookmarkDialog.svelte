@@ -9,7 +9,7 @@
 
   let { open = $bindable(), onSave, onClose }: Props = $props()
   let name = $state('')
-  let inputEl: HTMLInputElement
+  let inputEl: HTMLInputElement | undefined = $state(undefined)
 
   $effect(() => {
     if (open && inputEl) setTimeout(() => inputEl?.focus(), 50)

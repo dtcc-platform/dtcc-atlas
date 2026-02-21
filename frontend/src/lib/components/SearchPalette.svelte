@@ -12,7 +12,7 @@
   let query = $state('')
   let results: NominatimResult[] = $state([])
   let loading = $state(false)
-  let inputEl: HTMLInputElement
+  let inputEl: HTMLInputElement | undefined = $state(undefined)
   let debounceTimer: ReturnType<typeof setTimeout>
 
   $effect(() => {

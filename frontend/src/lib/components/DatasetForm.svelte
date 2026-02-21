@@ -82,6 +82,10 @@
     for (const field of $formConfig.fields) {
       if (field.type !== FormFieldType.HIDDEN) {
         const val = values[field.name]
+        // Skip optional fields with empty/undefined/null values
+        if (!field.required && (val === '' || val === undefined || val === null)) {
+          continue
+        }
         // Convert number strings to numbers
         if ((field.type === FormFieldType.NUMBER || field.type === FormFieldType.INTEGER) && typeof val === 'string' && val !== '') {
           parameters[field.name] = field.type === FormFieldType.INTEGER ? parseInt(val, 10) : parseFloat(val)

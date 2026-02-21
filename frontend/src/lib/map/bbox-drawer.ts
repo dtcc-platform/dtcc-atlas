@@ -402,6 +402,10 @@ export class BBoxDrawer {
     this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
     this.currentBbox = bbox;
 
+    // Remove any existing listeners before adding new ones
+    this.map.off('mousemove', this.onMouseMove);
+    this.map.getCanvas().removeEventListener('mouseleave', this.onMouseLeave);
+
     // Set up tooltip handler for the loaded extent
     this.map.on('mousemove', this.onMouseMove);
     this.map.getCanvas().addEventListener('mouseleave', this.onMouseLeave);

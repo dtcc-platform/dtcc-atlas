@@ -24,6 +24,10 @@
   let mapView: MapView
   let saveDialogOpen = $state(false)
 
+  function onBookmarksChanged() {
+    bookmarks.set(bookmarkMgr.getAllBookmarks())
+  }
+
   // Create bookmark manager with localStorage backend
   const bookmarkStorage = new LocalBookmarkStorage()
   const bookmarkMgr = new BookmarkManager(bookmarkStorage)
@@ -37,9 +41,7 @@
     bookmarks.set(bookmarkMgr.getAllBookmarks())
 
     // Listen for bookmark changes (from BookmarkManager events)
-    bookmarkMgr.on('bookmarks-changed', () => {
-      bookmarks.set(bookmarkMgr.getAllBookmarks())
-    })
+    bookmarkMgr.on('bookmarks-changed', onBookmarksChanged)
 
     // Connect SSE for real-time job updates
     jobService.connectSSE()
@@ -69,6 +71,7 @@
   })
 
   onDestroy(() => {
+    bookmarkMgr.off('bookmarks-changed', onBookmarksChanged)
     jobService.disconnectSSE()
     if (unsubJobEvents) unsubJobEvents()
   })

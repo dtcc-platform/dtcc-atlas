@@ -18,6 +18,7 @@
   {disabled}
   onclick={onclick}
   title={label}
+  aria-label={label}
 >
   {@html icon}
   {#if badge}
