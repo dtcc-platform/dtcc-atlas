@@ -8,10 +8,15 @@
   import BookmarkList from './lib/components/BookmarkList.svelte'
   import SearchPalette from './lib/components/SearchPalette.svelte'
   import JobTray from './lib/components/JobTray.svelte'
+  import EmptyState from './lib/components/EmptyState.svelte'
+  import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import { activePanel, searchOpen, closeAllPanels } from './lib/stores/ui'
+  import { bbox } from './lib/stores/map'
+  import { bookmarks } from './lib/stores/bookmarks'
   import type { SavedBookmark } from './lib/types/bookmarks'
 
   let mapView: MapView
+  let saveDialogOpen = $state(false)
 
   function handleBookmarkLoad(bookmark: SavedBookmark) {
     mapView?.loadBbox(bookmark.bbox)
@@ -20,6 +25,18 @@
 
   function handleBookmarkDelete(id: string) {
     console.log('Delete bookmark:', id)
+  }
+
+  function handleSaveBookmark(name: string) {
+    const currentBbox = $bbox
+    if (!currentBbox) return
+    const bookmark: SavedBookmark = {
+      id: crypto.randomUUID(),
+      name,
+      bbox: currentBbox,
+      createdAt: Date.now(),
+    }
+    bookmarks.update(b => [...b, bookmark])
   }
 </script>
 
@@ -37,6 +54,7 @@
     <MapView bind:this={mapView} />
     <Toolbar
       onClear={() => mapView?.clearBbox()}
+      onSave={() => saveDialogOpen = true}
       onToggle3D={() => mapView?.toggle3D()}
     />
     <SidePanel>
@@ -48,7 +66,9 @@
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {/if}
     </SidePanel>
+    <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
+    <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
     <JobTray />
   </div>
 </div>
