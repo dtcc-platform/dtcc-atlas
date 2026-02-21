@@ -5,9 +5,20 @@
   import SidePanel from './lib/components/SidePanel.svelte'
   import DatasetList from './lib/components/DatasetList.svelte'
   import DatasetForm from './lib/components/DatasetForm.svelte'
+  import BookmarkList from './lib/components/BookmarkList.svelte'
   import { activePanel } from './lib/stores/ui'
+  import type { SavedBookmark } from './lib/types/bookmarks'
 
   let mapView: MapView
+
+  function handleBookmarkLoad(bookmark: SavedBookmark) {
+    mapView?.loadBbox(bookmark.bbox)
+    activePanel.set(null)
+  }
+
+  function handleBookmarkDelete(id: string) {
+    console.log('Delete bookmark:', id)
+  }
 </script>
 
 <div class="h-screen w-screen flex flex-col">
@@ -24,7 +35,7 @@
       {:else if $activePanel === 'dataset-form'}
         <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
-        <p class="p-5 text-gray-500">Bookmarks coming in Task 9</p>
+        <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {/if}
     </SidePanel>
   </div>
