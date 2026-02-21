@@ -169,3 +169,6 @@ data/published/
 
 # Temp folder (cloned repos, downloaded orders)
 temp/
+
+# Git worktrees
+.worktrees/
