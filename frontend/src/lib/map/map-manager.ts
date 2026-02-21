@@ -13,9 +13,9 @@ export class MapManager {
     "fog-ground-blend": 0.15
   };
 
-  initializeMap(targetId: string): maplibregl.Map {
+  initializeMap(container: string | HTMLElement): maplibregl.Map {
     this.map = new maplibregl.Map({
-      container: targetId,
+      container,
       style: {
         version: 8,
         sources: {
