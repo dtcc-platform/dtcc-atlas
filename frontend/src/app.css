@@ -75,3 +75,30 @@ body {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
+/* MapLibre control overrides */
+.maplibregl-ctrl-group {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden !important;
+}
+
+.maplibregl-ctrl-group button {
+  width: 36px !important;
+  height: 36px !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+.maplibregl-ctrl-attrib {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  font-size: 11px !important;
+}
