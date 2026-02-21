@@ -16,22 +16,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "src/main.ts",
-    "src/vite-env.d.ts",
-    "src/lib/**/*.ts",
-    "src/**/*.svelte"
-  ],
-  "exclude": [
-    "src/api",
-    "src/forms",
-    "src/services",
-    "src/map",
-    "src/storage",
-    "src/bookmarks",
-    "src/types",
-    "src/state",
-    "src/ui",
-    "src/main.old.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.svelte"]
 }
