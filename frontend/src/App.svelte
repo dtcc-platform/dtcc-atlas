@@ -7,6 +7,7 @@
   import DatasetForm from './lib/components/DatasetForm.svelte'
   import BookmarkList from './lib/components/BookmarkList.svelte'
   import SearchPalette from './lib/components/SearchPalette.svelte'
+  import JobTray from './lib/components/JobTray.svelte'
   import { activePanel, searchOpen, closeAllPanels } from './lib/stores/ui'
   import type { SavedBookmark } from './lib/types/bookmarks'
 
@@ -48,5 +49,6 @@
       {/if}
     </SidePanel>
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
+    <JobTray />
   </div>
 </div>
