@@ -2,6 +2,9 @@
   import Header from './lib/components/Header.svelte'
   import MapView from './lib/components/MapView.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
+  import SidePanel from './lib/components/SidePanel.svelte'
+  import DatasetList from './lib/components/DatasetList.svelte'
+  import { activePanel } from './lib/stores/ui'
 
   let mapView: MapView
 </script>
@@ -14,5 +17,14 @@
       onClear={() => mapView?.clearBbox()}
       onToggle3D={() => mapView?.toggle3D()}
     />
+    <SidePanel>
+      {#if $activePanel === 'datasets'}
+        <DatasetList />
+      {:else if $activePanel === 'dataset-form'}
+        <p class="p-5 text-gray-500">DatasetForm coming in Task 8</p>
+      {:else if $activePanel === 'bookmarks'}
+        <p class="p-5 text-gray-500">Bookmarks coming in Task 9</p>
+      {/if}
+    </SidePanel>
   </div>
 </div>
