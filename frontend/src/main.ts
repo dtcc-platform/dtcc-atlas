@@ -20,6 +20,7 @@ import { BookmarkPanel } from './ui/bookmark-panel';
 import { SearchBox } from './ui/search-box';
 import { JobTracker } from './ui/job-tracker';
 import { jobService } from './services/job-service';
+import { artifactBridge } from './services/artifact-bridge';
 import { MIN_BBOX_AREA_M2 } from './config';
 import proj4 from 'proj4';
 import { Icons } from './ui/icons';
@@ -140,6 +141,35 @@ async function initializeApp(): Promise<void> {
     const areaDisplay = document.getElementById('area-display');
     const bboxStatus = document.getElementById('bbox-status');
     const pixelStreamPanel = new PixelStreamPanel();
+
+    // Start the artifact bridge (listens for artifact_ready SSE events)
+    artifactBridge.start();
+    artifactBridge.onWarning((msg) => {
+      console.warn(msg);
+    });
+
+    // Track Pixel Streaming connection state and sync with artifact bridge + dataset dialog
+    let psConnectionPollId: number | null = null;
+    let lastPsConnected = false;
+
+    const checkPsConnection = (): void => {
+      const connected = pixelStreamPanel.isConnected();
+      if (connected !== lastPsConnected) {
+        lastPsConnected = connected;
+        if (connected) {
+          artifactBridge.setPixelStreaming(pixelStreamPanel.getPixelStreaming());
+          datasetDialog.setPixelStreamingConnected(true);
+        } else {
+          artifactBridge.setPixelStreaming(null);
+          datasetDialog.setPixelStreamingConnected(false);
+        }
+      }
+    };
+
+    // Poll PS connection state every second (lightweight boolean check)
+    psConnectionPollId = window.setInterval(checkPsConnection, 1000);
+    // Suppress unused-variable warning - interval cleared on page unload
+    void psConnectionPollId;
 
     const setDrawButtonActive = (): void => {
       drawButton.setAttribute('data-state', 'active');
@@ -477,9 +507,9 @@ async function initializeApp(): Promise<void> {
       }
     });
 
-    // Handle form submission - submit to job queue
+    // Handle form submission - submit to job queue or UE artifact pipeline
     datasetDialog.onSubmit(
-      async (datasetName: string, values: Record<string, unknown>) => {
+      async (datasetName: string, values: Record<string, unknown>, sendToUE: boolean) => {
         const bbox = appState.getBbox();
         if (!bbox) {
           alert('No bounding box selected');
@@ -524,7 +554,7 @@ async function initializeApp(): Promise<void> {
           // Remove filename from parameters (it's not a dataset parameter)
           const { filename: _, ...parameters } = values;
 
-          // Prepare request for job queue
+          // Prepare request
           const request = {
             dataset: datasetName,
             bounds: bboxToArray(bbox),
@@ -532,26 +562,50 @@ async function initializeApp(): Promise<void> {
             filename,
           };
 
-          // Submit to job queue
-          const response = await jobService.submitJob(request);
+          if (sendToUE) {
+            // Submit to UE artifact pipeline
+            const response = await jobService.submitArtifact(request);
 
-          // Add job to tracker with initial state
-          jobTracker.addJob({
-            id: response.job_id,
-            dataset: datasetName,
-            status: response.status as 'queued',
-            filename: null,
-            error: null,
-            created_at: new Date().toISOString(),
-            completed_at: null,
-            download_url: null,
-          });
+            // Add job to tracker with UE artifact tag
+            jobTracker.addJob({
+              id: response.artifact_id,
+              dataset: datasetName,
+              status: response.status as 'queued',
+              filename: null,
+              error: null,
+              created_at: new Date().toISOString(),
+              completed_at: null,
+              download_url: null,
+              params: { ...parameters, bounds: bboxToArray(bbox), __ue_artifact: true },
+            });
 
-          // Update status: success
-          datasetDialog.updateSubmissionStatus({
-            state: SubmissionState.SUCCESS,
-            message: 'Job submitted! Track progress in Datasets panel.',
-          });
+            // Update status: success
+            datasetDialog.updateSubmissionStatus({
+              state: SubmissionState.SUCCESS,
+              message: 'Artifact submitted! It will be sent to UE when ready.',
+            });
+          } else {
+            // Submit to regular job queue
+            const response = await jobService.submitJob(request);
+
+            // Add job to tracker with initial state
+            jobTracker.addJob({
+              id: response.job_id,
+              dataset: datasetName,
+              status: response.status as 'queued',
+              filename: null,
+              error: null,
+              created_at: new Date().toISOString(),
+              completed_at: null,
+              download_url: null,
+            });
+
+            // Update status: success
+            datasetDialog.updateSubmissionStatus({
+              state: SubmissionState.SUCCESS,
+              message: 'Job submitted! Track progress in Datasets panel.',
+            });
+          }
 
           // Show job tracker panel
           jobTracker.show();

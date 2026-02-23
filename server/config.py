@@ -19,3 +19,9 @@ PUBLISHED_DATASETS_DIR = Path(
 # Job manager settings
 JOB_MAX_WORKERS = int(os.getenv("JOB_MAX_WORKERS", "4"))
 JOB_TIMEOUT = float(os.getenv("JOB_TIMEOUT", "120.0"))
+
+# UE artifact settings
+UE_ARTIFACT_DIR = Path(
+    os.getenv("UE_ARTIFACT_DIR", BASE_DIR / "data" / "artifacts")
+)
+UE_ARTIFACT_RETENTION_HOURS = float(os.getenv("UE_ARTIFACT_RETENTION_HOURS", "24"))
