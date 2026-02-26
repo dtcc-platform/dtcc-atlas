@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DTCC Atlas - Upload Wizard Mockups</title>
+  <style>
+    :root {
+      --bg: #f3f5f8;
+      --panel: #ffffff;
+      --ink: #18202a;
+      --muted: #617083;
+      --line: #d8e0e9;
+      --primary: #e35a1d;
+      --primary-dark: #b94817;
+      --ok: #1f9d68;
+      --warn: #d18b0f;
+      --bad: #c54242;
+      --header: #16253b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eef2f7 0%, var(--bg) 100%);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+
+    .title {
+      background: var(--header);
+      color: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 28px rgba(16, 26, 44, 0.2);
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .title p {
+      margin: 8px 0 0;
+      color: #d9e2ef;
+      font-size: 14px;
+    }
+
+    .frame {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-top: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(15, 29, 50, 0.08);
+    }
+
+    .frame-header {
+      background: #f9fbfd;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .frame-title {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .chip.primary { background: #ffe7dc; color: #973910; border-color: #ffd3bf; }
+    .chip.ok { background: #dff8ed; color: #0d6c45; border-color: #b8efd7; }
+    .chip.warn { background: #fff3d9; color: #8d6506; border-color: #ffe4a5; }
+    .chip.bad { background: #ffe0e0; color: #8c2121; border-color: #ffc0c0; }
+
+    .frame-body {
+      padding: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 12px;
+      text-decoration: none;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary-dark);
+      color: #fff;
+    }
+
+    .dropzone {
+      border: 2px dashed #b8c7d9;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      background: #f7fbff;
+      color: #2c4a67;
+      font-weight: 600;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 6px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .cell {
+      padding: 10px;
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .cell:nth-child(4n) {
+      border-right: 0;
+    }
+
+    .head {
+      background: #f5f8fc;
+      font-weight: 700;
+      font-size: 11px;
+      color: #334d67;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .progress {
+      height: 8px;
+      background: #ebf0f6;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #e35a1d, #ff8d3a);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .narrative {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid #dfe6ef;
+      border-radius: 10px;
+      background: #f8fbff;
+      color: #2a3f56;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="title">
+      <h1>Upload Wizard Mockups</h1>
+      <p>Storyboard visuals for team alignment: upload - detect - confirm - ingest - use.</p>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 1 - Entry Point In Atlas</div>
+        <span class="chip primary">Discoverable</span>
+      </div>
+      <div class="frame-body">
+        <div class="toolbar">
+          <div><strong>DTCC Atlas</strong> <span class="muted">/ Datasets</span></div>
+          <div style="display: flex; gap: 8px;">
+            <a class="btn" href="#">Draw Area</a>
+            <a class="btn primary" href="#">Upload Data</a>
+          </div>
+        </div>
+        <div class="small">New upload action sits next to existing dataset workflow controls.</div>
+        <p class="narrative">
+          This first screen focuses on placement and intent. The user is already in the context where data work begins, so `Upload Data` is placed beside existing dataset actions instead of hidden in an admin menu. The goal is to signal that uploaded data is not a secondary feature but part of the same core workflow as drawing an area and selecting datasets. At this step, the user only needs to decide to start uploading; the system should not ask for technical details yet.
+        </p>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 2 - Add Files / Folder</div>
+        <span class="chip ok">Low Friction</span>
+      </div>
+      <div class="frame-body">
+        <div class="dropzone">
+          Drop files or a folder here
+          <div class="small">Supports mixed geospatial inputs, zipped packages, and sidecar file groups.</div>
+          <div style="margin-top: 10px;">
+            <a class="btn" href="#">Browse Files</a>
+            <a class="btn" href="#">Browse Folder</a>
+          </div>
+        </div>
+        <p class="narrative">
+          Here the user performs a simple collection task: provide everything relevant in one gesture. Supporting both directory and multi-file input reduces friction for realistic geospatial deliveries, where data usually comes as bundles rather than single files. The system should preserve the original file structure, detect related sidecar files, and build an internal upload batch before any destructive processing. The design keeps this step deliberately forgiving so users can start fast and refine later.
+        </p>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 3 - Auto Detection Review</div>
+        <span class="chip warn">Explainability</span>
+      </div>
+      <div class="frame-body">
+        <div class="grid">
+          <div class="cell head">Candidate</div>
+          <div class="cell head">Detected Type</div>
+          <div class="cell head">Confidence</div>
+          <div class="cell head">Warnings</div>
+
+          <div class="cell"><strong>city_tiles_2026</strong><br><span class="muted">12 files grouped</span></div>
+          <div class="cell">Point Cloud</div>
+          <div class="cell"><span class="chip ok">High</span></div>
+          <div class="cell">None</div>
+
+          <div class="cell"><strong>buildings_main.gpkg</strong></div>
+          <div class="cell">Buildings Vector</div>
+          <div class="cell"><span class="chip ok">High</span></div>
+          <div class="cell">None</div>
+
+          <div class="cell"><strong>terrain_surface.tif</strong></div>
+          <div class="cell">Raster</div>
+          <div class="cell"><span class="chip warn">Medium</span></div>
+          <div class="cell">CRS missing</div>
+
+          <div class="cell"><strong>urban_model.json</strong></div>
+          <div class="cell">City Model</div>
+          <div class="cell"><span class="chip warn">Medium</span></div>
+          <div class="cell">Check geometry validity</div>
+        </div>
+        <p class="narrative">
+          This review screen is where "automagic" becomes transparent. The user sees how the system grouped files into dataset candidates, what type was inferred, and which assumptions are uncertain. Confidence and warnings are critical because users need to trust automation without losing control over edge cases. Internally, the platform is combining suffix checks, content inspection, and parse attempts to produce these suggestions, but the UI presents the output in operational language that supports quick decision making.
+        </p>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 4 - Confirmation & Mapping</div>
+        <span class="chip primary">User In Control</span>
+      </div>
+      <div class="frame-body">
+        <div class="row">
+          <div><strong>Dataset Name</strong><br><span class="muted">city_tiles_2026</span></div>
+          <div class="muted">editable</div>
+        </div>
+        <div class="row">
+          <div><strong>Role In Atlas</strong><br><span class="muted">Point Cloud Source</span></div>
+          <div class="muted">dropdown override</div>
+        </div>
+        <div class="row">
+          <div><strong>CRS</strong><br><span class="muted">Detected: unknown</span></div>
+          <div class="chip warn">User Must Confirm</div>
+        </div>
+        <p class="narrative">
+          This step handles ambiguity explicitly. The user confirms naming, semantic role, and CRS so Atlas can ingest data safely and route it correctly later for simulation, analysis, and visualization. Instead of forcing everything as mandatory from the start, only high-impact unresolved items are highlighted for intervention. The system uses these confirmations to generate deterministic ingestion metadata, avoiding hidden assumptions that could cause silent downstream errors.
+        </p>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 5 - Ingestion Progress</div>
+        <span class="chip primary">Long-Running Job</span>
+      </div>
+      <div class="frame-body">
+        <div class="row">
+          <div>Upload + Stage Files</div>
+          <div class="chip ok">Done</div>
+        </div>
+        <div class="row">
+          <div>Parse + Validate Objects</div>
+          <div class="chip ok">Done</div>
+        </div>
+        <div class="row">
+          <div>Normalize + Catalog Registration</div>
+          <div class="chip warn">In Progress</div>
+        </div>
+        <div class="progress"><span style="width: 72%;"></span></div>
+        <div class="small">2 datasets complete, 1 needs CRS input, 1 failed (unsupported mesh cell type).</div>
+        <p class="narrative">
+          Ingestion is represented as a staged job, not a black box. The user can see where time is spent and which datasets succeeded, failed, or are waiting on input. This is essential because uploads may be large, heterogeneous, and only partially valid, so all-or-nothing feedback would be frustrating and operationally expensive. The system should keep per-dataset state, surface actionable errors, and allow targeted retry without redoing successful work.
+        </p>
+      </div>
+    </section>
+
+    <section class="frame">
+      <div class="frame-header">
+        <div class="frame-title">Frame 6 - Completed And Available</div>
+        <span class="chip ok">First-Class Data</span>
+      </div>
+      <div class="frame-body">
+        <div class="row">
+          <div><strong>city_tiles_2026</strong><br><span class="muted">Source: user-uploaded | role: point cloud</span></div>
+          <a class="btn" href="#">Open In Datasets</a>
+        </div>
+        <div class="row">
+          <div><strong>buildings_main</strong><br><span class="muted">Source: user-uploaded | role: buildings</span></div>
+          <a class="btn" href="#">Use For Simulation</a>
+        </div>
+        <div class="small">Data is now visible beside dtcc-core and published datasets, not in a separate silo.</div>
+        <p class="narrative">
+          The completion screen closes the loop by immediately connecting ingestion to usable outcomes. The user can open uploaded datasets in the same Atlas surfaces used for built-in sources, which reinforces the first-class data model. Source and role badges preserve provenance and make routing decisions inspectable when multiple data origins are available. From a product standpoint, this screen is where upload stops being an import utility and becomes a capability that changes daily workflow.
+        </p>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
