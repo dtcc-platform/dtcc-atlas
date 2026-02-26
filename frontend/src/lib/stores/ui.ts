@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store'
 
-export type PanelView = 'datasets' | 'dataset-form' | 'bookmarks' | null
+export type PanelView = 'datasets' | 'dataset-form' | 'bookmarks' | 'uploads' | null
 
 export const activePanel = writable<PanelView>(null)
 export const searchOpen = writable(false)

@@ -17,8 +17,19 @@ export interface DatasetInfo {
   name: string;
   type?: string;  // 'raster' | 'vector'
   source?: string;  // 'dtcc-core' | 'lm-geotorget' | 'test-data'
+  source_group?: string; // 'dtcc-core' | 'dtcc-sim' | 'user-uploaded' | 'published' | 'other'
+  source_label?: string;
   title?: string;
   path?: string;
+  data_kind?: string; // point_cloud | vector | raster | mesh | city_model | mixed | unknown
+  data_kind_label?: string;
+  return_types?: string[];
+  supported_formats?: string[];
+  upload_batch_id?: string;
+  upload_name?: string;
+  uploaded_at?: string;
+  version?: number;
+  bounds?: number[]; // [minX, minY, maxX, maxY] when known
 }
 
 export interface MapConfig {

@@ -7,6 +7,7 @@
   import SidePanel from './lib/components/SidePanel.svelte'
   import DatasetList from './lib/components/DatasetList.svelte'
   import DatasetForm from './lib/components/DatasetForm.svelte'
+  import UploadWizard from './lib/components/UploadWizard.svelte'
   import BookmarkList from './lib/components/BookmarkList.svelte'
   import SearchPalette from './lib/components/SearchPalette.svelte'
   import JobTray from './lib/components/JobTray.svelte'
@@ -141,6 +142,8 @@
         <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
+      {:else if $activePanel === 'uploads'}
+        <UploadWizard />
       {/if}
     </SidePanel>
     <EmptyState />

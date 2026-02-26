@@ -195,7 +195,13 @@ def process_dataset_job(
             on_progress=emit_progress,
         )
 
-    # Dataset not found in either source
+    # Check if it's an uploaded dataset
+    from server.upload.service import resolve_uploaded_job_result
+    uploaded_result = resolve_uploaded_job_result(dataset_name, params)
+    if uploaded_result is not None:
+        return uploaded_result
+
+    # Dataset not found in known sources
     raise ValueError(f"Dataset '{dataset_name}' not found")
 
 

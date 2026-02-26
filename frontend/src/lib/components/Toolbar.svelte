@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { get } from 'svelte/store'
   import ToolbarButton from './ToolbarButton.svelte'
   import { Icons } from '../ui/icons'
+  import { fetchDatasetList } from '../api/dataset-api'
+  import { datasets } from '../stores/datasets'
   import { drawingActive, activePanel, searchOpen } from '../stores/ui'
   import { bbox } from '../stores/map'
   import { bookmarkCount } from '../stores/bookmarks'
@@ -13,6 +16,22 @@
   }
 
   let { onClear, onSave, onToggle3D }: Props = $props()
+
+  async function toggleDatasetsPanel() {
+    const current = get(activePanel)
+    if (current === 'datasets') {
+      activePanel.set(null)
+      return
+    }
+
+    activePanel.set('datasets')
+    try {
+      const list = await fetchDatasetList()
+      datasets.set(list)
+    } catch (error) {
+      console.warn('Failed to refresh dataset list:', error)
+    }
+  }
 </script>
 
 <div class="absolute top-4 left-4 z-40 flex flex-col bg-white/80 backdrop-blur-lg rounded-xl shadow-lg border border-black/5 p-1 gap-0.5">
@@ -52,7 +71,13 @@
     label="Datasets"
     active={$activePanel === 'datasets' || $activePanel === 'dataset-form'}
     badge={$activeJobCount > 0}
-    onclick={() => activePanel.update(v => v === 'datasets' ? null : 'datasets')}
+    onclick={toggleDatasetsPanel}
+  />
+  <ToolbarButton
+    icon={Icons.upload}
+    label="Uploads"
+    active={$activePanel === 'uploads'}
+    onclick={() => activePanel.update(v => v === 'uploads' ? null : 'uploads')}
   />
 
   <!-- Divider -->

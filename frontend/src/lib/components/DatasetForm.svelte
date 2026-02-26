@@ -59,6 +59,22 @@
     }
   }
 
+  function toBoundsArray(boundsValue: unknown): number[] | null {
+    if (!Array.isArray(boundsValue) || boundsValue.length < 4) return null
+    const vals = boundsValue.slice(0, 4).map(v => Number(v))
+    if (vals.some(v => Number.isNaN(v))) return null
+    return vals
+  }
+
+  function intersects(a: number[], b: number[]): boolean {
+    return !(
+      a[2] < b[0] ||
+      a[0] > b[2] ||
+      a[3] < b[1] ||
+      a[1] > b[3]
+    )
+  }
+
   async function handleSubmit() {
     if (!$formConfig || !$bbox) return
 
@@ -113,6 +129,11 @@
   }
 
   const title = $derived($selectedDataset?.title || $selectedDataset?.name || 'Configure Dataset')
+  const selectedDatasetBounds = $derived(toBoundsArray($selectedDataset?.bounds))
+  const selectedBBoxArray = $derived($bbox ? [$bbox.minX, $bbox.minY, $bbox.maxX, $bbox.maxY] : null)
+  const hasCoverageForSelection = $derived(
+    !selectedDatasetBounds || !selectedBBoxArray || intersects(selectedDatasetBounds, selectedBBoxArray)
+  )
   const isSubmitting = $derived(submissionState === SubmissionState.SUBMITTING)
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
@@ -247,13 +268,17 @@
         <p class="text-[12px] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
           Draw a bounding box on the map before submitting.
         </p>
+      {:else if !hasCoverageForSelection}
+        <p class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+          Selected area does not intersect this dataset's known coverage.
+        </p>
       {/if}
 
       <button
         type="submit"
-        disabled={isSubmitting || !$bbox}
+        disabled={isSubmitting || !$bbox || !hasCoverageForSelection}
         class="mt-2 h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
-          {isSubmitting || !$bbox
+          {isSubmitting || !$bbox || !hasCoverageForSelection
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-[#1a1a2e] text-white hover:bg-[#2d2d44]'}"
       >
