@@ -4,6 +4,7 @@
   import { bbox } from '../stores/map'
   import { fetchDatasetSchema } from '../api/dataset-api'
   import { schemaParser } from '../forms/schema-parser'
+  import { Icons } from '../ui/icons'
   import type { DatasetInfo } from '../types'
 
   interface SourceGroup {
@@ -201,12 +202,17 @@
 
 <div class="p-5 h-full flex flex-col min-h-0">
   <div class="flex items-center justify-between mb-4">
-    <h3 class="text-[16px] font-semibold text-[#1a1a2e]">Select Dataset</h3>
-    <span class="text-[12px] text-[#6b7280]">{$datasets.length} available</span>
+    <h3 class="text-[16px] font-semibold text-dtcc-navy">Select Dataset</h3>
+    <div class="flex items-center gap-2">
+      <span class="text-[12px] text-dtcc-muted">{$datasets.length} available</span>
+      <button class="p-1 rounded hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => activePanel.set(null)}>
+        {@html Icons.close}
+      </button>
+    </div>
   </div>
   <div class="min-h-0 flex-1 overflow-y-auto pr-1 flex flex-col gap-3">
     {#if !$datasets.length}
-      <div class="text-[12px] text-[#6b7280] p-3 border border-[#e5e7eb] rounded-lg">
+      <div class="text-[12px] text-dtcc-muted p-3 border border-dtcc-border-light rounded-lg">
         No datasets found. Try uploading data, then reopen this panel to refresh.
       </div>
     {:else}
@@ -217,30 +223,30 @@
 
       {#each nonUploadGroups as group}
         {@const groupStateKey = `source:${group.key}`}
-        <section class="border border-[#ececf1] rounded-xl overflow-hidden flex flex-col min-h-0">
+        <section class="border border-dtcc-border-light rounded-xl overflow-hidden flex flex-col min-h-0">
           <button
-            class="w-full px-3 py-2 bg-[#f8f9fb] border-b border-[#ececf1] flex items-center justify-between text-left hover:bg-[#f2f4f8] transition-colors cursor-pointer"
+            class="w-full px-3 py-2 bg-dtcc-bg border-b border-dtcc-border-light flex items-center justify-between text-left hover:bg-[#f2f4f8] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
             onclick={() => toggleCollapsed(groupStateKey)}
           >
             <div class="flex items-center gap-2">
               <span class={`w-2 h-2 rounded-full ${sourceDotClass(group.key)}`}></span>
-              <h4 class="text-[12px] font-semibold text-[#1f2937] uppercase tracking-wide">{group.label}</h4>
+              <h4 class="text-[12px] font-semibold text-dtcc-dark uppercase tracking-wide">{group.label}</h4>
             </div>
             <div class="flex items-center gap-2">
-              <span class="text-[11px] text-[#6b7280]">{group.datasets.length}</span>
-              <span class="text-[12px] text-[#6b7280]">{isCollapsed(groupStateKey) ? '▸' : '▾'}</span>
+              <span class="text-[11px] text-dtcc-muted">{group.datasets.length}</span>
+              <span class="w-4 h-4 text-dtcc-muted transition-transform {isCollapsed(groupStateKey) ? '-rotate-90' : ''}">{@html Icons.chevronDown}</span>
             </div>
           </button>
           {#if !isCollapsed(groupStateKey)}
             <div class="p-2 flex flex-col gap-1 max-h-[44vh] overflow-y-auto">
-              {#each group.datasets as dataset, idx}
+              {#each group.datasets as dataset}
                 {@const coverage = datasetCoverageStatus(dataset)}
                 <button
-                  class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer ${idx % 2 === 1 ? 'bg-[#f6f7f9]' : 'bg-white'}`}
+                  class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none bg-white`}
                   onclick={() => selectDataset(dataset)}
                 >
                   <div class="min-w-0">
-                    <div class="text-[13px] font-medium text-[#1a1a2e] truncate">{dataset.title || dataset.name}</div>
+                    <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
                     <div class="mt-1 flex items-center gap-2 flex-wrap">
                       <span class={`text-[10px] px-2 py-0.5 rounded border ${kindBadgeClass(dataset.data_kind)}`}>
                         {dataset.data_kind_label || 'Unknown'}
@@ -248,10 +254,10 @@
                       <span class={`text-[10px] px-2 py-0.5 rounded border ${coverageBadgeClass(coverage)}`}>
                         {coverageLabel(coverage)}
                       </span>
-                      <span class="text-[11px] text-[#6b7280] truncate">{datasetSubtitle(dataset)}</span>
+                      <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
                     </div>
                   </div>
-                  <span class="text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
+                  <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
                 </button>
               {/each}
             </div>
@@ -260,7 +266,7 @@
       {/each}
 
       {#if uploadGroups.length > 0}
-        <div class="mt-1 border-t border-[#e5e7eb] pt-3">
+        <div class="mt-1 border-t border-dtcc-border-light pt-3">
           <h4 class="text-[12px] font-semibold text-[#7c4a2f] uppercase tracking-wide px-1">
             User Uploads
           </h4>
@@ -270,7 +276,7 @@
           {@const uploadStateKey = `upload:${uploadGroup.key}`}
           <section class="border border-[#f0e4da] rounded-xl overflow-hidden flex flex-col min-h-0">
             <button
-              class="w-full px-3 py-2 bg-[#fff8f4] border-b border-[#f1e6dc] flex items-center justify-between text-left hover:bg-[#fff0e6] transition-colors cursor-pointer"
+              class="w-full px-3 py-2 bg-[#fff8f4] border-b border-[#f1e6dc] flex items-center justify-between text-left hover:bg-[#fff0e6] transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
               onclick={() => toggleCollapsed(uploadStateKey)}
             >
               <div class="flex items-center gap-2">
@@ -279,19 +285,19 @@
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-[11px] text-[#8b5b3c]">{uploadGroup.datasets.length}</span>
-                <span class="text-[12px] text-[#8b5b3c]">{isCollapsed(uploadStateKey) ? '▸' : '▾'}</span>
+                <span class="w-4 h-4 text-[#8b5b3c] transition-transform {isCollapsed(uploadStateKey) ? '-rotate-90' : ''}">{@html Icons.chevronDown}</span>
               </div>
             </button>
             {#if !isCollapsed(uploadStateKey)}
               <div class="p-2 flex flex-col gap-1 max-h-[44vh] overflow-y-auto">
-                {#each uploadGroup.datasets as dataset, idx}
+                {#each uploadGroup.datasets as dataset}
                   {@const coverage = datasetCoverageStatus(dataset)}
                   <button
-                    class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer ${idx % 2 === 1 ? 'bg-[#f6f7f9]' : 'bg-white'}`}
+                    class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none bg-white`}
                     onclick={() => selectDataset(dataset)}
                   >
                     <div class="min-w-0">
-                      <div class="text-[13px] font-medium text-[#1a1a2e] truncate">{dataset.title || dataset.name}</div>
+                      <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
                       <div class="mt-1 flex items-center gap-2 flex-wrap">
                         <span class={`text-[10px] px-2 py-0.5 rounded border ${kindBadgeClass(dataset.data_kind)}`}>
                           {dataset.data_kind_label || 'Unknown'}
@@ -299,10 +305,10 @@
                         <span class={`text-[10px] px-2 py-0.5 rounded border ${coverageBadgeClass(coverage)}`}>
                           {coverageLabel(coverage)}
                         </span>
-                        <span class="text-[11px] text-[#6b7280] truncate">{datasetSubtitle(dataset)}</span>
+                        <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
                       </div>
                     </div>
-                    <span class="text-[#6b7280] opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
+                    <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
                   </button>
                 {/each}
               </div>

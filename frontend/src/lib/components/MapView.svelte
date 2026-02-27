@@ -69,4 +69,4 @@
 </script>
 
 <div bind:this={mapContainer} class="absolute inset-0"></div>
-<div id="bbox-tooltip" class="hidden fixed pointer-events-none text-white text-xs px-2 py-1 rounded z-50" style="background: rgba(39, 37, 42, 0.95);"></div>
+<div id="bbox-tooltip" class="hidden fixed pointer-events-none text-white text-xs px-2 py-1 rounded z-50" style="background: color-mix(in srgb, var(--color-dtcc-navy) 95%, transparent);"></div>

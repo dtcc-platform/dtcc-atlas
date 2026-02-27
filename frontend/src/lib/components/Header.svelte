@@ -23,13 +23,13 @@
   }
 </script>
 
-<header class="h-9 bg-[#1a1a2e] text-white flex items-center justify-between px-4 z-50 gap-3">
+<header class="min-h-[44px] sm:min-h-0 sm:h-9 bg-dtcc-navy text-white flex items-center justify-between px-4 z-50 gap-3">
   <div class="flex items-center gap-2">
     <h1 class="text-[13px] font-semibold tracking-tight">DTCC Atlas</h1>
     <span class="text-[11px] text-white/40 font-mono">v0.2.0</span>
   </div>
   <div class="flex items-center gap-2 text-[11px] overflow-x-auto whitespace-nowrap min-w-0 select-none">
-    <div class="px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
+    <div class="hidden sm:flex px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
       View: <span class="font-medium">{$is3D ? '3D' : '2D'}</span>
     </div>
 
@@ -40,7 +40,7 @@
       {/if}
     </div>
 
-    <div class="px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
+    <div class="hidden sm:flex px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
       Catalog: <span class="font-medium">{$datasets.length}</span>
     </div>
 
@@ -48,7 +48,7 @@
       Jobs: <span class="font-medium">{$activeJobCount}</span>
     </div>
 
-    <div class="hidden md:block px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
+    <div class="hidden px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
       Panel: <span class="font-medium">{panelLabel($activePanel)}</span>
     </div>
 

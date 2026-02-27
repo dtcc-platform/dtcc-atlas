@@ -49,6 +49,23 @@
     selectedFiles = Array.from(map.values())
   }
 
+  let isDragOver = $state(false)
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault()
+    isDragOver = true
+  }
+
+  function handleDragLeave() {
+    isDragOver = false
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault()
+    isDragOver = false
+    addFiles(e.dataTransfer?.files ?? null)
+  }
+
   function onFilesSelected(e: Event) {
     const target = e.target as HTMLInputElement
     addFiles(target.files)
@@ -171,47 +188,60 @@
 
 <div class="p-5">
   <div class="flex items-center justify-between mb-4">
-    <h3 class="text-[16px] font-semibold text-[#1a1a2e]">Upload Data</h3>
-    <button class="p-1 rounded hover:bg-black/5 cursor-pointer" onclick={() => activePanel.set(null)}>
+    <h3 class="text-[16px] font-semibold text-dtcc-navy">Upload Data</h3>
+    <button class="p-1 rounded hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => activePanel.set(null)}>
       {@html Icons.close}
     </button>
   </div>
 
   {#if step === 'select'}
     <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-[#6b7280]">
+      <p class="text-[12px] text-dtcc-muted">
         Add files or a folder. Atlas will detect candidate datasets procedurally.
       </p>
 
-      <div class="rounded-lg border-2 border-dashed border-[#d1d5db] bg-[#f9fafb] p-4">
+      <div
+        class="rounded-lg border-2 border-dashed p-4 transition-colors
+          {isDragOver ? 'border-dtcc-orange bg-dtcc-orange/5' : 'border-dtcc-border bg-dtcc-bg'}"
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
+        role="region"
+        tabindex="0"
+        aria-label="File drop zone"
+      >
         <label class="block mb-3">
-          <span class="block text-[12px] text-[#6b7280] mb-1">Upload name</span>
+          <span class="block text-[12px] text-dtcc-muted mb-1">Upload name</span>
           <input
-            class="h-8 w-full px-2 rounded border border-[#e5e7eb] text-[12px] bg-white"
+            class="h-8 w-full px-2 rounded border border-dtcc-border-light text-[12px] bg-white"
             bind:value={uploadBatchName}
             placeholder="Upload 2026-02-26 14:30"
           />
         </label>
         <div class="flex gap-2">
-          <label class="px-3 py-2 rounded-lg bg-white border border-[#e5e7eb] text-[12px] cursor-pointer hover:bg-black/5">
+          <label class="px-3 py-2 rounded-lg bg-white border border-dtcc-border-light text-[12px] cursor-pointer hover:bg-black/5">
             Add files
             <input type="file" multiple class="hidden" onchange={onFilesSelected} />
           </label>
-          <label class="px-3 py-2 rounded-lg bg-white border border-[#e5e7eb] text-[12px] cursor-pointer hover:bg-black/5">
+          <label class="px-3 py-2 rounded-lg bg-white border border-dtcc-border-light text-[12px] cursor-pointer hover:bg-black/5">
             Add folder
             <input type="file" multiple webkitdirectory directory class="hidden" onchange={onFilesSelected} />
           </label>
         </div>
-        <p class="mt-3 text-[12px] text-[#6b7280]">
-          {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
-        </p>
+        {#if isDragOver}
+          <p class="mt-3 text-[12px] text-dtcc-orange font-medium">Drop files here...</p>
+        {:else}
+          <p class="mt-3 text-[12px] text-dtcc-muted">
+            {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
+          </p>
+        {/if}
       </div>
 
       <button
-        class="h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
+        class="h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {loading || !selectedFiles.length
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-[#1a1a2e] text-white hover:bg-[#2d2d44]'}"
+            : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
         disabled={loading || !selectedFiles.length}
         onclick={scanFiles}
       >
@@ -219,17 +249,17 @@
       </button>
 
       {#if loading}
-        <div class="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3">
-          <div class="flex items-center justify-between text-[11px] text-[#6b7280] mb-1">
+        <div class="rounded-lg border border-dtcc-border-light bg-dtcc-bg p-3">
+          <div class="flex items-center justify-between text-[11px] text-dtcc-muted mb-1">
             <span>{scanProgress.phase === 'uploading' ? 'Upload progress' : 'Server scan'}</span>
             <span>{scanProgress.percent.toFixed(1)}%</span>
           </div>
-          <div class="h-2 bg-white border border-[#e5e7eb] rounded overflow-hidden">
-            <div class="h-full bg-[#e35a1d] transition-all duration-200" style={`width: ${scanProgress.percent}%`}></div>
+          <div class="h-2 bg-white border border-dtcc-border-light rounded overflow-hidden">
+            <div class="h-full bg-dtcc-orange transition-all duration-200" style={`width: ${scanProgress.percent}%`}></div>
           </div>
-          <p class="mt-2 text-[12px] text-[#374151]">{scanProgress.message || 'Working...'}</p>
+          <p class="mt-2 text-[12px] text-dtcc-muted">{scanProgress.message || 'Working...'}</p>
           {#if scanProgress.bytesTotal > 0}
-            <p class="mt-1 text-[11px] text-[#6b7280]">
+            <p class="mt-1 text-[11px] text-dtcc-muted">
               {formatBytes(scanProgress.bytesSent)} / {formatBytes(scanProgress.bytesTotal)}
             </p>
           {/if}
@@ -238,15 +268,15 @@
     </div>
   {:else if step === 'review'}
     <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-[#6b7280]">
+      <p class="text-[12px] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
-      <div class="max-h-[420px] overflow-y-auto border border-[#e5e7eb] rounded-lg">
+      <div class="max-h-[420px] overflow-y-auto border border-dtcc-border-light rounded-lg">
         {#each candidates as candidate}
-          <div class="p-3 border-b border-[#f0f0f0] last:border-b-0">
+          <div class="p-3 border-b border-dtcc-border-light last:border-b-0">
             <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="text-[13px] font-medium text-[#1a1a2e]">{candidate.title}</div>
-              <label class="text-[12px] text-[#6b7280] flex items-center gap-1">
+              <div class="text-[13px] font-medium text-dtcc-navy">{candidate.title}</div>
+              <label class="text-[12px] text-dtcc-muted flex items-center gap-1">
                 <input
                   type="checkbox"
                   checked={edits[candidate.id]?.keep ?? true}
@@ -258,13 +288,13 @@
 
             <div class="grid grid-cols-1 gap-2">
               <input
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px]"
+                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px]"
                 value={edits[candidate.id]?.dataset_name ?? candidate.name}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], dataset_name: (e.target as HTMLInputElement).value } }}
                 placeholder="Dataset name"
               />
               <select
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px] bg-white"
+                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px] bg-white"
                 value={edits[candidate.id]?.role ?? candidate.role}
                 onchange={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], role: (e.target as HTMLSelectElement).value } }}
               >
@@ -276,14 +306,14 @@
                 <option value="unknown">Unknown</option>
               </select>
               <input
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px]"
+                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px]"
                 value={edits[candidate.id]?.crs ?? ''}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], crs: (e.target as HTMLInputElement).value } }}
                 placeholder="CRS override (optional)"
               />
             </div>
 
-            <div class="mt-2 text-[11px] text-[#6b7280]">
+            <div class="mt-2 text-[11px] text-dtcc-muted">
               Type: {candidate.inferred_type} • Confidence: {candidate.confidence}
             </div>
             {#if candidate.warnings?.length}
@@ -297,13 +327,13 @@
 
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-[#e5e7eb] text-[12px] hover:bg-black/5 cursor-pointer"
+          class="h-9 px-3 rounded-lg border border-dtcc-border-light text-[12px] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Start over
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-[#1a1a2e] text-white hover:bg-[#2d2d44] cursor-pointer"
+          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={ingest}
         >
           Ingest selected
@@ -312,27 +342,27 @@
     </div>
   {:else if step === 'ingesting'}
     <div class="py-8 text-center">
-      <div class="w-8 h-8 mx-auto border-2 border-[#e35a1d] border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-3 text-[13px] text-[#1a1a2e]">Ingesting datasets...</p>
-      <p class="text-[12px] text-[#6b7280]">Normalizing files and registering catalog entries</p>
+      <div class="w-8 h-8 mx-auto border-2 border-dtcc-orange border-t-transparent rounded-full animate-spin"></div>
+      <p class="mt-3 text-[13px] text-dtcc-navy">Ingesting datasets...</p>
+      <p class="text-[12px] text-dtcc-muted">Normalizing files and registering catalog entries</p>
     </div>
   {:else if step === 'complete'}
     <div class="flex flex-col gap-3">
       <div class="p-3 rounded-lg bg-green-50 text-green-700 text-[12px]">
         Ingestion completed.
       </div>
-      <p class="text-[12px] text-[#6b7280]">
+      <p class="text-[12px] text-dtcc-muted">
         {ingestResult?.ingested_count ?? 0} ingested, {ingestResult?.failed_count ?? 0} failed.
       </p>
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-[#e5e7eb] text-[12px] hover:bg-black/5 cursor-pointer"
+          class="h-9 px-3 rounded-lg border border-dtcc-border-light text-[12px] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Upload more
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-[#1a1a2e] text-white hover:bg-[#2d2d44] cursor-pointer"
+          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={() => activePanel.set('datasets')}
         >
           Open datasets

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { jobService } from '../services/job-service'
+  import { Icons } from '../ui/icons'
   import type { Job } from '../services/job-service'
 
   interface Props {
@@ -65,21 +66,22 @@
       {:else}
         <div class="w-3 h-3 rounded-full bg-yellow-400 shrink-0"></div>
       {/if}
-      <span class="truncate text-[#1a1a2e]">{job.dataset || job.id.slice(0, 8)}</span>
+      <span class="truncate text-dtcc-navy">{job.dataset || job.id.slice(0, 8)}</span>
       <span class="{statusColors[job.status] || 'text-gray-500'} opacity-70">{statusText(job)}</span>
     </div>
     <div class="flex items-center gap-1 ml-2 shrink-0">
       {#if job.status === 'complete' && job.download_url}
         <button
-          class="text-[#e35a1d] hover:underline cursor-pointer"
+          class="w-5 h-5 text-dtcc-orange hover:text-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
+          aria-label="Download"
         >
-          &#8595;
+          {@html Icons.download}
         </button>
       {/if}
       {#if job.status === 'queued' || job.status === 'processing'}
         <button
-          class="text-[11px] text-[#6b7280] hover:text-red-500 cursor-pointer disabled:opacity-40"
+          class="text-[11px] text-dtcc-muted hover:text-red-500 cursor-pointer disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           disabled={cancelling}
           onclick={handleCancel}
         >
@@ -88,7 +90,7 @@
       {/if}
       {#if job.status === 'failed'}
         <button
-          class="text-[11px] text-[#e35a1d] hover:underline cursor-pointer disabled:opacity-40"
+          class="text-[11px] text-dtcc-orange hover:underline cursor-pointer disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           disabled={retrying || !onRetry}
           onclick={handleRetry}
         >
@@ -103,7 +105,7 @@
     {@const pct = progressPercent(job)}
     <div class="mt-1.5">
       {#if job.progress?.phase || job.progress?.message}
-        <div class="flex items-center justify-between text-[11px] text-[#6b7280] mb-1">
+        <div class="flex items-center justify-between text-[11px] text-dtcc-muted mb-1">
           <span class="truncate">{job.progress?.phase || job.progress?.message || ''}</span>
           {#if job.progress?.eta_formatted}
             <span class="shrink-0 ml-2">ETA {job.progress.eta_formatted}</span>

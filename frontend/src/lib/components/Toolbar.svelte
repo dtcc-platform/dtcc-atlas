@@ -34,7 +34,10 @@
   }
 </script>
 
-<div class="absolute top-4 left-4 z-40 flex flex-col bg-white/80 backdrop-blur-lg rounded-xl shadow-lg border border-black/5 p-1 gap-0.5">
+<div class="absolute z-20 sm:z-40
+  max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-2xl
+  sm:top-4 sm:left-4 sm:flex-col
+  flex bg-white/80 backdrop-blur-lg rounded-xl shadow-lg border border-black/5 p-1 gap-0.5">
   <!-- Actions group -->
   <ToolbarButton
     icon={Icons.draw}
@@ -56,7 +59,7 @@
   />
 
   <!-- Divider -->
-  <div class="mx-2 my-1 border-t border-black/10"></div>
+  <div class="sm:mx-2 sm:my-1 sm:border-t max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center border-black/10"></div>
 
   <!-- Views group -->
   <ToolbarButton
@@ -81,7 +84,7 @@
   />
 
   <!-- Divider -->
-  <div class="mx-2 my-1 border-t border-black/10"></div>
+  <div class="sm:mx-2 sm:my-1 sm:border-t max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center border-black/10"></div>
 
   <!-- Tools group -->
   <ToolbarButton
