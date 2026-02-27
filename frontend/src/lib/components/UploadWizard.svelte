@@ -6,9 +6,11 @@
   import {
     createUploadBatch,
     ingestUploadBatch,
+    runQualityCheck,
     type UploadCandidate,
     type UploadBatchProgress,
     type IngestCandidateOverride,
+    type CandidateVerdict,
   } from '../api/upload-api'
 
   type Step = 'select' | 'review' | 'ingesting' | 'complete'
@@ -31,6 +33,10 @@
 
   type CandidateEdit = { keep: boolean; dataset_name: string; role: string; crs: string }
   let edits: Record<string, CandidateEdit> = $state({})
+
+  let qualityChecking = $state(false)
+  let qualityVerdicts: Record<string, CandidateVerdict> = $state({})
+  let qualityError: string = $state('')
 
   function fileKey(file: File): string {
     const relative = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
@@ -145,12 +151,33 @@
     }
   }
 
+  async function analyzeQuality() {
+    if (!batchId) return
+    qualityChecking = true
+    qualityError = ''
+    try {
+      const resp = await runQualityCheck(batchId)
+      const verdictMap: Record<string, CandidateVerdict> = {}
+      for (const v of resp.result.candidates) {
+        verdictMap[v.name] = v
+      }
+      qualityVerdicts = verdictMap
+    } catch (e) {
+      qualityError = e instanceof Error ? e.message : 'Quality check failed'
+    } finally {
+      qualityChecking = false
+    }
+  }
+
   function resetWizard() {
     step = 'select'
     selectedFiles = []
     batchId = null
     candidates = []
     edits = {}
+    qualityVerdicts = {}
+    qualityError = ''
+    qualityChecking = false
     uploadBatchName = defaultUploadName()
     ingestResult = null
     errorMessage = ''
@@ -271,6 +298,19 @@
       <p class="text-[12px] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
+      <button
+        class="h-9 w-full rounded-lg text-[12px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+          {qualityChecking
+            ? 'bg-amber-100 text-amber-700 cursor-wait'
+            : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'}"
+        disabled={qualityChecking}
+        onclick={analyzeQuality}
+      >
+        {qualityChecking ? 'Analyzing quality...' : 'Analyze Quality (AI)'}
+      </button>
+      {#if qualityError}
+        <div class="text-[12px] text-red-600">{qualityError}</div>
+      {/if}
       <div class="max-h-[420px] overflow-y-auto border border-dtcc-border-light rounded-lg">
         {#each candidates as candidate}
           <div class="p-3 border-b border-dtcc-border-light last:border-b-0">
@@ -319,6 +359,25 @@
             {#if candidate.warnings?.length}
               <div class="mt-1 text-[11px] text-orange-600">
                 {candidate.warnings.join(' | ')}
+              </div>
+            {/if}
+            {#if qualityVerdicts[candidate.name]}
+              {@const v = qualityVerdicts[candidate.name]}
+              <div class="mt-2 p-2 rounded text-[11px]
+                {v.verdict === 'pass' ? 'bg-green-50 text-green-700' :
+                 v.verdict === 'warn' ? 'bg-amber-50 text-amber-700' :
+                 'bg-red-50 text-red-700'}">
+                <div class="font-medium mb-1">
+                  {v.verdict === 'pass' ? 'PASS' : v.verdict === 'warn' ? 'WARNING' : 'FAIL'}
+                </div>
+                <div>{v.summary}</div>
+                {#if v.issues.length > 0}
+                  <ul class="mt-1 list-disc list-inside">
+                    {#each v.issues as issue}
+                      <li>{issue.code}: {issue.message}</li>
+                    {/each}
+                  </ul>
+                {/if}
               </div>
             {/if}
           </div>
