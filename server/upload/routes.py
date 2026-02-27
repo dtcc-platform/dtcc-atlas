@@ -262,4 +262,14 @@ def create_upload_router() -> APIRouter:
             "candidates": candidates,
         }
 
+    @router.post("/catalog/review")
+    async def trigger_catalog_review():
+        from .catalog_review import run_catalog_review
+
+        catalog = get_catalog()
+        result = run_catalog_review(catalog)
+        if result is None:
+            raise HTTPException(status_code=502, detail="Catalog review failed")
+        return {"status": "completed", "result": result}
+
     return router
