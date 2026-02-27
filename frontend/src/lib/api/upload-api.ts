@@ -175,3 +175,87 @@ function tryParseJson(raw: string): Record<string, unknown> | null {
     return null
   }
 }
+
+// -- Quality Gate types --
+
+export interface QualityIssue {
+  severity: 'warn' | 'fail'
+  code: string
+  message: string
+}
+
+export interface CandidateVerdict {
+  name: string
+  verdict: 'pass' | 'warn' | 'fail'
+  issues: QualityIssue[]
+  metadata: Record<string, unknown>
+  thumbnail_path: string | null
+  summary: string
+}
+
+export interface QualityCheckResult {
+  batch_id: string
+  status: 'completed' | 'failed'
+  result: {
+    candidates: CandidateVerdict[]
+  }
+}
+
+export interface CatalogReviewResult {
+  status: 'completed' | 'failed'
+  result: {
+    health_score: number
+    issues: Array<{
+      code: string
+      severity: string
+      datasets: string[]
+      message: string
+    }>
+    summary: string
+  }
+}
+
+// -- Quality Gate API calls --
+
+export async function runQualityCheck(batchId: string): Promise<QualityCheckResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
+    { method: 'POST' },
+  )
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Quality check failed')
+  }
+  return response.json()
+}
+
+export async function getQualityCheck(batchId: string): Promise<{
+  batch_id: string
+  status: string | null
+  candidates: (UploadCandidate & {
+    verdict?: string | null
+    verdict_issues?: QualityIssue[] | null
+    verdict_summary?: string | null
+    thumbnail_path?: string | null
+  })[]
+}> {
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
+  )
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Failed to get quality check')
+  }
+  return response.json()
+}
+
+export async function runCatalogReview(): Promise<CatalogReviewResult> {
+  const response = await fetch(`${API_BASE_URL}/uploads/catalog/review`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Catalog review failed')
+  }
+  return response.json()
+}
