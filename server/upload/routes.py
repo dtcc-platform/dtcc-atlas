@@ -15,6 +15,7 @@ from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
 
 from .detection import is_ignored_upload_path, scan_candidates
 from .ingest import ingest_candidate
+from .quality_gate import run_quality_gate
 from .service import ensure_catalog_directories, get_catalog
 
 
@@ -233,5 +234,32 @@ def create_upload_router() -> APIRouter:
     async def list_uploaded_datasets():
         datasets = get_catalog().list_uploaded_datasets(latest_only=True)
         return {"datasets": datasets}
+
+    @router.post("/batches/{batch_id}/quality-check")
+    async def trigger_quality_check(batch_id: str):
+        catalog = get_catalog()
+        batch = catalog.get_batch(batch_id)
+        if not batch:
+            raise HTTPException(status_code=404, detail="Batch not found.")
+
+        result = run_quality_gate(catalog, batch_id)
+        if result is None:
+            raise HTTPException(status_code=502, detail="Quality check failed")
+
+        return {"batch_id": batch_id, "status": "completed", "result": result}
+
+    @router.get("/batches/{batch_id}/quality-check")
+    async def get_quality_check(batch_id: str):
+        catalog = get_catalog()
+        batch = catalog.get_batch(batch_id)
+        if not batch:
+            raise HTTPException(status_code=404, detail="Batch not found.")
+
+        candidates = catalog.list_candidates(batch_id)
+        return {
+            "batch_id": batch_id,
+            "status": batch["quality_check_status"],
+            "candidates": candidates,
+        }
 
     return router
