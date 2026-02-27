@@ -108,6 +108,23 @@ class UploadCatalog:
             if "name" not in columns:
                 conn.execute("ALTER TABLE upload_batches ADD COLUMN name TEXT")
 
+            # Quality-gate columns — added in v2 schema migration.
+            _migrations: list[str] = [
+                "ALTER TABLE upload_batches ADD COLUMN quality_check_status TEXT",
+                "ALTER TABLE upload_batches ADD COLUMN quality_check_result TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict_issues TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict_summary TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN thumbnail_path TEXT",
+                "ALTER TABLE uploaded_datasets ADD COLUMN last_review_at TEXT",
+                "ALTER TABLE uploaded_datasets ADD COLUMN review_issues TEXT",
+            ]
+            for stmt in _migrations:
+                try:
+                    conn.execute(stmt)
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+
     def create_batch(
         self,
         batch_id: str,
@@ -133,6 +150,20 @@ class UploadCatalog:
             conn.execute(
                 "UPDATE upload_batches SET status = ? WHERE id = ?",
                 (status, batch_id),
+            )
+
+    def update_quality_check(
+        self, batch_id: str, status: str, result: Any
+    ) -> None:
+        """Update quality check status and JSON result on a batch."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE upload_batches
+                SET quality_check_status = ?, quality_check_result = ?
+                WHERE id = ?
+                """,
+                (status, json.dumps(result), batch_id),
             )
 
     def add_batch_files(self, batch_id: str, file_records: list[dict[str, Any]]) -> None:
@@ -237,6 +268,10 @@ class UploadCatalog:
         candidate.pop("group_rel_paths_json", None)
         candidate.pop("warnings_json", None)
         candidate.pop("metadata_json", None)
+        # Decode verdict_issues from JSON string if present.
+        vi = candidate.get("verdict_issues")
+        if isinstance(vi, str):
+            candidate["verdict_issues"] = json.loads(vi)
         return candidate
 
     def insert_uploaded_dataset(self, record: dict[str, Any]) -> None:
@@ -340,3 +375,37 @@ class UploadCatalog:
         record.pop("bounds_json", None)
         record.pop("metadata_json", None)
         return record
+
+    def update_candidate_verdict(
+        self,
+        candidate_id: str,
+        verdict: str,
+        issues: Any,
+        summary: str,
+        thumbnail_path: str | None = None,
+    ) -> None:
+        """Update verdict fields on a candidate."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE upload_candidates
+                SET verdict = ?, verdict_issues = ?, verdict_summary = ?,
+                    thumbnail_path = ?
+                WHERE id = ?
+                """,
+                (verdict, json.dumps(issues), summary, thumbnail_path, candidate_id),
+            )
+
+    def update_dataset_review(
+        self, dataset_id: str, review_issues: Any
+    ) -> None:
+        """Update review timestamp and issues on a dataset."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE uploaded_datasets
+                SET last_review_at = ?, review_issues = ?
+                WHERE id = ?
+                """,
+                (_utc_now_iso(), json.dumps(review_issues), dataset_id),
+            )
