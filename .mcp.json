@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "dtcc-agent": {
+      "command": "conda",
+      "args": [
+        "run",
+        "--no-capture-output",
+        "-n",
+        "fenicsx-env",
+        "python",
+        "-m",
+        "dtcc_agent"
+      ]
+    }
+  }
+}
