@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "dtcc-agent": {
-      "command": "conda",
+      "command": "/Users/vasnas/miniconda3/bin/conda",
       "args": [
         "run",
         "--no-capture-output",

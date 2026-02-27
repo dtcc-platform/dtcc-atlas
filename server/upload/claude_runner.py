@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -193,12 +194,16 @@ def _run_claude(prompt: str, system_prompt: str) -> dict[str, Any] | None:
 
     logger.info("Spawning claude subprocess: %s", " ".join(cmd[:6]) + " ...")
 
+    # Remove CLAUDECODE env var to allow spawning from within a Claude session
+    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
     try:
         proc = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=CLAUDE_TIMEOUT,
+            env=env,
         )
     except subprocess.TimeoutExpired:
         logger.error("Claude subprocess timed out after %ds", CLAUDE_TIMEOUT)
