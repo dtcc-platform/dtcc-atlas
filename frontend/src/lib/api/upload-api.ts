@@ -1,4 +1,7 @@
+import { get } from 'svelte/store'
 import { API_BASE_URL } from '../config'
+import { sessionId } from '../stores/session'
+import { sessionFetch } from './fetch'
 
 export interface UploadCandidate {
   id: string
@@ -79,6 +82,10 @@ export async function createUploadBatch(
     let uploadComplete = false
 
     xhr.open('POST', `${API_BASE_URL}/uploads/batches`)
+    const sid = get(sessionId)
+    if (sid) {
+      xhr.setRequestHeader('X-Session-Id', sid)
+    }
     xhr.responseType = 'json'
 
     xhr.upload.onprogress = (event: ProgressEvent<EventTarget>) => {
@@ -151,7 +158,7 @@ export async function ingestUploadBatch(
   batchId: string,
   candidates: IngestCandidateOverride[]
 ): Promise<IngestResponse> {
-  const response = await fetch(`${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/ingest`, {
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/ingest`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -218,7 +225,7 @@ export interface CatalogReviewResult {
 // -- Quality Gate API calls --
 
 export async function runQualityCheck(batchId: string): Promise<QualityCheckResult> {
-  const response = await fetch(
+  const response = await sessionFetch(
     `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
     { method: 'POST' },
   )
@@ -239,7 +246,7 @@ export async function getQualityCheck(batchId: string): Promise<{
     thumbnail_path?: string | null
   })[]
 }> {
-  const response = await fetch(
+  const response = await sessionFetch(
     `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
   )
   if (!response.ok) {
@@ -250,7 +257,7 @@ export async function getQualityCheck(batchId: string): Promise<{
 }
 
 export async function checkAiAvailable(): Promise<{ available: boolean; reason: string }> {
-  const response = await fetch(`${API_BASE_URL}/uploads/ai-available`)
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/ai-available`)
   if (!response.ok) {
     return { available: false, reason: 'Failed to check AI availability' }
   }
@@ -258,7 +265,7 @@ export async function checkAiAvailable(): Promise<{ available: boolean; reason: 
 }
 
 export async function runCatalogReview(): Promise<CatalogReviewResult> {
-  const response = await fetch(`${API_BASE_URL}/uploads/catalog/review`, {
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/catalog/review`, {
     method: 'POST',
   })
   if (!response.ok) {
