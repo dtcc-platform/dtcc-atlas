@@ -3,9 +3,26 @@
   import { datasets } from '../stores/datasets'
   import { activeJobCount } from '../stores/jobs'
   import { activePanel, drawingActive, is3D } from '../stores/ui'
+  import { sessionId } from '../stores/session'
   import { jobService } from '../services/job-service'
 
+  interface Props {
+    onSessionDialog?: () => void
+  }
+
+  let { onSessionDialog }: Props = $props()
+
   let connected = $state(false)
+  let copied = $state(false)
+
+  function copySessionHash() {
+    const sid = $sessionId
+    if (!sid) return
+    navigator.clipboard.writeText(`${window.location.origin}/s/${sid}`).then(() => {
+      copied = true
+      setTimeout(() => copied = false, 1500)
+    })
+  }
 
   $effect(() => {
     const interval = setInterval(() => {
@@ -29,6 +46,17 @@
     <span class="text-[11px] text-white/40 font-mono">v0.2.0</span>
   </div>
   <div class="flex items-center gap-2 text-[11px] overflow-x-auto whitespace-nowrap min-w-0 select-none">
+    {#if $sessionId}
+      <button
+        class="px-2 py-0.5 rounded-md border border-dtcc-orange/30 bg-dtcc-orange/15 text-dtcc-orange font-mono font-medium cursor-pointer hover:bg-dtcc-orange/25 transition-colors"
+        title={copied ? 'Copied!' : 'Click to copy session URL'}
+        onclick={copySessionHash}
+        ondblclick={() => onSessionDialog?.()}
+      >
+        {copied ? 'Copied!' : $sessionId}
+      </button>
+    {/if}
+
     <div class="hidden sm:flex px-2 py-0.5 rounded-md border border-white/15 bg-white/10 text-white/85">
       View: <span class="font-medium">{$is3D ? '3D' : '2D'}</span>
     </div>

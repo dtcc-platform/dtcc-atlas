@@ -13,6 +13,7 @@
   import JobTray from './lib/components/JobTray.svelte'
   import EmptyState from './lib/components/EmptyState.svelte'
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
+  import SessionDialog from './lib/components/SessionDialog.svelte'
   import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
@@ -31,6 +32,7 @@
 
   let mapView: MapView
   let saveDialogOpen = $state(false)
+  let sessionDialogOpen = $state(false)
 
   function onBookmarksChanged() {
     const allBookmarks = bookmarkMgr.getAllBookmarks()
@@ -231,7 +233,7 @@
 }} />
 
 <div class="h-screen w-screen flex flex-col">
-  <Header />
+  <Header onSessionDialog={() => sessionDialogOpen = true} />
   <div class="flex-1 relative overflow-hidden">
     <MapView bind:this={mapView} />
     <Toolbar
@@ -253,6 +255,7 @@
     <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
+    <SessionDialog bind:open={sessionDialogOpen} />
     <JobTray onRetry={handleRetryJob} />
   </div>
 </div>
