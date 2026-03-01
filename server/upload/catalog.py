@@ -127,6 +127,7 @@ class UploadCatalog:
                 "ALTER TABLE upload_candidates ADD COLUMN thumbnail_path TEXT",
                 "ALTER TABLE uploaded_datasets ADD COLUMN last_review_at TEXT",
                 "ALTER TABLE uploaded_datasets ADD COLUMN review_issues TEXT",
+                "ALTER TABLE upload_batches ADD COLUMN session_id TEXT",
             ]
             for stmt in _migrations:
                 try:
@@ -142,16 +143,17 @@ class UploadCatalog:
         file_count: int,
         total_bytes: int,
         status: str = "uploaded",
+        session_id: str | None = None,
     ) -> None:
         created_at = _utc_now_iso()
         with self._lock, self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO upload_batches
-                (id, name, created_at, status, root_dir, file_count, total_bytes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, name, created_at, status, root_dir, file_count, total_bytes, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (batch_id, name, created_at, status, root_dir, file_count, total_bytes),
+                (batch_id, name, created_at, status, root_dir, file_count, total_bytes, session_id),
             )
 
     def update_batch_status(self, batch_id: str, status: str) -> None:
@@ -242,6 +244,19 @@ class UploadCatalog:
                 (batch_id,),
             ).fetchone()
         return dict(row) if row else None
+
+    def list_batches_by_session(self, session_id: str) -> list[dict[str, Any]]:
+        """Return all batches belonging to *session_id*, most recent first."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM upload_batches
+                WHERE session_id = ?
+                ORDER BY created_at DESC
+                """,
+                (session_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def list_batch_files(self, batch_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
