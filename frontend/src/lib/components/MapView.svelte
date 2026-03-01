@@ -66,6 +66,29 @@
   export function flyTo(lon: number, lat: number) {
     mapManager.getMap()?.flyTo({ center: [lon, lat], zoom: 14 })
   }
+
+  export function getMapState() {
+    const map = mapManager.getMap()
+    if (!map) return null
+    const center = map.getCenter()
+    return {
+      center: [center.lng, center.lat] as [number, number],
+      zoom: map.getZoom(),
+      pitch: map.getPitch(),
+      bearing: map.getBearing(),
+    }
+  }
+
+  export function setMapState(state: { center?: [number, number]; zoom?: number; pitch?: number; bearing?: number }) {
+    const map = mapManager.getMap()
+    if (!map || !state.center || state.zoom === undefined) return
+    map.jumpTo({
+      center: state.center,
+      zoom: state.zoom,
+      pitch: state.pitch ?? 0,
+      bearing: state.bearing ?? 0,
+    })
+  }
 </script>
 
 <div bind:this={mapContainer} class="absolute inset-0"></div>
