@@ -7,6 +7,7 @@
     createUploadBatch,
     ingestUploadBatch,
     runQualityCheck,
+    checkAiAvailable,
     type UploadCandidate,
     type UploadBatchProgress,
     type IngestCandidateOverride,
@@ -36,7 +37,11 @@
 
   let qualityChecking = $state(false)
   let qualityVerdicts: Record<string, CandidateVerdict> = $state({})
+  let aiVerdicts: Record<string, CandidateVerdict> = $state({})
   let qualityError: string = $state('')
+  let aiEnriched = $state(false)
+  let aiAvailable: boolean | null = $state(null)
+  let aiUnavailableReason = $state('')
 
   function fileKey(file: File): string {
     const relative = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
@@ -112,7 +117,32 @@
       batchId = resp.batch_id
       candidates = resp.candidates
       initializeEdits(resp.candidates)
+      // Populate instant deterministic verdicts from upload response
+      const verdictMap: Record<string, CandidateVerdict> = {}
+      for (const c of resp.candidates) {
+        const cAny = c as UploadCandidate & {
+          verdict?: string | null
+          verdict_issues?: Array<{ severity: 'warn' | 'fail'; code: string; message: string }> | null
+          verdict_summary?: string | null
+        }
+        if (cAny.verdict) {
+          verdictMap[c.name] = {
+            name: c.name,
+            verdict: cAny.verdict as 'pass' | 'warn' | 'fail',
+            issues: cAny.verdict_issues ?? [],
+            metadata: {},
+            thumbnail_path: null,
+            summary: cAny.verdict_summary ?? '',
+          }
+        }
+      }
+      qualityVerdicts = verdictMap
       step = 'review'
+      // Check AI availability in background (non-blocking)
+      checkAiAvailable().then((r) => {
+        aiAvailable = r.available
+        aiUnavailableReason = r.reason
+      })
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Failed to scan files'
     } finally {
@@ -157,11 +187,32 @@
     qualityError = ''
     try {
       const resp = await runQualityCheck(batchId)
-      const verdictMap: Record<string, CandidateVerdict> = {}
+      const merged: Record<string, CandidateVerdict> = {}
+      const aiOnly: Record<string, CandidateVerdict> = {}
       for (const v of resp.result.candidates) {
-        verdictMap[v.name] = v
+        const vAny = v as CandidateVerdict & { ai_summary?: string }
+        // Update the overall verdict (may be stricter after AI)
+        merged[v.name] = {
+          ...v,
+          // Only keep deterministic issues for the main verdict display
+          issues: v.issues.filter((i: any) => i.source !== 'ai'),
+        }
+        // Collect AI-only data separately
+        const aiIssues = v.issues.filter((i: any) => i.source === 'ai')
+        if (aiIssues.length > 0 || vAny.ai_summary) {
+          aiOnly[v.name] = {
+            name: v.name,
+            verdict: v.verdict,
+            issues: aiIssues,
+            metadata: v.metadata ?? {},
+            thumbnail_path: v.thumbnail_path,
+            summary: vAny.ai_summary ?? '',
+          }
+        }
       }
-      qualityVerdicts = verdictMap
+      qualityVerdicts = merged
+      aiVerdicts = aiOnly
+      aiEnriched = true
     } catch (e) {
       qualityError = e instanceof Error ? e.message : 'Quality check failed'
     } finally {
@@ -176,8 +227,12 @@
     candidates = []
     edits = {}
     qualityVerdicts = {}
+    aiVerdicts = {}
     qualityError = ''
     qualityChecking = false
+    aiEnriched = false
+    aiAvailable = null
+    aiUnavailableReason = ''
     uploadBatchName = defaultUploadName()
     ingestResult = null
     errorMessage = ''
@@ -298,16 +353,25 @@
       <p class="text-[12px] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
-      <button
-        class="h-9 w-full rounded-lg text-[12px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
-          {qualityChecking
-            ? 'bg-amber-100 text-amber-700 cursor-wait'
-            : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'}"
-        disabled={qualityChecking}
-        onclick={analyzeQuality}
-      >
-        {qualityChecking ? 'Analyzing quality...' : 'Analyze Quality (AI)'}
-      </button>
+      {#if aiAvailable === false}
+        <div class="h-9 w-full rounded-lg text-[12px] font-medium flex items-center justify-center
+          bg-gray-100 border border-gray-200 text-gray-400">
+          Enrich with AI — requires dtcc-agent
+        </div>
+      {:else}
+        <button
+          class="h-9 w-full rounded-lg text-[12px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+            {qualityChecking
+              ? 'bg-amber-100 text-amber-700 cursor-wait'
+              : aiEnriched
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'}"
+          disabled={qualityChecking || aiEnriched || aiAvailable === null}
+          onclick={analyzeQuality}
+        >
+          {qualityChecking ? 'Enriching with AI...' : aiEnriched ? 'AI enrichment complete' : 'Enrich with AI'}
+        </button>
+      {/if}
       {#if qualityError}
         <div class="text-[12px] text-red-600">{qualityError}</div>
       {/if}
@@ -370,10 +434,25 @@
                 <div class="font-medium mb-1">
                   {v.verdict === 'pass' ? 'PASS' : v.verdict === 'warn' ? 'WARNING' : 'FAIL'}
                 </div>
-                <div>{v.summary}</div>
                 {#if v.issues.length > 0}
                   <ul class="mt-1 list-disc list-inside">
                     {#each v.issues as issue}
+                      <li>{issue.code}: {issue.message}</li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            {/if}
+            {#if aiVerdicts[candidate.name]}
+              {@const ai = aiVerdicts[candidate.name]}
+              <div class="mt-1 p-2 rounded text-[11px] bg-blue-50 text-blue-700 border border-blue-100">
+                <div class="font-medium mb-1">AI Insights</div>
+                {#if ai.summary}
+                  <div>{ai.summary}</div>
+                {/if}
+                {#if ai.issues.length > 0}
+                  <ul class="mt-1 list-disc list-inside">
+                    {#each ai.issues as issue}
                       <li>{issue.code}: {issue.message}</li>
                     {/each}
                   </ul>

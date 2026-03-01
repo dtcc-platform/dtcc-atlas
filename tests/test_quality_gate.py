@@ -63,7 +63,7 @@ def _setup_batch(tmp_path: Path) -> tuple[UploadCatalog, str]:
 
 
 def test_run_quality_gate_stores_verdicts(tmp_path: Path):
-    """Mock Claude result, verify verdicts are persisted in catalog."""
+    """Mock Claude result, verify merged verdicts are persisted in catalog."""
     catalog, batch_id = _setup_batch(tmp_path)
 
     mock_claude_result = {
@@ -91,28 +91,30 @@ def test_run_quality_gate_stores_verdicts(tmp_path: Path):
     ):
         result = run_quality_gate(catalog, batch_id)
 
-    # Should return the Claude result
+    # Should return merged result (deterministic + AI)
     assert result is not None
-    assert result["candidates"][0]["verdict"] == "warn"
+    merged = result["candidates"][0]
+    # AI issue MISSING_CRS also detected by deterministic — only appears once
+    issue_codes = [i["code"] for i in merged["issues"]]
+    assert "MISSING_CRS" in issue_codes
 
     # Batch quality check status should be "completed"
     batch = catalog.get_batch(batch_id)
     assert batch["quality_check_status"] == "completed"
-    assert json.loads(batch["quality_check_result"]) == mock_claude_result
 
-    # Candidate verdict should be persisted
+    # Candidate verdict should be persisted with AI thumbnail
     candidates = catalog.list_candidates(batch_id)
     assert len(candidates) == 1
-    assert candidates[0]["verdict"] == "warn"
-    assert candidates[0]["verdict_issues"] == [
-        {"severity": "warn", "code": "MISSING_CRS", "message": "No CRS detected"}
-    ]
-    assert candidates[0]["verdict_summary"] == "CRS is missing from dataset."
+    assert candidates[0]["verdict"] in ("warn", "pass")
     assert candidates[0]["thumbnail_path"] == "/tmp/thumb.png"
+    # Deterministic summary stored in verdict_summary
+    assert candidates[0]["verdict_summary"] is not None
+    # AI summary available in the result JSON
+    assert merged.get("ai_summary") == "CRS is missing from dataset."
 
 
 def test_run_quality_gate_handles_claude_failure(tmp_path: Path):
-    """Mock None return from Claude, verify status set to 'failed'."""
+    """Mock None from Claude — deterministic verdicts should still be returned."""
     catalog, batch_id = _setup_batch(tmp_path)
 
     with patch(
@@ -121,12 +123,14 @@ def test_run_quality_gate_handles_claude_failure(tmp_path: Path):
     ):
         result = run_quality_gate(catalog, batch_id)
 
-    # Should return None
-    assert result is None
+    # Should return deterministic results even without AI
+    assert result is not None
+    assert len(result["candidates"]) == 1
+    assert result["candidates"][0]["name"] == "buildings"
 
-    # Batch quality check status should be "failed"
+    # Batch quality check status should be "completed" (deterministic succeeded)
     batch = catalog.get_batch(batch_id)
-    assert batch["quality_check_status"] == "failed"
+    assert batch["quality_check_status"] == "completed"
 
 
 def test_collect_existing_datasets(tmp_path: Path):

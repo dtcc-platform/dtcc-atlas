@@ -249,6 +249,14 @@ export async function getQualityCheck(batchId: string): Promise<{
   return response.json()
 }
 
+export async function checkAiAvailable(): Promise<{ available: boolean; reason: string }> {
+  const response = await fetch(`${API_BASE_URL}/uploads/ai-available`)
+  if (!response.ok) {
+    return { available: false, reason: 'Failed to check AI availability' }
+  }
+  return response.json()
+}
+
 export async function runCatalogReview(): Promise<CatalogReviewResult> {
   const response = await fetch(`${API_BASE_URL}/uploads/catalog/review`, {
     method: 'POST',

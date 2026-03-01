@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -14,8 +15,9 @@ from pydantic import BaseModel, Field
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
 
 from .detection import is_ignored_upload_path, scan_candidates
+from .deterministic_checks import check_all_candidates
 from .ingest import ingest_candidate
-from .quality_gate import run_quality_gate
+from .quality_gate import _collect_existing_datasets, run_quality_gate
 from .service import ensure_catalog_directories, get_catalog
 
 
@@ -151,6 +153,24 @@ def create_upload_router() -> APIRouter:
         catalog.update_batch_status(batch_id, "scanned")
         print(f"[upload] Batch {batch_id}: scan completed, detected {len(candidates)} candidates")
 
+        # Run deterministic quality checks immediately (instant, no AI)
+        existing_datasets = _collect_existing_datasets(catalog)
+        verdicts = check_all_candidates(candidates, existing_datasets)
+        name_to_id: dict[str, str] = {c["name"]: c["id"] for c in candidates}
+        for v in verdicts:
+            cid = name_to_id.get(v["name"])
+            if cid:
+                catalog.update_candidate_verdict(
+                    candidate_id=cid,
+                    verdict=v["verdict"],
+                    issues=v["issues"],
+                    summary=v["summary"],
+                    thumbnail_path=None,
+                )
+        # Re-fetch candidates so response includes verdicts
+        candidates = catalog.list_candidates(batch_id)
+        print(f"[upload] Batch {batch_id}: deterministic checks complete")
+
         return {
             "batch_id": batch_id,
             "batch_name": clean_batch_name,
@@ -261,6 +281,21 @@ def create_upload_router() -> APIRouter:
             "status": batch["quality_check_status"],
             "candidates": candidates,
         }
+
+    @router.get("/ai-available")
+    async def ai_available():
+        """Check whether AI enrichment (Claude CLI + dtcc-agent MCP) is available."""
+        from .claude_runner import MCP_CONFIG_PATH
+
+        has_claude = shutil.which("claude") is not None
+        has_mcp = MCP_CONFIG_PATH.exists()
+        available = has_claude and has_mcp
+        reason = ""
+        if not has_claude:
+            reason = "Claude CLI not found on PATH."
+        elif not has_mcp:
+            reason = "dtcc-agent MCP config (.mcp.json) not found."
+        return {"available": available, "reason": reason}
 
     @router.post("/catalog/review")
     async def trigger_catalog_review():
