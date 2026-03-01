@@ -27,6 +27,7 @@ class Job:
     filename: Optional[str] = None
     content_type: str = "application/octet-stream"
     progress: Optional[Dict[str, Any]] = None
+    session_id: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
 
@@ -39,6 +40,7 @@ class Job:
             "filename": self.filename,
             "error": self.error,
             "progress": self.progress,
+            "session_id": self.session_id,
             "created_at": self.created_at.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "params": self.params,
