@@ -23,6 +23,8 @@
   import { LocalBookmarkStorage } from './lib/storage/local-bookmark-storage'
   import { jobService } from './lib/services/job-service'
   import { createSession, getSession, updateSessionState, updateSessionBookmarks } from './lib/api/session-api'
+  import { fetchDatasetList } from './lib/api/dataset-api'
+  import { datasets } from './lib/stores/datasets'
   import type { SessionData } from './lib/api/session-api'
   import type { Job } from './lib/services/job-service'
   import type { SavedBookmark } from './lib/types/bookmarks'
@@ -123,6 +125,10 @@
     // --- Restore UI state from session ---
     if (sessionData?.state?.ui?.activePanel) {
       activePanel.set(sessionData.state.ui.activePanel as PanelView)
+      // If datasets panel was open, fetch the dataset list
+      if (sessionData.state.ui.activePanel === 'datasets') {
+        fetchDatasetList().then(list => datasets.set(list)).catch(() => {})
+      }
     }
 
     // --- Restore map state from session (with delay for map mount) ---
