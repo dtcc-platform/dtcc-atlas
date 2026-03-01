@@ -157,6 +157,9 @@ frontend/dist/
 # Job queue temp files (auto-cleaned but just in case)
 /tmp/dtcc_jobs_*
 
+# MCP config (machine-specific paths)
+.mcp.json
+
 # macOS
 .DS_Store
 
@@ -164,8 +167,8 @@ frontend/dist/
 *.test.log
 coverage/
 
-# Published datasets (large GeoJSON files from LM Geotorget)
-data/published/
+# Local data (uploads, catalog DB, published datasets)
+data/
 
 # Temp folder (cloned repos, downloaded orders)
 temp/
