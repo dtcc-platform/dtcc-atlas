@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -98,6 +99,14 @@ class UploadCatalog:
 
                 CREATE INDEX IF NOT EXISTS idx_uploaded_datasets_name_version
                     ON uploaded_datasets(dataset_name, version);
+
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id             TEXT PRIMARY KEY,
+                    created_at     TEXT NOT NULL,
+                    last_accessed  TEXT NOT NULL,
+                    state_json     TEXT NOT NULL DEFAULT '{}',
+                    bookmarks_json TEXT NOT NULL DEFAULT '[]'
+                );
                 """
             )
 
@@ -408,4 +417,60 @@ class UploadCatalog:
                 WHERE id = ?
                 """,
                 (_utc_now_iso(), json.dumps(review_issues), dataset_id),
+            )
+
+    # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    def create_session(self) -> str:
+        """Create a new session and return its 8-char ID."""
+        now = _utc_now_iso()
+        with self._lock, self._connect() as conn:
+            while True:
+                session_id = secrets.token_urlsafe(6)
+                existing = conn.execute(
+                    "SELECT 1 FROM sessions WHERE id = ?", (session_id,)
+                ).fetchone()
+                if existing is None:
+                    break
+            conn.execute(
+                """
+                INSERT INTO sessions (id, created_at, last_accessed)
+                VALUES (?, ?, ?)
+                """,
+                (session_id, now, now),
+            )
+        return session_id
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        """Return a session dict by ID, or None if not found."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM sessions WHERE id = ?", (session_id,)
+            ).fetchone()
+        return dict(row) if row else None
+
+    def touch_session(self, session_id: str) -> None:
+        """Update the last_accessed timestamp of a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET last_accessed = ? WHERE id = ?",
+                (_utc_now_iso(), session_id),
+            )
+
+    def update_session_state(self, session_id: str, state: Any) -> None:
+        """Update the state_json column for a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET state_json = ? WHERE id = ?",
+                (json.dumps(state), session_id),
+            )
+
+    def update_session_bookmarks(self, session_id: str, bookmarks: Any) -> None:
+        """Update the bookmarks_json column for a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET bookmarks_json = ? WHERE id = ?",
+                (json.dumps(bookmarks), session_id),
             )
