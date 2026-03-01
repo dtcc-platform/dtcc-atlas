@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
@@ -64,6 +64,7 @@ def create_upload_router() -> APIRouter:
     async def create_batch(
         batch_name: str | None = Form(default=None),
         files: list[UploadFile] = File(...),
+        x_session_id: str | None = Header(default=None),
     ):
         if not files:
             raise HTTPException(status_code=400, detail="No files were uploaded.")
@@ -144,6 +145,7 @@ def create_upload_router() -> APIRouter:
             file_count=len(file_records),
             total_bytes=total_bytes,
             status="uploaded",
+            session_id=x_session_id,
         )
         catalog.add_batch_files(batch_id, file_records)
 

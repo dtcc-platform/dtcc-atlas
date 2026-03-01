@@ -27,10 +27,12 @@ from server.admin import create_admin_router
 from server.upload import (
     create_upload_router,
     ensure_catalog_directories,
+    get_catalog,
     list_uploaded_datasets_for_api,
     uploaded_dataset_schema,
     process_uploaded_dataset_download,
 )
+from server.session import create_session_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
 import json
@@ -417,6 +419,11 @@ print("Admin router mounted at /api/v1/admin")
 upload_router = create_upload_router()
 app.include_router(upload_router, prefix="/api/v1")
 print("Upload router mounted at /api/v1/uploads")
+
+# Mount session router
+session_router = create_session_router(get_catalog())
+app.include_router(session_router, prefix="/api/v1")
+print("Session router mounted at /api/v1/sessions")
 
 
 # Mount static files (must be last due to catch-all route)

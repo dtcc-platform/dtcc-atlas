@@ -54,9 +54,16 @@ def uploaded_dataset_schema(dataset_name: str) -> dict[str, Any] | None:
     return _uploaded_dataset_schema(dataset_name)
 
 
+def get_catalog():
+    from .service import get_catalog as _get_catalog
+
+    return _get_catalog()
+
+
 __all__ = [
     "create_upload_router",
     "ensure_catalog_directories",
+    "get_catalog",
     "get_uploaded_dataset",
     "list_uploaded_datasets_for_api",
     "process_uploaded_dataset_download",
