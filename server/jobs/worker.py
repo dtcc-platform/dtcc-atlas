@@ -225,17 +225,21 @@ def _process_core_dataset(
         else:
             data = dataset(**params)
     except Exception as e:
-        # Re-raise with cleaned error message
+        # Log full traceback for backend debugging
+        import traceback
+        print(f"[job worker] Dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
+        # Re-raise with cleaned error message for user
         clean_message = extract_error_message(e)
         raise RuntimeError(clean_message) from None
 
     # dtcc_core returns bytes when format is specified
     if data is None:
         raise RuntimeError("Dataset returned no data")
-    if not isinstance(data, bytes):
-        raise RuntimeError(f"Dataset returned unexpected type: {type(data).__name__}")
     if len(data) == 0:
         raise RuntimeError("Dataset returned empty data")
+    if not (isinstance(data, bytes) or isinstance(data, str)):
+        raise RuntimeError(f"Dataset returned unexpected type: {type(data).__name__}")
+    
 
     # Determine file format from parameters
     file_format = params.get("format", "bin")
@@ -251,7 +255,8 @@ def _process_core_dataset(
         "cityjson": "application/json",
         "json": "application/json",
         "geojson": "application/geo+json",
-        "gpkg": "application/geopackage+sqlite3",
+        # "gpkg": "application/geopackage+sqlite3",
+        "gpkg": "application/octet-stream"
     }
     content_type = content_type_map.get(file_format, "application/octet-stream")
 
@@ -300,6 +305,8 @@ def _process_vector_dataset(
         with open(geojson_path, "r", encoding="utf-8") as f:
             geojson = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
+        import traceback
+        print(f"[job worker] Vector dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
         raise RuntimeError(f"Error reading dataset: {e}") from None
 
     if on_progress:
