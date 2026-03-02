@@ -50,8 +50,8 @@
     activePanel.set(null)
   }
 
-  export function loadBbox(b: BoundingBox) {
-    drawer?.loadExtent(b)
+  export function loadBbox(b: BoundingBox, label?: string) {
+    drawer?.loadExtent(b, label)
     bbox.set(b)
     fetchDatasetList().then((list) => {
       datasets.set(list)

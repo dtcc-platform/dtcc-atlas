@@ -29,6 +29,7 @@
   import type { SessionData } from './lib/api/session-api'
   import type { Job } from './lib/services/job-service'
   import type { SavedBookmark } from './lib/types/bookmarks'
+  import type { BoundingBox } from './lib/types'
 
   let mapView: MapView
   let saveDialogOpen = $state(false)
@@ -210,6 +211,10 @@
     mapView?.clearBbox()
   }
 
+  function handleIngested(bounds: BoundingBox, label: string) {
+    mapView?.loadBbox(bounds, label)
+  }
+
   async function handleRetryJob(job: Job) {
     if (!job.dataset || !job.params) return
     try {
@@ -249,7 +254,7 @@
       {:else if $activePanel === 'bookmarks'}
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {:else if $activePanel === 'uploads'}
-        <UploadWizard />
+        <UploadWizard onIngested={handleIngested} />
       {/if}
     </SidePanel>
     <EmptyState />
