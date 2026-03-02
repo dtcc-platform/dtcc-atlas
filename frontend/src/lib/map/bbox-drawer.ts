@@ -3,6 +3,8 @@ import proj4 from 'proj4';
 import type { BoundingBox } from '../types';
 import { MAX_BBOX_AREA_M2, MAX_BBOX_AREA_KM2, MIN_BBOX_AREA_M2 } from '../config';
 
+type InteractionState = 'idle' | 'drawing' | 'editing' | 'moving' | 'resizing';
+
 // Register EPSG:3006 projection
 proj4.defs('EPSG:3006', '+proj=utm +zone=33 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
 
@@ -27,6 +29,14 @@ export class BBoxDrawer {
   private readonly BBOX_LINE_LAYER = 'bbox-line';
   private readonly BBOX_LABEL_SOURCE = 'bbox-label-source';
   private readonly BBOX_LABEL_LAYER = 'bbox-label';
+  private readonly BBOX_HANDLES_SOURCE = 'bbox-handles-source';
+  private readonly BBOX_HANDLES_LAYER = 'bbox-handles';
+  private interactionState: InteractionState = 'idle';
+  private activeCorner: string | null = null;
+  private dragStart: { lng: number; lat: number } | null = null;
+  private anchorCorner: [number, number] | null = null;
+  // Current bbox corners in lon/lat for real-time manipulation
+  private displayCorners: { minLon: number; minLat: number; maxLon: number; maxLat: number } | null = null;
 
   constructor(map: maplibregl.Map) {
     this.map = map;
@@ -103,6 +113,30 @@ export class BBoxDrawer {
           'text-halo-width': 2,
         },
       });
+
+      // Add corner handles source
+      this.map.addSource(this.BBOX_HANDLES_SOURCE, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      // Add corner handles layer (circles)
+      this.map.addLayer({
+        id: this.BBOX_HANDLES_LAYER,
+        type: 'circle',
+        source: this.BBOX_HANDLES_SOURCE,
+        paint: {
+          'circle-radius': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            6,
+            5,
+          ],
+          'circle-color': '#ffffff',
+          'circle-stroke-color': '#E35A1D',
+          'circle-stroke-width': 2,
+        },
+      });
     }
   }
 
@@ -173,6 +207,7 @@ export class BBoxDrawer {
       features: [],
     });
     this.clearLabelDisplay();
+    this.clearHandles();
   }
 
   private updateLabelDisplay(lon: number, lat: number, label: string): void {
@@ -190,6 +225,26 @@ export class BBoxDrawer {
 
   private clearLabelDisplay(): void {
     const source = this.map.getSource(this.BBOX_LABEL_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+    source.setData({ type: 'FeatureCollection', features: [] });
+  }
+
+  private updateHandles(minLon: number, minLat: number, maxLon: number, maxLat: number): void {
+    const source = this.map.getSource(this.BBOX_HANDLES_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+    source.setData({
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', properties: { corner: 'sw' }, geometry: { type: 'Point', coordinates: [minLon, minLat] } },
+        { type: 'Feature', properties: { corner: 'se' }, geometry: { type: 'Point', coordinates: [maxLon, minLat] } },
+        { type: 'Feature', properties: { corner: 'ne' }, geometry: { type: 'Point', coordinates: [maxLon, maxLat] } },
+        { type: 'Feature', properties: { corner: 'nw' }, geometry: { type: 'Point', coordinates: [minLon, maxLat] } },
+      ],
+    });
+  }
+
+  private clearHandles(): void {
+    const source = this.map.getSource(this.BBOX_HANDLES_SOURCE) as maplibregl.GeoJSONSource;
     if (!source) return;
     source.setData({ type: 'FeatureCollection', features: [] });
   }
