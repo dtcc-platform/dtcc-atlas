@@ -13,38 +13,32 @@ _PROGRESS_MIN_INTERVAL = 0.2
 _PROGRESS_MIN_DELTA = 0.5
 
 
-def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
-    """
-    Patched version of DatasetDescriptor.export_to_bytes that ensures
-    the file is fully written before reading.
-    """
-    # Use delete=False so we control when the file is deleted
-    tmpfile = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
-    tmp_path = tmpfile.name
-    tmpfile.close()  # Close so obj.save() can write to it
-
-    try:
-        obj.save(tmp_path, **save_kwargs)
-
-        # Ensure all writes are flushed to disk
-        # Open the file, fsync, then read
-        with open(tmp_path, 'rb') as f:
-            fd = f.fileno()
-            os.fsync(fd)
-            data = f.read()
-
-        file_size = len(data)
-        print(f"[job worker] Save complete: {tmp_path} ({file_size} bytes, fsync done)")
-
-        if as_text:
-            return data.decode('utf-8')
-        return data
-    finally:
-        # Clean up temp file
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+# NOTE: _patched_export_to_bytes is unused. The original
+# DatasetDescriptor.export_to_bytes is used instead.
+# The fsync it added is unnecessary (write and read happen in the same process),
+# and the monkey-patch was a source of bugs (missing/mismatched save_callable
+# parameter). Kept here for reference only.
+#
+# def _patched_export_to_bytes(obj, format: str, as_text=False, save_callable=None, **save_kwargs):
+#     tmpfile = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+#     tmp_path = tmpfile.name
+#     tmpfile.close()
+#     try:
+#         if save_callable is not None:
+#             save_callable(obj, tmp_path, **save_kwargs)
+#         else:
+#             obj.save(tmp_path, **save_kwargs)
+#         with open(tmp_path, 'rb') as f:
+#             os.fsync(f.fileno())
+#             data = f.read()
+#         if as_text:
+#             return data.decode('utf-8')
+#         return data
+#     finally:
+#         try:
+#             os.unlink(tmp_path)
+#         except OSError:
+#             pass
 
 
 def extract_error_message(error: Exception) -> str:
@@ -164,8 +158,8 @@ def process_dataset_job(
     from dtcc_core import datasets
     from dtcc_core.datasets.dataset import DatasetDescriptor
 
-    # Monkey-patch export_to_bytes to ensure proper file sync
-    DatasetDescriptor.export_to_bytes = staticmethod(_patched_export_to_bytes)
+    # Monkey-patch removed: the original export_to_bytes works correctly and
+    # the patched version caused signature mismatches (see _patched_export_to_bytes above).
 
     try:
         import dtcc_lod2_roofer
@@ -256,6 +250,8 @@ def _process_core_dataset(
         "laz": "application/octet-stream",
         "cityjson": "application/json",
         "json": "application/json",
+        "geojson": "application/geo+json",
+        "gpkg": "application/geopackage+sqlite3",
     }
     content_type = content_type_map.get(file_format, "application/octet-stream")
 
