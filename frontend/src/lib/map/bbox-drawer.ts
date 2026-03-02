@@ -281,9 +281,26 @@ export class BBoxDrawer {
 
     const { lng, lat } = e.lngLat;
 
+    // If in EDITING state, clicking empty space starts a new draw
+    if (this.interactionState === 'editing') {
+      const features = this.map.queryRenderedFeatures(e.point, {
+        layers: [this.BBOX_FILL_LAYER, this.BBOX_HANDLES_LAYER],
+      });
+      if (features.length > 0) return;
+
+      // Click on empty space — start new draw
+      this.clearBboxDisplay();
+      this.currentBbox = null;
+      this.displayCorners = null;
+      this.interactionState = 'idle';
+    }
+
+    if (this.interactionState === 'moving' || this.interactionState === 'resizing') return;
+
     if (!this.firstCorner) {
       // First click - set the first corner
       this.firstCorner = [lng, lat];
+      this.interactionState = 'drawing';
       this.map.getCanvas().style.cursor = 'crosshair';
     } else {
       // Second click - complete the bbox
@@ -321,14 +338,19 @@ export class BBoxDrawer {
       // Update display with final bbox
       this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
 
+      // Store display corners for move/resize
+      this.displayCorners = { minLon, minLat, maxLon, maxLat };
+
+      // Show corner handles (enter EDITING state)
+      this.updateHandles(minLon, minLat, maxLon, maxLat);
+      this.interactionState = 'editing';
+      this.firstCorner = null;
+      this.map.getCanvas().style.cursor = '';
+
       // Call the callback
       if (this.callback) {
         this.callback(this.currentBbox);
       }
-
-      // Keep draw mode active for rapid redraws.
-      // Reset first corner so the next click starts a fresh rectangle.
-      this.firstCorner = null;
     }
   };
 
@@ -390,6 +412,8 @@ export class BBoxDrawer {
     this.clearBboxDisplay();
     this.currentBbox = null;
     this.firstCorner = null;
+    this.displayCorners = null;
+    this.interactionState = 'idle';
 
     this.isDrawingActive = true;
     this.map.getCanvas().style.cursor = 'crosshair';
@@ -442,12 +466,20 @@ export class BBoxDrawer {
 
     this.isDrawingActive = false;
     this.firstCorner = null;
+    this.interactionState = 'idle';
+    this.activeCorner = null;
+    this.dragStart = null;
+    this.anchorCorner = null;
+    this.displayCorners = null;
     this.map.getCanvas().style.cursor = '';
 
     // Remove event listeners
     this.map.off('click', this.onClick);
     this.map.off('mousemove', this.onMouseMove);
     this.map.getCanvas().removeEventListener('mouseleave', this.onMouseLeave);
+
+    // Hide handles when draw mode is off
+    this.clearHandles();
 
     this.tooltip.classList.add('hidden');
     console.log('Bounding box drawing disabled');
