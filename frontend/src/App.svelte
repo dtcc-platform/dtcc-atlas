@@ -14,6 +14,7 @@
   import EmptyState from './lib/components/EmptyState.svelte'
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
+  import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
   import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
@@ -34,6 +35,7 @@
   let mapView: MapView
   let saveDialogOpen = $state(false)
   let sessionDialogOpen = $state(false)
+  let coordDialogOpen = $state(false)
 
   function onBookmarksChanged() {
     const allBookmarks = bookmarkMgr.getAllBookmarks()
@@ -245,6 +247,7 @@
       onClear={handleClear}
       onSave={() => saveDialogOpen = true}
       onToggle3D={handleToggle3D}
+      onCoordInput={() => coordDialogOpen = true}
     />
     <SidePanel>
       {#if $activePanel === 'datasets'}
@@ -261,6 +264,7 @@
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
     <SessionDialog bind:open={sessionDialogOpen} />
+    <CoordinateInputDialog bind:open={coordDialogOpen} onApply={(b) => mapView?.loadBbox(b)} />
     <JobTray onRetry={handleRetryJob} />
   </div>
 </div>

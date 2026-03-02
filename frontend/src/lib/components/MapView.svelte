@@ -19,7 +19,6 @@
     drawer = new BBoxDrawer(map)
     drawer.onBBoxDrawn((drawnBbox: BoundingBox) => {
       bbox.set(drawnBbox)
-      drawingActive.set(false)
 
       // Auto-fetch datasets and open panel
       fetchDatasetList().then((list) => {
