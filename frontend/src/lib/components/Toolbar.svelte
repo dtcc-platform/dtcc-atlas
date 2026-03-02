@@ -13,9 +13,10 @@
     onClear?: () => void
     onSave?: () => void
     onToggle3D?: () => void
+    onCoordInput?: () => void
   }
 
-  let { onClear, onSave, onToggle3D }: Props = $props()
+  let { onClear, onSave, onToggle3D, onCoordInput }: Props = $props()
 
   async function toggleDatasetsPanel() {
     const current = get(activePanel)
@@ -44,6 +45,11 @@
     label="Draw area"
     active={$drawingActive}
     onclick={() => drawingActive.update(v => !v)}
+  />
+  <ToolbarButton
+    icon={Icons.coords}
+    label="Enter coordinates"
+    onclick={onCoordInput}
   />
   <ToolbarButton
     icon={Icons.clear}
