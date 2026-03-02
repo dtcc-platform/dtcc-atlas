@@ -12,6 +12,8 @@ from typing import Any
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from pyproj import Transformer
+
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
 
 from .detection import is_ignored_upload_path, scan_candidates
@@ -55,6 +57,58 @@ class CandidateOverride(BaseModel):
 
 class IngestRequest(BaseModel):
     candidates: list[CandidateOverride] = Field(default_factory=list)
+
+
+def _compute_combined_bounds(
+    ingested: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Compute the union bounding box of all ingested datasets in EPSG:3006.
+
+    Each item in *ingested* should have ``bounds`` (list of 4 floats or None)
+    and ``crs`` (string or None).  Items whose bounds are None or whose CRS is
+    missing are silently skipped.  If no valid bounds remain, ``None`` is
+    returned.
+    """
+    TARGET_CRS = "EPSG:3006"
+
+    all_min_x: list[float] = []
+    all_min_y: list[float] = []
+    all_max_x: list[float] = []
+    all_max_y: list[float] = []
+
+    for item in ingested:
+        bounds = item.get("bounds")
+        crs = item.get("crs")
+        if bounds is None or crs is None:
+            continue
+        if len(bounds) != 4:
+            continue
+
+        min_x, min_y, max_x, max_y = (float(v) for v in bounds)
+
+        if crs.upper() != TARGET_CRS:
+            try:
+                transformer = Transformer.from_crs(crs, TARGET_CRS, always_xy=True)
+                min_x, min_y = transformer.transform(min_x, min_y)
+                max_x, max_y = transformer.transform(max_x, max_y)
+            except Exception:
+                continue
+
+        all_min_x.append(min_x)
+        all_min_y.append(min_y)
+        all_max_x.append(max_x)
+        all_max_y.append(max_y)
+
+    if not all_min_x:
+        return None
+
+    return {
+        "minX": min(all_min_x),
+        "minY": min(all_min_y),
+        "maxX": max(all_max_x),
+        "maxY": max(all_max_y),
+        "crs": TARGET_CRS,
+    }
 
 
 def create_upload_router() -> APIRouter:
@@ -244,12 +298,16 @@ def create_upload_router() -> APIRouter:
             "ingested" if not failed else "ingested_with_errors",
         )
 
+        combined_bounds = _compute_combined_bounds(ingested)
+
         return {
             "batch_id": batch_id,
+            "batch_name": batch.get("name", ""),
             "ingested_count": len(ingested),
             "failed_count": len(failed),
             "ingested": ingested,
             "failed": failed,
+            "combined_bounds": combined_bounds,
         }
 
     @router.get("/datasets")
