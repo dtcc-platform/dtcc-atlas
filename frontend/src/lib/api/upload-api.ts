@@ -36,10 +36,18 @@ export interface IngestCandidateOverride {
 
 export interface IngestResponse {
   batch_id: string
+  batch_name?: string
   ingested_count: number
   failed_count: number
   ingested: Array<Record<string, unknown>>
   failed: Array<Record<string, unknown>>
+  combined_bounds?: {
+    minX: number
+    minY: number
+    maxX: number
+    maxY: number
+    crs: string
+  } | null
 }
 
 export interface UploadBatchProgress {

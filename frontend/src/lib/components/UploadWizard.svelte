@@ -13,6 +13,7 @@
     type IngestCandidateOverride,
     type CandidateVerdict,
   } from '../api/upload-api'
+  import type { BoundingBox } from '../types'
 
   type Step = 'select' | 'review' | 'ingesting' | 'complete'
 
@@ -31,6 +32,12 @@
     percent: 0,
     message: '',
   })
+
+  interface Props {
+    onIngested?: (bounds: BoundingBox, label: string) => void
+  }
+
+  let { onIngested }: Props = $props()
 
   type CandidateEdit = { keep: boolean; dataset_name: string; role: string; crs: string }
   let edits: Record<string, CandidateEdit> = $state({})
@@ -175,6 +182,18 @@
       const list = await fetchDatasetList()
       datasets.set(list)
       step = 'complete'
+
+      // Zoom map to uploaded data extent
+      if (resp.combined_bounds) {
+        const bounds: BoundingBox = {
+          minX: resp.combined_bounds.minX,
+          minY: resp.combined_bounds.minY,
+          maxX: resp.combined_bounds.maxX,
+          maxY: resp.combined_bounds.maxY,
+          crs: resp.combined_bounds.crs,
+        }
+        onIngested?.(bounds, resp.batch_name || uploadBatchName)
+      }
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Ingestion failed'
       step = 'review'
