@@ -362,6 +362,30 @@ export class BBoxDrawer {
     this.tooltip.style.left = `${e.originalEvent.clientX + 15}px`;
     this.tooltip.style.top = `${e.originalEvent.clientY + 15}px`;
 
+    // Cursor feedback in editing state
+    if (this.interactionState === 'editing') {
+      const handleFeatures = this.map.queryRenderedFeatures(e.point, {
+        layers: [this.BBOX_HANDLES_LAYER],
+      });
+      if (handleFeatures.length > 0) {
+        const corner = handleFeatures[0].properties?.corner;
+        const cursors: Record<string, string> = {
+          sw: 'nesw-resize', se: 'nwse-resize',
+          ne: 'nesw-resize', nw: 'nwse-resize',
+        };
+        this.map.getCanvas().style.cursor = cursors[corner] || 'nwse-resize';
+        return;
+      }
+      const fillFeatures = this.map.queryRenderedFeatures(e.point, {
+        layers: [this.BBOX_FILL_LAYER],
+      });
+      if (fillFeatures.length > 0) {
+        this.map.getCanvas().style.cursor = 'grab';
+        return;
+      }
+      this.map.getCanvas().style.cursor = 'crosshair';
+    }
+
     if (this.isDrawingActive && this.firstCorner) {
       const { lng, lat } = e.lngLat;
       const [lon1, lat1] = this.firstCorner;
@@ -400,6 +424,194 @@ export class BBoxDrawer {
   };
 
   /**
+   * Handle mouse down for move and resize in editing state
+   */
+  private onMouseDown = (e: maplibregl.MapMouseEvent): void => {
+    if (!this.isDrawingActive || !this.displayCorners) return;
+    if (this.interactionState !== 'editing') return;
+
+    // Check if clicking on a handle (resize takes priority)
+    const handleFeatures = this.map.queryRenderedFeatures(e.point, {
+      layers: [this.BBOX_HANDLES_LAYER],
+    });
+    if (handleFeatures.length > 0) {
+      this.startResize(e, handleFeatures[0].properties?.corner as string);
+      return;
+    }
+
+    // Check if clicking on the fill (move)
+    const fillFeatures = this.map.queryRenderedFeatures(e.point, {
+      layers: [this.BBOX_FILL_LAYER],
+    });
+    if (fillFeatures.length > 0) {
+      this.startMove(e);
+      return;
+    }
+  };
+
+  private startMove(e: maplibregl.MapMouseEvent): void {
+    this.interactionState = 'moving';
+    this.dragStart = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+    this.map.getCanvas().style.cursor = 'grabbing';
+    this.map.dragPan.disable();
+    e.preventDefault();
+  }
+
+  private startResize(e: maplibregl.MapMouseEvent, corner: string): void {
+    if (!this.displayCorners) return;
+
+    this.interactionState = 'resizing';
+    this.activeCorner = corner;
+    this.dragStart = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+
+    // The anchor is the opposite corner
+    const { minLon, minLat, maxLon, maxLat } = this.displayCorners;
+    const opposites: Record<string, [number, number]> = {
+      sw: [maxLon, maxLat],
+      se: [minLon, maxLat],
+      ne: [minLon, minLat],
+      nw: [maxLon, minLat],
+    };
+    this.anchorCorner = opposites[corner] || [minLon, minLat];
+
+    const cursors: Record<string, string> = {
+      sw: 'nesw-resize', se: 'nwse-resize',
+      ne: 'nesw-resize', nw: 'nwse-resize',
+    };
+    this.map.getCanvas().style.cursor = cursors[corner] || 'nwse-resize';
+    this.map.dragPan.disable();
+    e.preventDefault();
+  }
+
+  /**
+   * Track mouse during move/resize operations
+   */
+  private onGlobalMouseMove = (e: maplibregl.MapMouseEvent): void => {
+    if (this.interactionState === 'moving' && this.dragStart && this.displayCorners) {
+      const dLng = e.lngLat.lng - this.dragStart.lng;
+      const dLat = e.lngLat.lat - this.dragStart.lat;
+
+      const newMinLon = this.displayCorners.minLon + dLng;
+      const newMaxLon = this.displayCorners.maxLon + dLng;
+      const newMinLat = this.displayCorners.minLat + dLat;
+      const newMaxLat = this.displayCorners.maxLat + dLat;
+
+      this.updateBboxDisplay(newMinLon, newMinLat, newMaxLon, newMaxLat);
+      this.updateHandles(newMinLon, newMinLat, newMaxLon, newMaxLat);
+
+      const areaM2 = this.calculateArea(newMinLon, newMinLat, newMaxLon, newMaxLat);
+      this.updateTooltipContent(areaM2);
+      this.tooltip.style.left = `${e.originalEvent.clientX + 15}px`;
+      this.tooltip.style.top = `${e.originalEvent.clientY + 15}px`;
+      this.tooltip.classList.remove('hidden');
+    } else if (this.interactionState === 'resizing' && this.anchorCorner) {
+      const [anchorLon, anchorLat] = this.anchorCorner;
+      const movingLon = e.lngLat.lng;
+      const movingLat = e.lngLat.lat;
+
+      const newMinLon = Math.min(anchorLon, movingLon);
+      const newMaxLon = Math.max(anchorLon, movingLon);
+      const newMinLat = Math.min(anchorLat, movingLat);
+      const newMaxLat = Math.max(anchorLat, movingLat);
+
+      this.updateBboxDisplay(newMinLon, newMinLat, newMaxLon, newMaxLat);
+      this.updateHandles(newMinLon, newMinLat, newMaxLon, newMaxLat);
+
+      // Maintain resize cursor based on active corner
+      if (this.activeCorner) {
+        const cursors: Record<string, string> = {
+          sw: 'nesw-resize', se: 'nwse-resize',
+          ne: 'nesw-resize', nw: 'nwse-resize',
+        };
+        this.map.getCanvas().style.cursor = cursors[this.activeCorner] || 'nwse-resize';
+      }
+
+      const areaM2 = this.calculateArea(newMinLon, newMinLat, newMaxLon, newMaxLat);
+      this.updateTooltipContent(areaM2);
+      this.tooltip.style.left = `${e.originalEvent.clientX + 15}px`;
+      this.tooltip.style.top = `${e.originalEvent.clientY + 15}px`;
+      this.tooltip.classList.remove('hidden');
+    }
+  };
+
+  /**
+   * Handle mouse up to finalize move/resize
+   */
+  private onGlobalMouseUp = (e: maplibregl.MapMouseEvent): void => {
+    if (this.interactionState === 'moving' && this.dragStart && this.displayCorners) {
+      const dLng = e.lngLat.lng - this.dragStart.lng;
+      const dLat = e.lngLat.lat - this.dragStart.lat;
+
+      const newMinLon = this.displayCorners.minLon + dLng;
+      const newMaxLon = this.displayCorners.maxLon + dLng;
+      const newMinLat = this.displayCorners.minLat + dLat;
+      const newMaxLat = this.displayCorners.maxLat + dLat;
+
+      this.finalizeBbox(newMinLon, newMinLat, newMaxLon, newMaxLat);
+    } else if (this.interactionState === 'resizing' && this.anchorCorner) {
+      const [anchorLon, anchorLat] = this.anchorCorner;
+      const movingLon = e.lngLat.lng;
+      const movingLat = e.lngLat.lat;
+
+      const newMinLon = Math.min(anchorLon, movingLon);
+      const newMaxLon = Math.max(anchorLon, movingLon);
+      const newMinLat = Math.min(anchorLat, movingLat);
+      const newMaxLat = Math.max(anchorLat, movingLat);
+
+      this.finalizeBbox(newMinLon, newMinLat, newMaxLon, newMaxLat);
+    }
+  };
+
+  private finalizeBbox(minLon: number, minLat: number, maxLon: number, maxLat: number): void {
+    const areaM2 = this.calculateArea(minLon, minLat, maxLon, maxLat);
+    if (areaM2 < MIN_BBOX_AREA_M2 || areaM2 > MAX_BBOX_AREA_M2) {
+      // Revert to previous display
+      if (this.displayCorners) {
+        const { minLon: oMinLon, minLat: oMinLat, maxLon: oMaxLon, maxLat: oMaxLat } = this.displayCorners;
+        this.updateBboxDisplay(oMinLon, oMinLat, oMaxLon, oMaxLat);
+        this.updateHandles(oMinLon, oMinLat, oMaxLon, oMaxLat);
+      }
+      this.interactionState = 'editing';
+      this.map.dragPan.enable();
+      this.map.getCanvas().style.cursor = '';
+      this.dragStart = null;
+      this.activeCorner = null;
+      this.anchorCorner = null;
+      return;
+    }
+
+    // Convert to EPSG:3006
+    const [minX, minY] = this.toEPSG3006(minLon, minLat);
+    const [maxX, maxY] = this.toEPSG3006(maxLon, maxLat);
+
+    this.currentBbox = {
+      minX: Math.min(minX, maxX),
+      minY: Math.min(minY, maxY),
+      maxX: Math.max(minX, maxX),
+      maxY: Math.max(minY, maxY),
+      crs: 'EPSG:3006',
+    };
+
+    // Update display corners
+    this.displayCorners = { minLon, minLat, maxLon, maxLat };
+    this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
+    this.updateHandles(minLon, minLat, maxLon, maxLat);
+
+    // Back to editing
+    this.interactionState = 'editing';
+    this.map.dragPan.enable();
+    this.map.getCanvas().style.cursor = '';
+    this.dragStart = null;
+    this.activeCorner = null;
+    this.anchorCorner = null;
+
+    // Fire callback
+    if (this.callback) {
+      this.callback(this.currentBbox);
+    }
+  }
+
+  /**
    * Enables the Draw interaction on the map
    */
   enableDrawing(): void {
@@ -421,6 +633,9 @@ export class BBoxDrawer {
     // Add event listeners
     this.map.on('click', this.onClick);
     this.map.on('mousemove', this.onMouseMove);
+    this.map.on('mousedown', this.onMouseDown);
+    this.map.on('mousemove', this.onGlobalMouseMove);
+    this.map.on('mouseup', this.onGlobalMouseUp);
     this.map.getCanvas().addEventListener('mouseleave', this.onMouseLeave);
 
     console.log('Bounding box drawing enabled (click-click mode)');
@@ -476,6 +691,10 @@ export class BBoxDrawer {
     // Remove event listeners
     this.map.off('click', this.onClick);
     this.map.off('mousemove', this.onMouseMove);
+    this.map.off('mousedown', this.onMouseDown);
+    this.map.off('mousemove', this.onGlobalMouseMove);
+    this.map.off('mouseup', this.onGlobalMouseUp);
+    this.map.dragPan.enable();
     this.map.getCanvas().removeEventListener('mouseleave', this.onMouseLeave);
 
     // Hide handles when draw mode is off
