@@ -25,6 +25,8 @@ export class BBoxDrawer {
   private readonly BBOX_SOURCE = 'bbox-source';
   private readonly BBOX_FILL_LAYER = 'bbox-fill';
   private readonly BBOX_LINE_LAYER = 'bbox-line';
+  private readonly BBOX_LABEL_SOURCE = 'bbox-label-source';
+  private readonly BBOX_LABEL_LAYER = 'bbox-label';
 
   constructor(map: maplibregl.Map) {
     this.map = map;
@@ -74,6 +76,31 @@ export class BBoxDrawer {
         paint: {
           'line-color': '#E35A1D',
           'line-width': 2,
+        },
+      });
+
+      // Add label point source
+      this.map.addSource(this.BBOX_LABEL_SOURCE, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      // Add label layer
+      this.map.addLayer({
+        id: this.BBOX_LABEL_LAYER,
+        type: 'symbol',
+        source: this.BBOX_LABEL_SOURCE,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 12,
+          'text-anchor': 'top-left',
+          'text-offset': [0.5, 0.5],
+          'text-font': ['Open Sans Bold'],
+        },
+        paint: {
+          'text-color': '#ffffff',
+          'text-halo-color': '#1a1a2e',
+          'text-halo-width': 2,
         },
       });
     }
@@ -145,6 +172,26 @@ export class BBoxDrawer {
       type: 'FeatureCollection',
       features: [],
     });
+    this.clearLabelDisplay();
+  }
+
+  private updateLabelDisplay(lon: number, lat: number, label: string): void {
+    const source = this.map.getSource(this.BBOX_LABEL_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+    source.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: { label },
+        geometry: { type: 'Point', coordinates: [lon, lat] },
+      }],
+    });
+  }
+
+  private clearLabelDisplay(): void {
+    const source = this.map.getSource(this.BBOX_LABEL_SOURCE) as maplibregl.GeoJSONSource;
+    if (!source) return;
+    source.setData({ type: 'FeatureCollection', features: [] });
   }
 
   /**
@@ -391,7 +438,7 @@ export class BBoxDrawer {
   /**
    * Programmatically load a bounding box extent onto the map
    */
-  loadExtent(bbox: BoundingBox): void {
+  loadExtent(bbox: BoundingBox, label?: string): void {
     // Clear any existing drawing
     this.disableDrawing();
 
@@ -401,6 +448,13 @@ export class BBoxDrawer {
 
     this.updateBboxDisplay(minLon, minLat, maxLon, maxLat);
     this.currentBbox = bbox;
+
+    // Show label at top-left corner if provided
+    if (label) {
+      this.updateLabelDisplay(minLon, maxLat, label);
+    } else {
+      this.clearLabelDisplay();
+    }
 
     // Remove any existing listeners before adding new ones
     this.map.off('mousemove', this.onMouseMove);
