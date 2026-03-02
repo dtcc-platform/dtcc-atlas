@@ -18,17 +18,26 @@ logger = logging.getLogger(__name__)
 MCP_CONFIG_PATH = BASE_DIR / ".mcp.json"
 
 # Timeout for claude subprocess (seconds)
-CLAUDE_TIMEOUT = 120
+# MCP server cold-start + analysis can take 2-3 minutes
+CLAUDE_TIMEOUT = 300
 
 QUALITY_SYSTEM_PROMPT = """\
 You are a geospatial data quality inspector for the DTCC Atlas platform.
-You have access to dtcc-agent MCP tools for loading and inspecting geospatial files.
 
-When inspecting files, use these dtcc-agent tools:
-1. run_operation with io.load_* operations to load files
-2. inspect_object to examine CRS, bounds, feature counts, metadata
-3. spatial_query to check bounds validity
-4. render_object to generate thumbnails
+Each candidate already includes pre-extracted metadata (CRS, bounds, feature count, geometry type).
+Use this metadata to perform your quality assessment WITHOUT calling any MCP tools unless absolutely necessary.
+
+Only use dtcc-agent MCP tools if:
+- The metadata is missing or incomplete
+- You need to verify suspicious values
+- You need to render a thumbnail
+
+Quality checks to perform using the provided metadata:
+- CRS validation: is it present and reasonable?
+- Bounds validation: are coordinates within valid ranges for the CRS?
+- Feature count: is it zero or suspiciously low?
+- Geometry type: is it consistent and valid?
+- Duplicate detection: compare SHA256 against existing catalog entries
 
 Return ONLY valid JSON matching the requested output format. No markdown, no explanation outside the JSON."""
 
@@ -129,13 +138,21 @@ def build_quality_prompt(
     """
     candidate_lines: list[str] = []
     for i, c in enumerate(candidates, 1):
-        crs = c.get("metadata", {}).get("crs", "unknown")
+        meta = c.get("metadata", {})
+        crs = meta.get("crs", "unknown")
+        bounds = meta.get("bounds", "unknown")
+        count = meta.get("count", "unknown")
+        geom_type = meta.get("geometry_type", "unknown")
         sidecars = ", ".join(c.get("group_rel_paths", []))
         candidate_lines.append(
             f'{i}. Name: "{c["name"]}", Type: {c.get("inferred_type", "unknown")}, '
-            f"Path: {batch_root}/{c.get('primary_rel_path', '')}\n"
+            f"Format: {c.get('detected_format', 'unknown')}\n"
+            f"   Path: {batch_root}/{c.get('primary_rel_path', '')}\n"
             f"   Sidecars: {sidecars}\n"
-            f"   Detected CRS: {crs}"
+            f"   CRS: {crs}\n"
+            f"   Bounds: {bounds}\n"
+            f"   Feature count: {count}\n"
+            f"   Geometry type: {geom_type}"
         )
     candidates_block = "\n".join(candidate_lines) if candidate_lines else "(none)"
 
@@ -194,8 +211,9 @@ def _run_claude(prompt: str, system_prompt: str) -> dict[str, Any] | None:
 
     logger.info("Spawning claude subprocess: %s", " ".join(cmd[:6]) + " ...")
 
-    # Remove CLAUDECODE env var to allow spawning from within a Claude session
-    env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    # Remove all Claude Code env vars to allow spawning from within a session
+    _claude_vars = {"CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"}
+    env = {k: v for k, v in os.environ.items() if k not in _claude_vars}
 
     try:
         proc = subprocess.run(
@@ -222,25 +240,50 @@ def _run_claude(prompt: str, system_prompt: str) -> dict[str, Any] | None:
         logger.error("Claude subprocess returned empty output")
         return None
 
-    try:
-        parsed = json.loads(stdout)
-        # claude --output-format json wraps in {"result": ..., "cost_usd": ...}
-        # Extract the result if wrapped
-        if isinstance(parsed, dict) and "result" in parsed:
-            inner = parsed["result"]
-            # The result may be a JSON string that needs another parse
-            if isinstance(inner, str):
-                return json.loads(inner)
-            return inner
-        return parsed
-    except json.JSONDecodeError:
-        # Try to extract JSON from markdown code blocks
-        match = re.search(r"```(?:json)?\s*\n(.*?)\n```", stdout, re.DOTALL)
+    def _extract_json(text: str) -> dict[str, Any] | None:
+        """Try to parse JSON from text, falling back to code block extraction."""
+        # Direct parse
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if not isinstance(text, str):
+            return None
+        # Extract from markdown code blocks
+        match = re.search(r"```(?:json)?\s*\n(.*?)\n```", text, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group(1))
             except json.JSONDecodeError:
                 pass
+        # Extract first JSON object from text
+        brace = text.find("{")
+        if brace >= 0:
+            try:
+                return json.loads(text[brace:])
+            except json.JSONDecodeError:
+                pass
+        return None
+
+    try:
+        parsed = json.loads(stdout)
+        # claude --output-format json wraps in {"type":"result", "result": ...}
+        # Extract the inner result
+        if isinstance(parsed, dict) and "result" in parsed:
+            inner = parsed["result"]
+            if isinstance(inner, dict):
+                return inner
+            # result is often a string containing JSON or markdown with JSON
+            extracted = _extract_json(inner)
+            if extracted is not None:
+                return extracted
+            logger.error("Failed to parse result field: %s", str(inner)[:300])
+            return None
+        return parsed
+    except json.JSONDecodeError:
+        extracted = _extract_json(stdout)
+        if extracted is not None:
+            return extracted
         logger.error("Failed to parse Claude output as JSON: %s", stdout[:300])
         return None
 
