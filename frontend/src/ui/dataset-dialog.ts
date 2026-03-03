@@ -18,7 +18,6 @@ enum DialogView {
 export class DatasetDialog {
   private dialog: HTMLElement;
   private content: HTMLElement;
-  // @ts-expect-error - currentView is kept for future state management features
   private currentView: DialogView = DialogView.DATASET_LIST;
   private formRenderer: FormRenderer | null = null;
   private currentDataset: string | null = null;
@@ -109,7 +108,12 @@ export class DatasetDialog {
    * When connected, the form will offer a "Send to UE" destination toggle.
    */
   setPixelStreamingConnected(connected: boolean): void {
+    if (this._pixelStreamingConnected === connected) {
+      return;
+    }
+
     this._pixelStreamingConnected = connected;
+    this.syncDestinationToggleForConnectionState();
   }
 
   /**
@@ -249,6 +253,9 @@ export class DatasetDialog {
       (values) => this.handleFormSubmit(values)
     );
     this.formRenderer.render();
+
+    // Ensure the submit button text matches current destination state.
+    this.updateSubmitButtonLabel();
   }
 
   /**
@@ -285,14 +292,46 @@ export class DatasetDialog {
       }
 
       // Update submit button text
-      const submitButton = this.content.querySelector('#submit-button') as HTMLButtonElement;
-      if (submitButton) {
-        submitButton.textContent = sendToUE ? 'Send to UE' : 'Download Dataset';
-      }
+      this.updateSubmitButtonLabel();
     };
 
     downloadBtn.addEventListener('click', () => setActive(false));
     ueBtn.addEventListener('click', () => setActive(true));
+  }
+
+  /**
+   * Keep destination UI in sync with Pixel Streaming connection changes.
+   * This applies whether the dialog is visible now or becomes visible later.
+   */
+  private syncDestinationToggleForConnectionState(): void {
+    if (this.currentView !== DialogView.DATASET_FORM) {
+      return;
+    }
+
+    const container = this.content.querySelector('#destination-toggle') as HTMLElement | null;
+    if (!container) {
+      return;
+    }
+
+    if (this._pixelStreamingConnected) {
+      if (!container.querySelector('#dest-download')) {
+        this.renderDestinationToggle();
+      }
+      return;
+    }
+
+    container.textContent = '';
+    this._sendToUE = false;
+    this.updateSubmitButtonLabel();
+  }
+
+  private updateSubmitButtonLabel(): void {
+    const submitButton = this.content.querySelector('#submit-button') as HTMLButtonElement | null;
+    if (!submitButton) {
+      return;
+    }
+
+    submitButton.textContent = this._sendToUE ? 'Send to UE' : 'Download Dataset';
   }
 
   /**

@@ -159,17 +159,80 @@ async function initializeApp(): Promise<void> {
         if (connected) {
           artifactBridge.setPixelStreaming(pixelStreamPanel.getPixelStreaming());
           datasetDialog.setPixelStreamingConnected(true);
+          jobTracker.setPixelStreamingConnected(true);
         } else {
           artifactBridge.setPixelStreaming(null);
           datasetDialog.setPixelStreamingConnected(false);
+          jobTracker.setPixelStreamingConnected(false);
         }
       }
     };
 
     // Poll PS connection state every second (lightweight boolean check)
     psConnectionPollId = window.setInterval(checkPsConnection, 1000);
+    checkPsConnection();
     // Suppress unused-variable warning - interval cleared on page unload
     void psConnectionPollId;
+
+    jobTracker.onVisualize(async (job) => {
+      const pixelStreaming = pixelStreamPanel.getPixelStreaming();
+      if (!pixelStreaming || !pixelStreamPanel.isConnected()) {
+        console.warn(`Pixel Streaming not connected. Unable to visualize job ${job.id}.`);
+        return;
+      }
+
+      const backendBase = import.meta.env.VITE_BACKEND_BASE_URL?.trim() || window.location.origin;
+      const base = backendBase.replace(/\/+$/, '');
+      const rawRelative = job.download_url || `/api/v1/jobs/${job.id}/download`;
+      const relative = rawRelative.startsWith('/') ? rawRelative : `/${rawRelative}`;
+      const downloadUrl = `${base}${relative}`;
+
+      try {
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+
+        // Current contract: visualize payloads are always JSON content.
+        const fileContents = await response.json();
+        const boundsRaw = job.params?.bounds;
+        const bounds = Array.isArray(boundsRaw)
+          ? boundsRaw.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+          : [];
+
+        pixelStreaming.emitUIInteraction({
+          type: 'LoadDatasetJson',
+          job_id: job.id,
+          dataset: job.dataset,
+          filename: job.filename,
+          bounds,
+          data: fileContents,
+        } as Record<string, unknown>);
+
+        console.info(`Sent dataset JSON to UE from job tracker: ${job.id} (${job.dataset})`);
+      } catch (error) {
+        console.error(`Failed to visualize job ${job.id}:`, error);
+      }
+    });
+
+    const emitCesiumOriginFromBbox = (bbox: BoundingBox): void => {
+      const pixelStreaming = pixelStreamPanel.getPixelStreaming();
+      if (!pixelStreaming || !pixelStreamPanel.isConnected()) {
+        return;
+      }
+
+      const centerX = (bbox.minX + bbox.maxX) / 2;
+      const centerY = (bbox.minY + bbox.maxY) / 2;
+      const [lon, lat] = proj4('EPSG:3006', 'EPSG:4326', [centerX, centerY]) as [number, number];
+
+      pixelStreaming.emitUIInteraction({
+        cesiumOrigin: {
+          lat,
+          lon,
+          height: 100,
+        },
+      } as Record<string, unknown>);
+    };
 
     const setDrawButtonActive = (): void => {
       drawButton.setAttribute('data-state', 'active');
@@ -435,6 +498,7 @@ async function initializeApp(): Promise<void> {
 
       // Store in centralized state (immediate feedback)
       appState.setBbox(bbox);
+      emitCesiumOriginFromBbox(bbox);
 
       // Update header area display (immediate feedback)
       const area = bboxDrawer.getCurrentBBoxArea();

@@ -7,6 +7,7 @@ import { notificationService } from '../services/notification-service';
 import { Icons } from './icons';
 
 type DownloadCallback = (jobId: string, filename: string | null) => void;
+type VisualizeCallback = (job: Job) => void;
 type JobSyncSource = 'initial' | 'sse' | 'poll' | 'local';
 
 /**
@@ -21,6 +22,8 @@ export class JobTracker {
   private jobCountSpan: HTMLElement;
   private jobs: Map<string, Job> = new Map();
   private downloadCallback: DownloadCallback | null = null;
+  private visualizeCallback: VisualizeCallback | null = null;
+  private pixelStreamingConnected = false;
   private unsubscribe: (() => void) | null = null;
   private retryTimers: Map<string, number> = new Map();
   private hiddenTerminalJobs: Set<string> = new Set();
@@ -426,6 +429,13 @@ export class JobTracker {
         <button class="job-download px-3 py-1.5 bg-dtcc-blue text-white text-xs font-medium rounded hover:bg-dtcc-blue-dark transition-colors">
           Download
         </button>
+        ${this.pixelStreamingConnected
+          ? `
+        <button class="job-visualize px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-700 transition-colors">
+          Visualize
+        </button>
+        `
+          : ''}
       `;
     } else if (job.status === 'failed') {
       let retryBtn = '';
@@ -507,6 +517,13 @@ export class JobTracker {
       } else {
         jobService.downloadResult(job.id, job.filename || undefined);
       }
+    });
+
+    // Visualize button
+    const visualizeBtn = item.querySelector('.job-visualize') as HTMLButtonElement;
+    visualizeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.visualizeCallback?.(job);
     });
 
     // Dismiss button
@@ -721,6 +738,25 @@ export class JobTracker {
    */
   onDownload(callback: DownloadCallback): void {
     this.downloadCallback = callback;
+  }
+
+  /**
+   * Register callback for visualize action
+   */
+  onVisualize(callback: VisualizeCallback): void {
+    this.visualizeCallback = callback;
+  }
+
+  /**
+   * Set Pixel Streaming connection state for conditional action rendering
+   */
+  setPixelStreamingConnected(connected: boolean): void {
+    if (this.pixelStreamingConnected === connected) {
+      return;
+    }
+
+    this.pixelStreamingConnected = connected;
+    this.render();
   }
 
   /**
