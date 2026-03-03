@@ -14,7 +14,8 @@
   --color-dtcc-eyebrow: #7a7a80;
 
   /* Semantic color aliases */
-  --color-dtcc-navy: #27252A;
+  --color-dtcc-navy: #1a1a2e;
+  --color-dtcc-navy-hover: #2d2d44;
   --color-dtcc-blue: #78C8BE;
   --color-dtcc-blue-dark: #5fb3a8;
   --color-dtcc-blue-darker: #4a9e94;
@@ -112,4 +113,26 @@ body {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   font-size: 11px !important;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-top-color: #E35A1D;
+  }
+
+  .animate-progress-indeterminate {
+    animation: none;
+    width: 100%;
+  }
+
+  .animate-slide-in,
+  .animate-slide-out {
+    animation: none;
+  }
+
+  .animate-spin {
+    animation: none;
+  }
 }

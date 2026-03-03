@@ -4,7 +4,7 @@ import asyncio
 import json
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 
@@ -51,7 +51,10 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
     router = APIRouter(prefix="/jobs", tags=["jobs"])
 
     @router.post("/submit", response_model=JobSubmitResponse)
-    async def submit_job(request: JobSubmitRequest):
+    async def submit_job(
+        request: JobSubmitRequest,
+        x_session_id: Optional[str] = Header(default=None),
+    ):
         """
         Submit a new dataset download job.
 
@@ -64,6 +67,7 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
             dataset=request.dataset,
             params=params,
             filename=request.filename,
+            session_id=x_session_id,
         )
 
         return JobSubmitResponse(
@@ -144,16 +148,23 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
         )
 
     @router.get("/events")
-    async def job_events(request: Request):
+    async def job_events(
+        request: Request,
+        x_session_id: Optional[str] = Header(default=None),
+        session_id: Optional[str] = None,
+    ):
         """
         Server-Sent Events endpoint for real-time job updates.
 
         Clients should connect to this endpoint to receive job status updates.
+        Accepts session filtering via X-Session-Id header or session_id query param.
         Events:
         - job_update: Job status changed
         - job_complete: Job finished successfully
         - job_failed: Job failed with error
         """
+        effective_session = x_session_id or session_id
+
         async def event_generator():
             # Subscribe to job events
             queue = job_manager.subscribe()
@@ -170,6 +181,12 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
                     try:
                         # Wait for event with timeout
                         event = await asyncio.wait_for(queue.get(), timeout=30.0)
+
+                        # Filter by session if requested
+                        event_session = event["data"].get("session_id")
+                        if effective_session and event_session and event_session != effective_session:
+                            continue  # skip events for other sessions
+
                         event_type = event["type"]
                         event_data = json.dumps(event["data"])
                         yield f"event: {event_type}\ndata: {event_data}\n\n"
@@ -191,13 +208,20 @@ def create_jobs_router(job_manager: JobManager) -> APIRouter:
         )
 
     @router.get("/list")
-    async def list_jobs(limit: int = 50):
+    async def list_jobs(
+        limit: int = 50,
+        x_session_id: Optional[str] = Header(default=None),
+    ):
         """
         List recent jobs.
 
         This can be used to restore job list after page refresh.
+        If X-Session-Id header is provided, only jobs for that session are returned.
         """
-        jobs = job_manager.list_jobs(limit=limit)
+        if x_session_id:
+            jobs = job_manager.list_jobs_by_session(x_session_id)
+        else:
+            jobs = job_manager.list_jobs(limit=limit)
         return {
             "jobs": [
                 {

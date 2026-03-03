@@ -24,6 +24,15 @@ from server.jobs import JobManager, create_jobs_router
 from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata, get_dataset_geojson_path
 from server.vector.routes import clip_features_to_bounds
 from server.admin import create_admin_router
+from server.upload import (
+    create_upload_router,
+    ensure_catalog_directories,
+    get_catalog,
+    list_uploaded_datasets_for_api,
+    uploaded_dataset_schema,
+    process_uploaded_dataset_download,
+)
+from server.session import create_session_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
 import json
@@ -36,6 +45,7 @@ print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s t
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     """Manage application lifecycle - startup and shutdown."""
+    ensure_catalog_directories()
     yield
 
     # Cleanup on shutdown
@@ -53,7 +63,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Session-Id"],
 )
 
 app.add_middleware(
@@ -65,26 +75,172 @@ app.add_middleware(
 available_datasets = datasets.list()
 available_dataset_names = list(available_datasets.keys())
 
+_FORMAT_TO_KIND = {
+    "tif": "raster",
+    "tiff": "raster",
+    "asc": "raster",
+    "png": "raster",
+    "jpg": "raster",
+    "jpeg": "raster",
+    "geojson": "vector",
+    "json": "vector",
+    "obj": "mesh",
+    "stl": "mesh",
+    "ply": "mesh",
+    "vtk": "mesh",
+    "vtu": "mesh",
+    "xdmf": "mesh",
+    "inp": "mesh",
+    "bdf": "mesh",
+    "las": "point_cloud",
+    "laz": "point_cloud",
+    "copc": "point_cloud",
+    "cityjson": "city_model",
+    "city.json": "city_model",
+    "json.zip": "city_model",
+}
+
+
+def _source_group_for_dataset(dataset_obj: Any) -> tuple[str, str]:
+    module_name = dataset_obj.__class__.__module__
+    if module_name.startswith("dtcc_sim"):
+        return ("dtcc-sim", "DTCC Sim")
+    if module_name.startswith("dtcc_core"):
+        return ("dtcc-core", "DTCC Core")
+    return ("other", "Other")
+
+
+def _normalize_formats(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip().lower() for v in value if str(v).strip()]
+    return [str(value).strip().lower()] if str(value).strip() else []
+
+
+def _extract_formats_from_format_property(format_prop: dict[str, Any]) -> list[str]:
+    formats: list[str] = []
+
+    if not isinstance(format_prop, dict):
+        return formats
+
+    formats.extend(_normalize_formats(format_prop.get("enum")))
+    if "const" in format_prop:
+        formats.extend(_normalize_formats(format_prop.get("const")))
+
+    any_of = format_prop.get("anyOf")
+    if isinstance(any_of, list):
+        for variant in any_of:
+            if not isinstance(variant, dict):
+                continue
+            formats.extend(_normalize_formats(variant.get("enum")))
+            if "const" in variant:
+                formats.extend(_normalize_formats(variant.get("const")))
+
+    if not formats:
+        formats.extend(_normalize_formats(format_prop.get("default")))
+
+    deduped = []
+    for fmt in formats:
+        if fmt and fmt != "none" and fmt != "null" and fmt not in deduped:
+            deduped.append(fmt)
+    return deduped
+
+
+def _dataset_schema_for_listing(dataset_obj: Any) -> dict[str, Any]:
+    try:
+        schema = dataset_obj.show_options()
+        if isinstance(schema, dict):
+            return schema
+    except Exception:
+        pass
+    return {}
+
+
+def _dataset_format_metadata(dataset_obj: Any) -> tuple[list[str], list[str], str, str]:
+    schema = _dataset_schema_for_listing(dataset_obj)
+    properties = schema.get("properties", {}) if isinstance(schema, dict) else {}
+    format_prop = properties.get("format", {}) if isinstance(properties, dict) else {}
+
+    formats = _extract_formats_from_format_property(format_prop)
+
+    kinds: list[str] = []
+    for fmt in formats:
+        kind = _FORMAT_TO_KIND.get(fmt)
+        if kind and kind not in kinds:
+            kinds.append(kind)
+
+    if not kinds and formats:
+        kinds = ["unknown"]
+
+    if len(kinds) == 1:
+        data_kind = kinds[0]
+    elif len(kinds) > 1:
+        data_kind = "mixed"
+    else:
+        data_kind = "unknown"
+
+    data_kind_label = {
+        "vector": "Vector",
+        "point_cloud": "Point cloud",
+        "raster": "Raster",
+        "mesh": "Mesh",
+        "city_model": "City model",
+        "mixed": "Format-dependent",
+        "unknown": "Unknown",
+    }.get(data_kind, "Unknown")
+
+    ui_type = "vector" if kinds == ["vector"] else "raster"
+    return (formats, kinds, data_kind, data_kind_label)
+
 
 @app.get("/api/v1/datasets/list")
 def list_datasets():
-    """List all available datasets (dtcc-core + published vector datasets)."""
-    # Start with dtcc-core datasets
-    all_datasets = [
-        {"name": name, "type": "raster", "source": "dtcc-core"}
-        for name in available_dataset_names
-    ]
+    """List all available datasets (dtcc-core + published + user-uploaded)."""
+    # Start with dtcc datasets (including dtcc-sim registrations)
+    all_datasets = []
+    for name in available_dataset_names:
+        dataset_obj = available_datasets[name]
+        source_group, source_label = _source_group_for_dataset(dataset_obj)
+        formats, return_types, data_kind, data_kind_label = _dataset_format_metadata(
+            dataset_obj
+        )
+        all_datasets.append(
+            {
+                "name": name,
+                "title": name.replace("_", " ").title(),
+                "type": "vector" if return_types == ["vector"] else "raster",
+                "source": source_group,
+                "source_group": source_group,
+                "source_label": source_label,
+                "data_kind": data_kind,
+                "data_kind_label": data_kind_label,
+                "return_types": return_types,
+                "supported_formats": formats,
+            }
+        )
 
     # Add published vector datasets
     published = discover_published_datasets()
+    for dataset in published:
+        dataset.setdefault("source_group", "published")
+        dataset.setdefault("source_label", str(dataset.get("source", "Published")))
+        dataset.setdefault("data_kind", "vector")
+        dataset.setdefault("data_kind_label", "Vector")
+        dataset.setdefault("return_types", ["vector"])
+        dataset.setdefault("supported_formats", ["geojson"])
     all_datasets.extend(published)
+
+    # Add uploaded datasets from catalog
+    uploaded = list_uploaded_datasets_for_api()
+    all_datasets.extend(uploaded)
 
     return {"datasets": all_datasets}
 
 
 @app.get("/api/v1/datasets/get_args/{dataset_name}")
 def get_dataset_args(dataset_name: str):
-    """Get parameter schema for a dataset (dtcc-core or published vector)."""
+    """Get parameter schema for a dataset."""
     # Check dtcc-core datasets first
     if dataset_name in available_datasets:
         dataset = available_datasets[dataset_name]
@@ -94,6 +250,11 @@ def get_dataset_args(dataset_name: str):
     metadata = get_dataset_metadata(dataset_name)
     if metadata:
         return metadata.get("schema", {})
+
+    # Check uploaded datasets
+    uploaded_schema = uploaded_dataset_schema(dataset_name)
+    if uploaded_schema:
+        return uploaded_schema
 
     raise fastapi.HTTPException(status_code=404, detail="Dataset not found")
 
@@ -120,7 +281,29 @@ def download_dataset(request: DatasetDownloadRequest):
     if geojson_path:
         return _download_vector_dataset(request, geojson_path)
 
-    # Dataset not found in either source
+    # Check uploaded datasets
+    try:
+        content, media_type, filename = process_uploaded_dataset_download(
+            dataset_name=request.dataset,
+            bounds=request.bounds,
+            filename=request.filename or request.dataset,
+        )
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            pass
+        else:
+            raise fastapi.HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise fastapi.HTTPException(
+            status_code=500, detail=f"Error serving uploaded dataset: {str(e)}"
+        )
+
+    # Dataset not found in known sources
     raise fastapi.HTTPException(
         status_code=404, detail=f"Dataset '{request.dataset}' not found"
     )
@@ -231,6 +414,16 @@ print("Vector datasets router mounted at /api/v1/vector")
 admin_router = create_admin_router()
 app.include_router(admin_router, prefix="/api/v1")
 print("Admin router mounted at /api/v1/admin")
+
+# Mount upload router
+upload_router = create_upload_router()
+app.include_router(upload_router, prefix="/api/v1")
+print("Upload router mounted at /api/v1/uploads")
+
+# Mount session router
+session_router = create_session_router(get_catalog())
+app.include_router(session_router, prefix="/api/v1")
+print("Session router mounted at /api/v1/sessions")
 
 
 # Mount static files (must be last due to catch-all route)

@@ -71,6 +71,7 @@ class JobManager:
         dataset: str,
         params: Dict[str, Any],
         filename: Optional[str] = None,
+        session_id: Optional[str] = None,
     ) -> Job:
         """
         Submit a new job for processing.
@@ -79,6 +80,7 @@ class JobManager:
             dataset: Dataset name.
             params: Dataset parameters including bounds.
             filename: Optional custom filename.
+            session_id: Optional session ID to scope the job.
 
         Returns:
             The created Job instance.
@@ -87,6 +89,7 @@ class JobManager:
             dataset=dataset,
             params=params,
             filename=filename or dataset,
+            session_id=session_id,
         )
 
         with self._lock:
@@ -454,6 +457,15 @@ class JobManager:
             jobs = list(self._jobs.values())
             jobs.sort(key=lambda j: j.created_at, reverse=True)
             return jobs[:limit]
+
+    def list_jobs_by_session(self, session_id: str) -> List[Job]:
+        """Return jobs for a given session, newest first."""
+        with self._lock:
+            return sorted(
+                [j for j in self._jobs.values() if j.session_id == session_id],
+                key=lambda j: j.created_at,
+                reverse=True,
+            )
 
     def get_queue_position(self, job_id: str) -> Optional[int]:
         """Get position in queue (1-indexed) or None if not queued."""

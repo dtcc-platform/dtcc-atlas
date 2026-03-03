@@ -52,7 +52,7 @@ class TestJob:
         d = job.to_dict()
         expected_keys = {
             "id", "dataset", "status", "filename", "error",
-            "progress", "created_at", "completed_at", "params",
+            "progress", "session_id", "created_at", "completed_at", "params",
         }
         assert set(d.keys()) == expected_keys
 

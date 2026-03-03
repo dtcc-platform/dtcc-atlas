@@ -58,7 +58,8 @@ def discover_published_datasets(published_dir: Path | None = None) -> list[dict]
                     "title": metadata.get("title", subdir.name),
                     "type": "vector",
                     "source": metadata.get("source", "lm-geotorget"),
-                    "path": f"{subdir.name}/"
+                    "path": f"{subdir.name}/",
+                    "bounds": metadata.get("bounds"),
                 })
             except (json.JSONDecodeError, IOError):
                 continue

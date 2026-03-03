@@ -59,6 +59,22 @@
     }
   }
 
+  function toBoundsArray(boundsValue: unknown): number[] | null {
+    if (!Array.isArray(boundsValue) || boundsValue.length < 4) return null
+    const vals = boundsValue.slice(0, 4).map(v => Number(v))
+    if (vals.some(v => Number.isNaN(v))) return null
+    return vals
+  }
+
+  function intersects(a: number[], b: number[]): boolean {
+    return !(
+      a[2] < b[0] ||
+      a[0] > b[2] ||
+      a[3] < b[1] ||
+      a[1] > b[3]
+    )
+  }
+
   async function handleSubmit() {
     if (!$formConfig || !$bbox) return
 
@@ -113,6 +129,11 @@
   }
 
   const title = $derived($selectedDataset?.title || $selectedDataset?.name || 'Configure Dataset')
+  const selectedDatasetBounds = $derived(toBoundsArray($selectedDataset?.bounds))
+  const selectedBBoxArray = $derived($bbox ? [$bbox.minX, $bbox.minY, $bbox.maxX, $bbox.maxY] : null)
+  const hasCoverageForSelection = $derived(
+    !selectedDatasetBounds || !selectedBBoxArray || intersects(selectedDatasetBounds, selectedBBoxArray)
+  )
   const isSubmitting = $derived(submissionState === SubmissionState.SUBMITTING)
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
@@ -121,12 +142,12 @@
   <!-- Header with back button -->
   <div class="flex items-center gap-3 mb-5">
     <button
-      class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors cursor-pointer text-[#6b7280]"
+      class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors cursor-pointer text-dtcc-muted focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
       onclick={goBack}
     >
       <span class="w-4 h-4 block">{@html Icons.arrowLeft}</span>
     </button>
-    <h3 class="text-[16px] font-semibold text-[#1a1a2e] truncate">{title}</h3>
+    <h3 class="text-[16px] font-semibold text-dtcc-navy truncate">{title}</h3>
   </div>
 
   {#if submissionState === SubmissionState.SUCCESS}
@@ -135,10 +156,10 @@
       <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600">
         <span class="w-6 h-6 block">{@html Icons.check}</span>
       </div>
-      <p class="text-[14px] font-medium text-[#1a1a2e]">{submissionMessage}</p>
-      <p class="text-[12px] text-[#6b7280]">Your job is being processed</p>
+      <p class="text-[14px] font-medium text-dtcc-navy">{submissionMessage}</p>
+      <p class="text-[12px] text-dtcc-muted">Your job is being processed</p>
       <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg bg-[#1a1a2e] text-white hover:bg-[#2d2d44] transition-colors cursor-pointer"
+        class="mt-2 px-4 py-2 text-[13px] rounded-lg bg-dtcc-navy text-white hover:bg-dtcc-navy-hover transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={goBack}
       >
         Back to datasets
@@ -150,10 +171,10 @@
       <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500">
         <span class="w-6 h-6 block">{@html Icons.close}</span>
       </div>
-      <p class="text-[14px] font-medium text-[#1a1a2e]">Submission failed</p>
+      <p class="text-[14px] font-medium text-dtcc-navy">Submission failed</p>
       <p class="text-[12px] text-red-500 text-center px-4">{submissionMessage}</p>
       <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg border border-[#e5e7eb] hover:bg-black/5 transition-colors cursor-pointer"
+        class="mt-2 px-4 py-2 text-[13px] rounded-lg border border-dtcc-border-light hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={() => { submissionState = SubmissionState.IDLE; submissionMessage = ''; }}
       >
         Try again
@@ -164,7 +185,7 @@
     <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
       {#each visibleFields as field (field.name)}
         <div class="flex flex-col gap-1.5">
-          <label for={field.name} class="text-[13px] font-medium text-[#1a1a2e]">
+          <label for={field.name} class="text-[13px] font-medium text-dtcc-navy">
             {field.label}
             {#if field.required}
               <span class="text-orange-500">*</span>
@@ -172,7 +193,7 @@
           </label>
 
           {#if field.description}
-            <p class="text-[11px] text-[#6b7280] -mt-0.5">{field.description}</p>
+            <p class="text-[11px] text-dtcc-muted -mt-0.5">{field.description}</p>
           {/if}
 
           {#if field.type === FormFieldType.TEXT}
@@ -180,7 +201,7 @@
               id={field.name}
               type="text"
               class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder ?? ''}
               value={values[field.name] ?? ''}
               oninput={(e) => updateValue(field.name, (e.target as HTMLInputElement).value)}
@@ -190,7 +211,7 @@
               id={field.name}
               type="number"
               class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.min !== undefined ? `Min: ${field.min}` : ''}
               step={field.step ?? (field.type === FormFieldType.INTEGER ? 1 : 'any')}
               min={field.min}
@@ -206,17 +227,17 @@
               <input
                 id={field.name}
                 type="checkbox"
-                class="w-4 h-4 rounded border-[#e5e7eb] text-orange-500 focus:ring-orange-200 cursor-pointer accent-orange-500"
+                class="w-4 h-4 rounded border-dtcc-border-light text-orange-500 focus:ring-orange-200 cursor-pointer accent-orange-500"
                 checked={values[field.name] === true}
                 onchange={(e) => updateValue(field.name, (e.target as HTMLInputElement).checked)}
               />
-              <span class="text-[13px] text-[#6b7280]">{field.description || field.label}</span>
+              <span class="text-[13px] text-dtcc-muted">{field.description || field.label}</span>
             </label>
           {:else if field.type === FormFieldType.SELECT}
             <select
               id={field.name}
               class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors cursor-pointer appearance-none bg-white
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               value={values[field.name] ?? ''}
               onchange={(e) => updateValue(field.name, (e.target as HTMLSelectElement).value)}
             >
@@ -230,7 +251,7 @@
               id={field.name}
               type="text"
               class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder}
               value={values[field.name] ?? ''}
               oninput={(e) => updateValue(field.name, (e.target as HTMLInputElement).value)}
@@ -247,15 +268,19 @@
         <p class="text-[12px] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
           Draw a bounding box on the map before submitting.
         </p>
+      {:else if !hasCoverageForSelection}
+        <p class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+          Selected area does not intersect this dataset's known coverage.
+        </p>
       {/if}
 
       <button
         type="submit"
-        disabled={isSubmitting || !$bbox}
-        class="mt-2 h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
-          {isSubmitting || !$bbox
+        disabled={isSubmitting || !$bbox || !hasCoverageForSelection}
+        class="mt-2 h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+          {isSubmitting || !$bbox || !hasCoverageForSelection
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-[#1a1a2e] text-white hover:bg-[#2d2d44]'}"
+            : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
       >
         {#if isSubmitting}
           Submitting...
