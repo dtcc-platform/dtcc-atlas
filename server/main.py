@@ -5,6 +5,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import dtcc_sim.datasets
+except ImportError:
+    pass
+
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
@@ -19,7 +24,8 @@ from server.jobs import JobManager, create_jobs_router
 from server.vector import create_vector_router, discover_published_datasets, get_dataset_metadata, get_dataset_geojson_path
 from server.vector.routes import clip_features_to_bounds
 from server.admin import create_admin_router
-from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
+from server.ue import ArtifactManager, ArtifactStorage, create_ue_router
+from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT, UE_ARTIFACT_DIR, UE_ARTIFACT_RETENTION_HOURS
 from server.middleware import SelectiveGZipMiddleware
 import json
 
@@ -27,19 +33,38 @@ import json
 job_manager = JobManager(max_workers=JOB_MAX_WORKERS, job_timeout=JOB_TIMEOUT)
 print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
 
+# Create artifact manager for UE pipeline (reuses the shared job manager)
+artifact_storage = ArtifactStorage(
+    artifact_dir=UE_ARTIFACT_DIR,
+    max_age_hours=UE_ARTIFACT_RETENTION_HOURS,
+)
+artifact_manager = ArtifactManager(
+    job_manager=job_manager,
+    storage=artifact_storage,
+)
+print(f"Artifact manager initialized (dir={UE_ARTIFACT_DIR}, retention={UE_ARTIFACT_RETENTION_HOURS}h)")
+
 
 @asynccontextmanager
 async def lifespan(app: fastapi.FastAPI):
     """Manage application lifecycle - startup and shutdown."""
+    # Start the artifact manager event listener
+    await artifact_manager.start()
+    print("Artifact manager event listener started")
+
     yield
 
     # Cleanup on shutdown
+    if artifact_manager:
+        artifact_manager.shutdown()
+        print("Artifact manager shutdown complete")
+
     if job_manager:
         job_manager.shutdown()
         print("Job manager shutdown complete")
 
 
-app = fastapi.FastAPI(title="DTCC Datsets Downloader", version="0.1.0", lifespan=lifespan)
+app = fastapi.FastAPI(title="DTCC Atlas", version="0.1.0", lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -216,6 +241,11 @@ def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path
 # Mount jobs router BEFORE the catch-all SPA route
 jobs_router = create_jobs_router(job_manager)
 app.include_router(jobs_router, prefix="/api/v1")
+
+# Mount UE artifacts router
+ue_router = create_ue_router(artifact_manager)
+app.include_router(ue_router, prefix="/api/v1")
+print("UE artifacts router mounted at /api/v1/ue/artifacts")
 
 # Mount vector datasets router
 vector_router = create_vector_router()

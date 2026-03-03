@@ -1,7 +1,7 @@
 {
-  "name": "dtcc-dataset-downloader-frontend",
+  "name": "dtcc-atlas-frontend",
   "version": "0.1.0",
-  "description": "Frontend for DTCC Dataset Downloader",
+  "description": "Frontend for DTCC Atlas",
   "type": "module",
   "scripts": {
     "dev": "vite",

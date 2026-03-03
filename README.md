@@ -1,4 +1,4 @@
-# DTCC Dataset Downloader
+# DTCC Atlas
 
 Interactive web application for downloading DTCC datasets using a map interface.
 

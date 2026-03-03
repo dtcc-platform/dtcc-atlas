@@ -19,7 +19,7 @@ export async function searchLocation(query: string): Promise<NominatimResult[]> 
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'DTCC Dataset Downloader',
+        'User-Agent': 'DTCC Atlas',
       },
     });
 

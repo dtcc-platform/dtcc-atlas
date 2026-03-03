@@ -481,6 +481,7 @@ export class JobTracker {
           <div class="flex items-center gap-2">
             ${statusIndicator}
             <span class="text-sm font-medium text-dtcc-navy truncate">${this.escapeHtml(job.dataset)}</span>
+            ${job.params?.__ue_artifact ? '<span class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-medium">UE</span>' : ''}
           </div>
           <div class="flex items-center gap-2 mt-1 text-xs text-dtcc-gray-dark">
             <span class="font-medium ${job.status === 'failed' ? 'text-dtcc-red' : ''}">${statusText}</span>

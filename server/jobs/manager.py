@@ -318,6 +318,7 @@ class JobManager:
 
                     if not drained_result:
                         worker_error = "Worker process exited unexpectedly without a result"
+                        print(f"[job manager] Job {job.id}: {worker_error}")
                     done = True
                     break
 
@@ -348,6 +349,7 @@ class JobManager:
                         job.progress = None
                         job.completed_at = datetime.now()
                         self._active_count -= 1
+                        print(f"[job manager] Job {job.id} failed: {job.error}")
 
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
@@ -362,6 +364,7 @@ class JobManager:
                         job.progress = None
                         job.completed_at = datetime.now()
                         self._active_count -= 1
+                        print(f"[job manager] Job {job.id} failed: {worker_error}")
 
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
@@ -376,6 +379,7 @@ class JobManager:
                         job.progress = None
                         job.completed_at = datetime.now()
                         self._active_count -= 1
+                        print(f"[job manager] Job {job.id} failed: Worker returned no result")
 
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
@@ -412,6 +416,8 @@ class JobManager:
                     })
 
         except Exception as e:
+            import traceback
+            print(f"[job manager] Job {job.id} unexpected error:\n{traceback.format_exc()}")
             should_broadcast = False
             with self._lock:
                 if job.status == JobStatus.FAILED:
@@ -536,6 +542,8 @@ def _worker_wrapper(result_queue: multiprocessing.Queue, dataset: str, params: D
         result = process_dataset_job(dataset, params, on_progress=on_progress)
         result_queue.put({"type": "result", "data": result})
     except Exception as e:
+        import traceback
+        print(f"[job worker] Unhandled error:\n{traceback.format_exc()}")
         result_queue.put({"type": "error", "error": str(e)})
 
 

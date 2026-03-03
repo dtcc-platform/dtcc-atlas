@@ -1,20 +1,28 @@
 [project]
-name = "dtcc-dataset-downloader"
+name = "dtcc-atlas"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10,<=3.13"
 dependencies = [
     "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@develop",
+    "dtcc-sim@git+https://github.com/dtcc-platform/dtcc-sim.git@main",
     "fastapi>=0.125.0",
     "uvicorn>=0.38.0",
 ]
 
 
 [dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.28",
+]
 lod2 = [
     "dtcc-lod2-roofer@git+https://github.com/dtcc-platform/dtcc-lod2-roofer.git",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["server"]

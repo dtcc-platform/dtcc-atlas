@@ -16,6 +16,7 @@ export class PixelStreamPanel {
   private readonly preferredStreamerId: string | undefined;
   private pixelStreaming: PixelStreaming | null = null;
   private visible = false;
+  private _connected = false;
 
   constructor() {
     this.toggleButton = document.getElementById('toggle-pixel-stream') as HTMLButtonElement | null;
@@ -31,6 +32,14 @@ export class PixelStreamPanel {
 
   isVisible(): boolean {
     return this.visible;
+  }
+
+  isConnected(): boolean {
+    return this._connected;
+  }
+
+  getPixelStreaming(): PixelStreaming | null {
+    return this.pixelStreaming;
   }
 
   hide(): void {
@@ -113,14 +122,17 @@ export class PixelStreamPanel {
     });
 
     this.pixelStreaming.addEventListener('webRtcConnected', () => {
+      this._connected = true;
       this.setStatus('Connected', 'connected');
     });
 
     this.pixelStreaming.addEventListener('webRtcFailed', () => {
+      this._connected = false;
       this.setStatus('Connection failed', 'error');
     });
 
     this.pixelStreaming.addEventListener('webRtcDisconnected', (event: Event) => {
+      this._connected = false;
       const data = (event as { data?: { eventString?: string } }).data;
       const message = data?.eventString || 'Disconnected';
       this.setStatus(message, 'error');

@@ -40,7 +40,12 @@ export interface JobSubmitResponse {
   status: string;
 }
 
-export type JobEventType = 'job_update' | 'job_complete' | 'job_failed' | 'connected';
+export interface ArtifactSubmitResponse {
+  artifact_id: string;
+  status: string;
+}
+
+export type JobEventType = 'job_update' | 'job_complete' | 'job_failed' | 'connected' | 'artifact_ready' | 'artifact_failed';
 
 export interface JobEvent {
   type: JobEventType;
@@ -79,6 +84,28 @@ class JobService {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
         errorData.detail || errorData.message || `Job submission failed: ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Submit a new UE artifact request for processing
+   */
+  async submitArtifact(request: JobSubmitRequest): Promise<ArtifactSubmitResponse> {
+    const response = await fetch(`${API_BASE_URL}/ue/artifacts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.detail || errorData.message || `Artifact submission failed: ${response.statusText}`
       );
     }
 
@@ -175,6 +202,16 @@ class JobService {
       // Handle job failed events
       this.eventSource.addEventListener('job_failed', (event) => {
         this.handleEvent('job_failed', (event as MessageEvent).data);
+      });
+
+      // Handle artifact ready events
+      this.eventSource.addEventListener('artifact_ready', (event) => {
+        this.handleEvent('artifact_ready', (event as MessageEvent).data);
+      });
+
+      // Handle artifact failed events
+      this.eventSource.addEventListener('artifact_failed', (event) => {
+        this.handleEvent('artifact_failed', (event as MessageEvent).data);
       });
     } catch (error) {
       console.error('Failed to create EventSource:', error);

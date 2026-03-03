@@ -22,11 +22,13 @@ export class DatasetDialog {
   private currentView: DialogView = DialogView.DATASET_LIST;
   private formRenderer: FormRenderer | null = null;
   private currentDataset: string | null = null;
+  private _pixelStreamingConnected = false;
+  private _sendToUE = false;
 
   // Callbacks
   private onDatasetSelected: ((datasetName: string) => void) | null = null;
   private onFormSubmit:
-    | ((datasetName: string, values: Record<string, unknown>) => void)
+    | ((datasetName: string, values: Record<string, unknown>, sendToUE: boolean) => void)
     | null = null;
   private onBackButtonClick: (() => void) | null = null;
 
@@ -76,6 +78,7 @@ export class DatasetDialog {
   hide(): void {
     this.dialog.classList.add('hidden');
     this.formRenderer = null;
+    this._sendToUE = false;
   }
 
   /**
@@ -102,10 +105,18 @@ export class DatasetDialog {
   }
 
   /**
+   * Set whether Pixel Streaming is currently connected.
+   * When connected, the form will offer a "Send to UE" destination toggle.
+   */
+  setPixelStreamingConnected(connected: boolean): void {
+    this._pixelStreamingConnected = connected;
+  }
+
+  /**
    * Register callback for form submission
    */
   onSubmit(
-    callback: (datasetName: string, values: Record<string, unknown>) => void
+    callback: (datasetName: string, values: Record<string, unknown>, sendToUE: boolean) => void
   ): void {
     this.onFormSubmit = callback;
   }
@@ -196,6 +207,8 @@ export class DatasetDialog {
    * Render dataset form
    */
   private renderDatasetForm(formConfig: FormConfig): void {
+    this._sendToUE = false;
+
     this.content.innerHTML = `
       <div class="flex items-center gap-3 mb-4 pb-3 border-b border-dtcc-border-light">
         <button class="p-2 hover:bg-dtcc-gray-lighter rounded transition-colors" id="back-button" title="Back to dataset list">
@@ -203,6 +216,7 @@ export class DatasetDialog {
         </button>
         <h3 class="flex-1 m-0 text-base font-semibold text-dtcc-navy">${formConfig.title}</h3>
       </div>
+      <div id="destination-toggle"></div>
       <div id="form-container"></div>
     `;
 
@@ -220,6 +234,11 @@ export class DatasetDialog {
       }
     });
 
+    // Render destination toggle when Pixel Streaming is connected
+    if (this._pixelStreamingConnected) {
+      this.renderDestinationToggle();
+    }
+
     // Render form
     const formContainer = this.content.querySelector(
       '#form-container'
@@ -233,11 +252,55 @@ export class DatasetDialog {
   }
 
   /**
+   * Render the Download / Send to UE destination toggle
+   */
+  private renderDestinationToggle(): void {
+    const container = this.content.querySelector('#destination-toggle') as HTMLElement;
+    if (!container) return;
+
+    container.className = 'mb-4';
+    container.innerHTML = `
+      <div class="flex items-center gap-1 p-1 bg-dtcc-gray-lighter rounded-lg">
+        <button type="button" id="dest-download" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-white text-dtcc-navy shadow-sm">
+          Download
+        </button>
+        <button type="button" id="dest-ue" class="flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-dtcc-gray-dark hover:text-dtcc-navy">
+          Send to UE
+        </button>
+      </div>
+    `;
+
+    const downloadBtn = container.querySelector('#dest-download') as HTMLButtonElement;
+    const ueBtn = container.querySelector('#dest-ue') as HTMLButtonElement;
+
+    const setActive = (sendToUE: boolean) => {
+      this._sendToUE = sendToUE;
+
+      if (sendToUE) {
+        ueBtn.className = 'flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-purple-600 text-white shadow-sm';
+        downloadBtn.className = 'flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-dtcc-gray-dark hover:text-dtcc-navy';
+      } else {
+        downloadBtn.className = 'flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-white text-dtcc-navy shadow-sm';
+        ueBtn.className = 'flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors text-dtcc-gray-dark hover:text-dtcc-navy';
+      }
+
+      // Update submit button text
+      const submitButton = this.content.querySelector('#submit-button') as HTMLButtonElement;
+      if (submitButton) {
+        submitButton.textContent = sendToUE ? 'Send to UE' : 'Download Dataset';
+      }
+    };
+
+    downloadBtn.addEventListener('click', () => setActive(false));
+    ueBtn.addEventListener('click', () => setActive(true));
+  }
+
+  /**
    * Handle form submission
    */
   private handleFormSubmit(values: Record<string, unknown>): void {
     if (this.onFormSubmit && this.currentDataset) {
-      this.onFormSubmit(this.currentDataset, values);
+      this.onFormSubmit(this.currentDataset, values, this._sendToUE);
     }
   }
 }
