@@ -247,13 +247,7 @@
                 >
                   <div class="min-w-0">
                     <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
-                    <div class="mt-1 flex items-center gap-2 flex-wrap">
-                      <span class={`text-[10px] px-2 py-0.5 rounded border ${kindBadgeClass(dataset.data_kind)}`}>
-                        {dataset.data_kind_label || 'Unknown'}
-                      </span>
-                      <span class={`text-[10px] px-2 py-0.5 rounded border ${coverageBadgeClass(coverage)}`}>
-                        {coverageLabel(coverage)}
-                      </span>
+                    <div class="mt-0.5">
                       <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
                     </div>
                   </div>
@@ -298,13 +292,7 @@
                   >
                     <div class="min-w-0">
                       <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
-                      <div class="mt-1 flex items-center gap-2 flex-wrap">
-                        <span class={`text-[10px] px-2 py-0.5 rounded border ${kindBadgeClass(dataset.data_kind)}`}>
-                          {dataset.data_kind_label || 'Unknown'}
-                        </span>
-                        <span class={`text-[10px] px-2 py-0.5 rounded border ${coverageBadgeClass(coverage)}`}>
-                          {coverageLabel(coverage)}
-                        </span>
+                      <div class="mt-0.5">
                         <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
                       </div>
                     </div>
