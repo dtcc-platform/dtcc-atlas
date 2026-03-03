@@ -89,32 +89,7 @@ export class BBoxDrawer {
         },
       });
 
-      // Add label point source
-      this.map.addSource(this.BBOX_LABEL_SOURCE, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      });
-
-      // Add label layer
-      this.map.addLayer({
-        id: this.BBOX_LABEL_LAYER,
-        type: 'symbol',
-        source: this.BBOX_LABEL_SOURCE,
-        layout: {
-          'text-field': ['get', 'label'],
-          'text-size': 12,
-          'text-anchor': 'top-left',
-          'text-offset': [0.5, 0.5],
-          'text-font': ['Open Sans Bold'],
-        },
-        paint: {
-          'text-color': '#ffffff',
-          'text-halo-color': '#1a1a2e',
-          'text-halo-width': 2,
-        },
-      });
-
-      // Add corner handles source
+      // Add corner handles source (before label to avoid label layer error blocking handles)
       this.map.addSource(this.BBOX_HANDLES_SOURCE, {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
@@ -137,6 +112,34 @@ export class BBoxDrawer {
           'circle-stroke-width': 2,
         },
       });
+
+      // Add label source/layer (may fail if map style has no glyphs configured)
+      try {
+        this.map.addSource(this.BBOX_LABEL_SOURCE, {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+
+        this.map.addLayer({
+          id: this.BBOX_LABEL_LAYER,
+          type: 'symbol',
+          source: this.BBOX_LABEL_SOURCE,
+          layout: {
+            'text-field': ['get', 'label'],
+            'text-size': 12,
+            'text-anchor': 'top-left',
+            'text-offset': [0.5, 0.5],
+            'text-font': ['Open Sans Bold'],
+          },
+          paint: {
+            'text-color': '#ffffff',
+            'text-halo-color': '#1a1a2e',
+            'text-halo-width': 2,
+          },
+        });
+      } catch {
+        console.warn('Label layer not added (map style may lack glyphs)');
+      }
     }
   }
 
