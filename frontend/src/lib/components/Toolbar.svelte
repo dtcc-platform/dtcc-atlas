@@ -4,7 +4,7 @@
   import { Icons } from '../ui/icons'
   import { fetchDatasetList } from '../api/dataset-api'
   import { datasets } from '../stores/datasets'
-  import { drawingActive, activePanel, searchOpen } from '../stores/ui'
+  import { drawingActive, activePanel, searchOpen, is3D } from '../stores/ui'
   import { bbox } from '../stores/map'
   import { bookmarkCount } from '../stores/bookmarks'
   import { activeJobCount } from '../stores/jobs'
@@ -100,8 +100,9 @@
     onclick={() => searchOpen.update(v => !v)}
   />
   <ToolbarButton
-    icon={Icons.view3d}
-    label="3D view"
+    icon={$is3D ? Icons.view2d : Icons.view3d}
+    label={$is3D ? '2D view' : '3D view'}
+    active={$is3D}
     onclick={onToggle3D}
   />
 </div>

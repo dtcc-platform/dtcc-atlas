@@ -137,13 +137,30 @@
     }
 
     // --- Restore map state from session (with delay for map mount) ---
-    if (sessionData?.state?.map?.center) {
+    if (typeof sessionData?.state?.map?.is3D === 'boolean') {
+      is3D.set(sessionData.state.map.is3D)
+    }
+
+    if (sessionData?.state?.map?.center || sessionData?.state?.map?.aoiBounds || sessionData?.state?.map?.camera3D || sessionData?.state?.map?.tiles3D) {
       setTimeout(() => {
         mapView?.setMapState(sessionData!.state.map as {
           center?: [number, number]
           zoom?: number
           pitch?: number
           bearing?: number
+          is3D?: boolean
+          aoiBounds?: { minLon: number; minLat: number; maxLon: number; maxLat: number } | null
+          camera3D?: {
+            centerLon: number
+            centerLat: number
+            height: number
+            heading: number
+            pitch: number
+            roll: number
+          } | null
+          tiles3D?: {
+            activeAssetIds: number[]
+          } | null
         })
       }, 200)
     }
@@ -206,7 +223,6 @@
 
   function handleToggle3D() {
     mapView?.toggle3D()
-    is3D.update(v => !v)
   }
 
   function handleClear() {

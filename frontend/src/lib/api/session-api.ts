@@ -11,6 +11,23 @@ export interface SessionData {
       pitch?: number
       bearing?: number
       is3D?: boolean
+      aoiBounds?: {
+        minLon: number
+        minLat: number
+        maxLon: number
+        maxLat: number
+      } | null
+      camera3D?: {
+        centerLon: number
+        centerLat: number
+        height: number
+        heading: number
+        pitch: number
+        roll: number
+      } | null
+      tiles3D?: {
+        activeAssetIds: number[]
+      } | null
     }
     ui?: {
       activePanel?: string | null
