@@ -1,0 +1,90 @@
+{
+  "imagery": {
+    "defaultUrl": "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
+  },
+  "tilesets": {
+    "maxActiveAssetIds": 3,
+    "styleColor": "color('white', 1.0)",
+    "loadOptions": {
+      "mobileMaximumScreenSpaceError": 24,
+      "desktopMaximumScreenSpaceError": 14,
+      "dynamicScreenSpaceError": true,
+      "cullWithChildrenBounds": true,
+      "skipLevelOfDetail": true
+    }
+  },
+  "viewer": {
+    "options": {
+      "animation": false,
+      "timeline": false,
+      "geocoder": false,
+      "homeButton": false,
+      "sceneModePicker": false,
+      "baseLayerPicker": false,
+      "navigationHelpButton": false,
+      "fullscreenButton": false,
+      "infoBox": false,
+      "selectionIndicator": false,
+      "baseLayer": false,
+      "sceneMode": "SCENE3D",
+      "shouldAnimate": false,
+      "desktopShadows": true
+    },
+    "scene": {
+      "showGlobe": false,
+      "showSkyAtmosphere": true,
+      "enableFog": true,
+      "depthTestAgainstTerrain": true,
+      "enableTilt": true,
+      "enableCollisionDetection": true,
+      "minimumZoomDistance": 5000,
+      "maximumZoomDistance": 1000000,
+      "inertiaSpin": 0.9,
+      "inertiaTranslate": 0.85,
+      "inertiaZoom": 0.8,
+      "hideSkyBox": true
+    },
+    "terrain": {
+      "requestVertexNormals": true,
+      "requestWaterMask": true,
+      "enableLighting": true
+    }
+  },
+  "qualityProfiles": {
+    "mobile": {
+      "resolutionScale": 0.75,
+      "fogDensity": 0.0013,
+      "shadows": false,
+      "minimumZoomDistance": 12
+    },
+    "desktop": {
+      "resolutionScale": 1,
+      "fogDensity": 0.0009,
+      "shadows": true,
+      "minimumZoomDistance": 6
+    }
+  },
+  "aoiLock": {
+    "enabled": false,
+    "defaultPaddingFactor": 1.8
+  },
+  "focusBounds": {
+    "expandBoundsFactor": 1,
+    "selectionFillAlpha": 0.18,
+    "extrudedHeightWithTerrain": 120,
+    "extrudedHeightWithoutTerrain": 60,
+    "rangeMultiplier": 1,
+    "minimumRangeMobile": 2200,
+    "minimumRangeDesktop": 100,
+    "headingDegrees": 22,
+    "pitchWithTerrainDegrees": -45,
+    "pitchWithoutTerrainDegrees": -36,
+    "flyToDurationSeconds": 1.4,
+    "maximumHeightMultiplier": 2.4,
+    "postFlyZoomInAmount": 1500
+  },
+  "cameraRestore": {
+    "minimumHeight": 80,
+    "flyToDurationSeconds": 0.9
+  }
+}
