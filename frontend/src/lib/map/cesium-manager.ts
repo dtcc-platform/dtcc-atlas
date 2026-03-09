@@ -14,6 +14,7 @@ import {
   SceneMode,
   Viewer,
 } from 'cesium';
+import cesiumConfigRaw from './cesium-config.json';
 import {
   expandBounds,
   type LonLatBounds,
@@ -55,11 +56,103 @@ export type CesiumCameraState = {
   roll: number;
 };
 
-const DEFAULT_IMAGERY_URL = 'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
+type CesiumRuntimeConfig = {
+  imagery: {
+    defaultUrl: string;
+  };
+  tilesets: {
+    maxActiveAssetIds: number;
+    styleColor: string;
+    loadOptions: {
+      mobileMaximumScreenSpaceError: number;
+      desktopMaximumScreenSpaceError: number;
+      dynamicScreenSpaceError: boolean;
+      cullWithChildrenBounds: boolean;
+      skipLevelOfDetail: boolean;
+    };
+  };
+  viewer: {
+    options: {
+      animation: boolean;
+      timeline: boolean;
+      geocoder: boolean;
+      homeButton: boolean;
+      sceneModePicker: boolean;
+      baseLayerPicker: boolean;
+      navigationHelpButton: boolean;
+      fullscreenButton: boolean;
+      infoBox: boolean;
+      selectionIndicator: boolean;
+      baseLayer: false;
+      sceneMode: keyof typeof SceneMode;
+      shouldAnimate: boolean;
+      desktopShadows: boolean;
+    };
+    scene: {
+      showGlobe: boolean;
+      showSkyAtmosphere: boolean;
+      enableFog: boolean;
+      depthTestAgainstTerrain: boolean;
+      enableTilt: boolean;
+      enableCollisionDetection: boolean;
+      minimumZoomDistance: number;
+      maximumZoomDistance: number;
+      inertiaSpin: number;
+      inertiaTranslate: number;
+      inertiaZoom: number;
+      hideSkyBox: boolean;
+    };
+    terrain: {
+      requestVertexNormals: boolean;
+      requestWaterMask: boolean;
+      enableLighting: boolean;
+    };
+  };
+  qualityProfiles: {
+    mobile: {
+      resolutionScale: number;
+      fogDensity: number;
+      shadows: boolean;
+      minimumZoomDistance: number;
+    };
+    desktop: {
+      resolutionScale: number;
+      fogDensity: number;
+      shadows: boolean;
+      minimumZoomDistance: number;
+    };
+  };
+  aoiLock: {
+    enabled: boolean;
+    defaultPaddingFactor: number;
+  };
+  focusBounds: {
+    expandBoundsFactor: number;
+    selectionFillAlpha: number;
+    extrudedHeightWithTerrain: number;
+    extrudedHeightWithoutTerrain: number;
+    rangeMultiplier: number;
+    minimumRangeMobile: number;
+    minimumRangeDesktop: number;
+    headingDegrees: number;
+    pitchWithTerrainDegrees: number;
+    pitchWithoutTerrainDegrees: number;
+    flyToDurationSeconds: number;
+    maximumHeightMultiplier: number;
+    postFlyZoomInAmount: number;
+  };
+  cameraRestore: {
+    minimumHeight: number;
+    flyToDurationSeconds: number;
+  };
+};
+
+const cesiumConfig = cesiumConfigRaw as CesiumRuntimeConfig;
 
 export class CesiumManager {
   private viewer: Viewer | null = null;
   private activeSelection: Entity | null = null;
+  private interactionDebugCleanup: (() => void) | null = null;
   private hasWorldTerrain = false;
   private status: Map3DStatus = 'ready';
   private quality: Map3DQuality = 'desktop';
@@ -97,7 +190,7 @@ export class CesiumManager {
   }
 
   setTilesetAssetIds(assetIds: number[]): void {
-    this.activeAssetIds = Array.from(new Set(assetIds)).slice(0, 3);
+    this.activeAssetIds = Array.from(new Set(assetIds)).slice(0, cesiumConfig.tilesets.maxActiveAssetIds);
     for (const id of this.activeTilesets.keys()) {
       if (!this.activeAssetIds.includes(id)) {
         this.removeTileset(id);
@@ -139,6 +232,84 @@ export class CesiumManager {
     this.tilesetEntries.delete(assetId);
   }
 
+  private setupInteractionDebugLogging(): void {
+    if (!this.viewer || this.interactionDebugCleanup) {
+      return;
+    }
+
+    const canvas = this.viewer.scene.canvas;
+    let pointerDown = false;
+    let dragStarted = false;
+    let pointerType = 'mouse';
+    let startX = 0;
+    let startY = 0;
+
+    const log = (interaction: string): void => {
+      console.debug('[Cesium Interaction]', interaction);
+    };
+
+    const onPointerDown = (event: PointerEvent): void => {
+      pointerDown = true;
+      dragStarted = false;
+      pointerType = event.pointerType || 'mouse';
+      startX = event.clientX;
+      startY = event.clientY;
+    };
+
+    const onPointerMove = (event: PointerEvent): void => {
+      if (!pointerDown || dragStarted) {
+        return;
+      }
+      const moved = Math.hypot(event.clientX - startX, event.clientY - startY);
+      if (moved >= 6) {
+        dragStarted = true;
+        log(`${pointerType}_drag_start`);
+      }
+    };
+
+    const onPointerUp = (): void => {
+      if (!pointerDown) {
+        return;
+      }
+      if (dragStarted) {
+        log(`${pointerType}_drag_end`);
+      } else {
+        log(pointerType === 'touch' ? 'touch_tap' : `${pointerType}_click`);
+      }
+      pointerDown = false;
+      dragStarted = false;
+    };
+
+    const onPointerCancel = (): void => {
+      pointerDown = false;
+      dragStarted = false;
+    };
+
+    const onDoubleClick = (): void => {
+      log('double_click');
+    };
+
+    const onWheel = (event: WheelEvent): void => {
+      log(event.deltaY < 0 ? 'wheel_zoom_in' : 'wheel_zoom_out');
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerCancel);
+    canvas.addEventListener('dblclick', onDoubleClick);
+    canvas.addEventListener('wheel', onWheel, { passive: true });
+
+    this.interactionDebugCleanup = () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerCancel);
+      canvas.removeEventListener('dblclick', onDoubleClick);
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }
+
   async initialize(container: HTMLElement, config: Map3DConfig): Promise<void> {
     this.quality = config.quality;
 
@@ -156,20 +327,23 @@ export class CesiumManager {
 
     try {
       this.viewer = new Viewer(container, {
-        animation: false,
-        timeline: false,
-        geocoder: false,
-        homeButton: false,
-        sceneModePicker: false,
-        baseLayerPicker: false,
-        navigationHelpButton: false,
-        fullscreenButton: false,
-        infoBox: false,
-        selectionIndicator: false,
-        baseLayer: false,
-        sceneMode: SceneMode.SCENE3D,
-        shouldAnimate: true,
-        shadows: config.quality === 'desktop',
+        animation: cesiumConfig.viewer.options.animation,
+        timeline: cesiumConfig.viewer.options.timeline,
+        geocoder: cesiumConfig.viewer.options.geocoder,
+        homeButton: cesiumConfig.viewer.options.homeButton,
+        sceneModePicker: cesiumConfig.viewer.options.sceneModePicker,
+        baseLayerPicker: cesiumConfig.viewer.options.baseLayerPicker,
+        navigationHelpButton: cesiumConfig.viewer.options.navigationHelpButton,
+        fullscreenButton: cesiumConfig.viewer.options.fullscreenButton,
+        infoBox: cesiumConfig.viewer.options.infoBox,
+        selectionIndicator: cesiumConfig.viewer.options.selectionIndicator,
+        baseLayer: cesiumConfig.viewer.options.baseLayer,
+        sceneMode: SceneMode[cesiumConfig.viewer.options.sceneMode],
+        shouldAnimate: cesiumConfig.viewer.options.shouldAnimate,
+        shadows:
+          config.quality === 'desktop'
+            ? cesiumConfig.viewer.options.desktopShadows
+            : cesiumConfig.qualityProfiles.mobile.shadows,
       });
     } catch (error) {
       console.error('Failed to initialize Cesium viewer.', error);
@@ -178,7 +352,7 @@ export class CesiumManager {
     }
 
     const imageryProvider = new OpenStreetMapImageryProvider({
-      url: import.meta.env.VITE_CESIUM_IMAGERY_URL || DEFAULT_IMAGERY_URL,
+      url: import.meta.env.VITE_CESIUM_IMAGERY_URL || cesiumConfig.imagery.defaultUrl,
     });
     imageryProvider.errorEvent.addEventListener((error) => {
       console.error('Cesium imagery provider error:', error);
@@ -187,32 +361,36 @@ export class CesiumManager {
     this.viewer.imageryLayers.addImageryProvider(imageryProvider);
 
     if (this.viewer.scene.skyBox) {
-      this.viewer.scene.skyBox.show = false;
+      this.viewer.scene.skyBox.show = !cesiumConfig.viewer.scene.hideSkyBox;
     }
-    this.viewer.scene.globe.show = true;
+    this.viewer.scene.globe.show = cesiumConfig.viewer.scene.showGlobe;
     if (this.viewer.scene.skyAtmosphere) {
-      this.viewer.scene.skyAtmosphere.show = true;
+      this.viewer.scene.skyAtmosphere.show = cesiumConfig.viewer.scene.showSkyAtmosphere;
     }
-    this.viewer.scene.fog.enabled = true;
-    this.viewer.scene.globe.depthTestAgainstTerrain = true;
-    this.viewer.scene.screenSpaceCameraController.enableTilt = true;
-    this.viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
-    this.viewer.scene.screenSpaceCameraController.minimumZoomDistance = 8;
-    this.viewer.scene.screenSpaceCameraController.maximumZoomDistance = 250_000;
-    this.viewer.scene.screenSpaceCameraController.inertiaSpin = 0.9;
-    this.viewer.scene.screenSpaceCameraController.inertiaTranslate = 0.85;
-    this.viewer.scene.screenSpaceCameraController.inertiaZoom = 0.8;
+    this.viewer.scene.fog.enabled = cesiumConfig.viewer.scene.enableFog;
+    this.viewer.scene.globe.depthTestAgainstTerrain = cesiumConfig.viewer.scene.depthTestAgainstTerrain;
+    this.viewer.scene.screenSpaceCameraController.enableTilt = cesiumConfig.viewer.scene.enableTilt;
+    this.viewer.scene.screenSpaceCameraController.enableCollisionDetection =
+      cesiumConfig.viewer.scene.enableCollisionDetection;
+    this.viewer.scene.screenSpaceCameraController.minimumZoomDistance =
+      cesiumConfig.viewer.scene.minimumZoomDistance;
+    this.viewer.scene.screenSpaceCameraController.maximumZoomDistance =
+      cesiumConfig.viewer.scene.maximumZoomDistance;
+    this.viewer.scene.screenSpaceCameraController.inertiaSpin = cesiumConfig.viewer.scene.inertiaSpin;
+    this.viewer.scene.screenSpaceCameraController.inertiaTranslate = cesiumConfig.viewer.scene.inertiaTranslate;
+    this.viewer.scene.screenSpaceCameraController.inertiaZoom = cesiumConfig.viewer.scene.inertiaZoom;
 
     this.setQualityProfile(config.quality);
     this.setAoiLock(config.aoiLock.bounds ?? null, config.aoiLock.paddingFactor);
+    this.setupInteractionDebugLogging();
 
     if (token) {
       try {
         this.viewer.terrainProvider = await createWorldTerrainAsync({
-          requestVertexNormals: true,
-          requestWaterMask: true,
+          requestVertexNormals: cesiumConfig.viewer.terrain.requestVertexNormals,
+          requestWaterMask: cesiumConfig.viewer.terrain.requestWaterMask,
         });
-        this.viewer.scene.globe.enableLighting = true;
+        this.viewer.scene.globe.enableLighting = cesiumConfig.viewer.terrain.enableLighting;
         this.hasWorldTerrain = true;
         this.emitStatus('ready');
       } catch (error) {
@@ -233,25 +411,33 @@ export class CesiumManager {
     }
 
     if (profile === 'mobile') {
-      this.viewer.resolutionScale = 0.75;
-      this.viewer.scene.fog.density = 0.0013;
-      this.viewer.shadows = false;
-      this.viewer.scene.screenSpaceCameraController.minimumZoomDistance = 12;
+      this.viewer.resolutionScale = cesiumConfig.qualityProfiles.mobile.resolutionScale;
+      this.viewer.scene.fog.density = cesiumConfig.qualityProfiles.mobile.fogDensity;
+      this.viewer.shadows = cesiumConfig.qualityProfiles.mobile.shadows;
+      this.viewer.scene.screenSpaceCameraController.minimumZoomDistance =
+        cesiumConfig.qualityProfiles.mobile.minimumZoomDistance;
     } else {
-      this.viewer.resolutionScale = 1;
-      this.viewer.scene.fog.density = 0.0009;
-      this.viewer.shadows = true;
-      this.viewer.scene.screenSpaceCameraController.minimumZoomDistance = 6;
+      this.viewer.resolutionScale = cesiumConfig.qualityProfiles.desktop.resolutionScale;
+      this.viewer.scene.fog.density = cesiumConfig.qualityProfiles.desktop.fogDensity;
+      this.viewer.shadows = cesiumConfig.qualityProfiles.desktop.shadows;
+      this.viewer.scene.screenSpaceCameraController.minimumZoomDistance =
+        cesiumConfig.qualityProfiles.desktop.minimumZoomDistance;
     }
   }
 
-  setAoiLock(bounds: LonLatBounds | null, paddingFactor = 1.8): void {
+  setAoiLock(bounds: LonLatBounds | null, paddingFactor = cesiumConfig.aoiLock.defaultPaddingFactor): void {
+    if (!cesiumConfig.aoiLock.enabled) {
+      return;
+    }
     // AOI locking disabled by request; keep method for API compatibility.
     void bounds;
     void paddingFactor;
   }
 
   tickAoiConstraints(): void {
+    if (!cesiumConfig.aoiLock.enabled) {
+      return;
+    }
     // AOI locking disabled by request.
   }
 
@@ -260,7 +446,7 @@ export class CesiumManager {
       throw new Error('Cesium viewer is not initialized');
     }
 
-    const selectionBounds = expandBounds(bounds, 1);
+    const selectionBounds = expandBounds(bounds, cesiumConfig.focusBounds.expandBoundsFactor);
 
     const rectangle = Rectangle.fromDegrees(
       selectionBounds.minLon,
@@ -275,30 +461,41 @@ export class CesiumManager {
     this.activeSelection = this.viewer.entities.add({
       rectangle: {
         coordinates: rectangle,
-        material: Color.ORANGE.withAlpha(0.18),
+        material: Color.ORANGE.withAlpha(cesiumConfig.focusBounds.selectionFillAlpha),
         outline: true,
         outlineColor: Color.ORANGE,
         height: 0,
-        extrudedHeight: this.hasWorldTerrain ? 120 : 60,
+        extrudedHeight: this.hasWorldTerrain
+          ? cesiumConfig.focusBounds.extrudedHeightWithTerrain
+          : cesiumConfig.focusBounds.extrudedHeightWithoutTerrain,
       },
     });
 
     const approxDiagonalMeters = Cartesian3.distance(
-      Cartesian3.fromRadians(selectionBounds.minLon, selectionBounds.minLat),
-      Cartesian3.fromRadians(selectionBounds.maxLon, selectionBounds.maxLat),
+      Cartesian3.fromDegrees(selectionBounds.minLon, selectionBounds.minLat),
+      Cartesian3.fromDegrees(selectionBounds.maxLon, selectionBounds.maxLat),
     );
-    const range = Math.max(approxDiagonalMeters * 1.85, this.quality === 'mobile' ? 2200 : 1500);
-    const heading = CesiumMath.toRadians(22);
-    const pitch = CesiumMath.toRadians(this.hasWorldTerrain ? -45 : -36);
+    const range = Math.max(
+      approxDiagonalMeters * cesiumConfig.focusBounds.rangeMultiplier,
+      this.quality === 'mobile'
+        ? cesiumConfig.focusBounds.minimumRangeMobile
+        : cesiumConfig.focusBounds.minimumRangeDesktop,
+    );
+    const heading = CesiumMath.toRadians(cesiumConfig.focusBounds.headingDegrees);
+    const pitch = CesiumMath.toRadians(
+      this.hasWorldTerrain
+        ? cesiumConfig.focusBounds.pitchWithTerrainDegrees
+        : cesiumConfig.focusBounds.pitchWithoutTerrainDegrees,
+    );
 
     await this.viewer.flyTo(this.activeSelection, {
-      duration: 1.4,
+      duration: cesiumConfig.focusBounds.flyToDurationSeconds,
       offset: new HeadingPitchRange(heading, pitch, range),
-      maximumHeight: range * 2.4,
+      maximumHeight: range * cesiumConfig.focusBounds.maximumHeightMultiplier,
     });
 
     // Max zoom when entering/focusing Cesium 3D.
-    this.viewer.camera.zoomIn(1_000_000);
+    this.viewer.camera.zoomIn(cesiumConfig.focusBounds.postFlyZoomInAmount);
   }
 
   async loadTilesForAoi(bounds: LonLatBounds): Promise<void> {
@@ -328,15 +525,18 @@ export class CesiumManager {
 
       try {
         const tileset = await Cesium3DTileset.fromIonAssetId(assetId, {
-          maximumScreenSpaceError: this.quality === 'mobile' ? 24 : 14,
-          dynamicScreenSpaceError: true,
-          cullWithChildrenBounds: true,
-          skipLevelOfDetail: true,
+          maximumScreenSpaceError:
+            this.quality === 'mobile'
+              ? cesiumConfig.tilesets.loadOptions.mobileMaximumScreenSpaceError
+              : cesiumConfig.tilesets.loadOptions.desktopMaximumScreenSpaceError,
+          dynamicScreenSpaceError: cesiumConfig.tilesets.loadOptions.dynamicScreenSpaceError,
+          cullWithChildrenBounds: cesiumConfig.tilesets.loadOptions.cullWithChildrenBounds,
+          skipLevelOfDetail: cesiumConfig.tilesets.loadOptions.skipLevelOfDetail,
         });
 
         tileset.show = true;
         tileset.style = new Cesium3DTileStyle({
-          color: "color('white', 1.0)",
+          color: cesiumConfig.tilesets.styleColor,
         });
         this.viewer.scene.primitives.add(tileset);
         this.activeTilesets.set(assetId, tileset);
@@ -423,8 +623,12 @@ export class CesiumManager {
       return;
     }
     this.viewer.camera.flyTo({
-      destination: Cartesian3.fromDegrees(state.centerLon, state.centerLat, Math.max(80, state.height)),
-      duration: 0.9,
+      destination: Cartesian3.fromDegrees(
+        state.centerLon,
+        state.centerLat,
+        Math.max(cesiumConfig.cameraRestore.minimumHeight, state.height),
+      ),
+      duration: cesiumConfig.cameraRestore.flyToDurationSeconds,
       orientation: {
         heading: state.heading,
         pitch: state.pitch,
@@ -437,7 +641,7 @@ export class CesiumManager {
     if (!this.viewer) {
       return;
     }
-    this.viewer.camera.zoomIn(1_000_000);
+    this.viewer.camera.zoomIn(cesiumConfig.focusBounds.postFlyZoomInAmount);
   }
 
   clearSelection(): void {
@@ -454,6 +658,10 @@ export class CesiumManager {
       return;
     }
     this.unloadTilesOutsideAoi(null);
+    if (this.interactionDebugCleanup) {
+      this.interactionDebugCleanup();
+      this.interactionDebugCleanup = null;
+    }
     this.activeSelection = null;
     this.viewer.destroy();
     this.viewer = null;
