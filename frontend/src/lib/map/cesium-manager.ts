@@ -16,6 +16,7 @@ import {
 } from 'cesium';
 import cesiumConfigRaw from './cesium-config.json';
 import {
+  clampCameraCenterToBounds,
   expandBounds,
   type LonLatBounds,
   type Map3DQuality,
@@ -24,6 +25,7 @@ import {
 export type TilesetStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type TilesetSource = { kind: 'ion'; assetId: number };
 export type TilesetEntry = { id: string; source: TilesetSource; status: TilesetStatus; error?: string };
+export type Building3DMode = 'photogrammetry' | 'lod1';
 
 export type Map3DStatus =
   | 'ready'
@@ -153,6 +155,9 @@ export class CesiumManager {
   private viewer: Viewer | null = null;
   private activeSelection: Entity | null = null;
   private interactionDebugCleanup: (() => void) | null = null;
+  private aoiLockBounds: LonLatBounds | null = null;
+  private aoiLockApplying = false;
+  private aoiLockCameraChangedListener: (() => void) | null = null;
   private hasWorldTerrain = false;
   private status: Map3DStatus = 'ready';
   private quality: Map3DQuality = 'desktop';
@@ -160,6 +165,7 @@ export class CesiumManager {
   private activeTilesets = new Map<number, Cesium3DTileset>();
   private tilesetEntries = new Map<number, TilesetEntry>();
   private activeAssetIds: number[] = [];
+  private currentBuildingMode: Building3DMode = 'photogrammetry';
   private tilesStatus: TilesetStatus = 'idle';
 
   setStatusListener(listener: ((status: Map3DStatus) => void) | null): void {
@@ -230,6 +236,36 @@ export class CesiumManager {
       this.activeTilesets.delete(assetId);
     }
     this.tilesetEntries.delete(assetId);
+  }
+
+  setBuildingMode(mode: Building3DMode): void {
+    this.currentBuildingMode = mode;
+    if (!this.viewer) {
+      return;
+    }
+
+    this.viewer.scene.globe.show = mode === 'lod1' ? true : cesiumConfig.viewer.scene.showGlobe;
+  }
+
+  private setupAoiLockListener(): void {
+    if (!this.viewer || this.aoiLockCameraChangedListener) {
+      return;
+    }
+
+    const listener = (): void => {
+      this.tickAoiConstraints();
+    };
+    this.viewer.camera.changed.addEventListener(listener);
+    this.aoiLockCameraChangedListener = listener;
+  }
+
+  private teardownAoiLockListener(): void {
+    if (!this.viewer || !this.aoiLockCameraChangedListener) {
+      return;
+    }
+
+    this.viewer.camera.changed.removeEventListener(this.aoiLockCameraChangedListener);
+    this.aoiLockCameraChangedListener = null;
   }
 
   private setupInteractionDebugLogging(): void {
@@ -382,6 +418,7 @@ export class CesiumManager {
 
     this.setQualityProfile(config.quality);
     this.setAoiLock(config.aoiLock.bounds ?? null, config.aoiLock.paddingFactor);
+    this.setBuildingMode(this.currentBuildingMode);
     this.setupInteractionDebugLogging();
 
     if (token) {
@@ -426,19 +463,53 @@ export class CesiumManager {
   }
 
   setAoiLock(bounds: LonLatBounds | null, paddingFactor = cesiumConfig.aoiLock.defaultPaddingFactor): void {
-    if (!cesiumConfig.aoiLock.enabled) {
+    if (!this.viewer) {
       return;
     }
-    // AOI locking disabled by request; keep method for API compatibility.
-    void bounds;
-    void paddingFactor;
+    if (!cesiumConfig.aoiLock.enabled) {
+      this.aoiLockBounds = null;
+      this.teardownAoiLockListener();
+      return;
+    }
+
+    if (!bounds) {
+      this.aoiLockBounds = null;
+      return;
+    }
+
+    this.setupAoiLockListener();
+    this.aoiLockBounds = expandBounds(bounds, Math.max(1, paddingFactor));
+    this.tickAoiConstraints();
   }
 
   tickAoiConstraints(): void {
-    if (!cesiumConfig.aoiLock.enabled) {
+    if (!cesiumConfig.aoiLock.enabled || !this.viewer || !this.aoiLockBounds || this.aoiLockApplying) {
       return;
     }
-    // AOI locking disabled by request.
+
+    const camera = this.viewer.camera;
+    const carto = Cartographic.fromCartesian(camera.position);
+    if (!carto) {
+      return;
+    }
+
+    const lon = CesiumMath.toDegrees(carto.longitude);
+    const lat = CesiumMath.toDegrees(carto.latitude);
+    const clamped = clampCameraCenterToBounds(lon, lat, this.aoiLockBounds);
+    if (!clamped.clamped) {
+      return;
+    }
+
+    this.aoiLockApplying = true;
+    camera.setView({
+      destination: Cartesian3.fromDegrees(clamped.lon, clamped.lat, Math.max(carto.height, 1)),
+      orientation: {
+        heading: camera.heading,
+        pitch: camera.pitch,
+        roll: camera.roll,
+      },
+    });
+    this.aoiLockApplying = false;
   }
 
   async focusBounds(bounds: LonLatBounds): Promise<void> {
@@ -504,7 +575,9 @@ export class CesiumManager {
     }
 
     if (this.activeAssetIds.length === 0) {
-      console.warn('No 3D Tiles asset IDs configured. Set VITE_CESIUM_3DTILES_ASSET_IDS in frontend/.env.local');
+      console.warn(
+        'No 3D Tiles asset IDs configured. Set VITE_CESIUM_3DTILES_ASSET_ID_PHOTOGRAMMETRY and/or VITE_CESIUM_3DTILES_ASSET_ID_LOD1 in frontend/.env.local',
+      );
       this.emitTilesStatus('error');
       return;
     }
@@ -662,6 +735,8 @@ export class CesiumManager {
       this.interactionDebugCleanup();
       this.interactionDebugCleanup = null;
     }
+    this.teardownAoiLockListener();
+    this.aoiLockBounds = null;
     this.activeSelection = null;
     this.viewer.destroy();
     this.viewer = null;

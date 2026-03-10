@@ -37,8 +37,8 @@
       "depthTestAgainstTerrain": true,
       "enableTilt": true,
       "enableCollisionDetection": true,
-      "minimumZoomDistance": 5000,
-      "maximumZoomDistance": 1000000,
+      "minimumZoomDistance": 10000,
+      "maximumZoomDistance": 100000,
       "inertiaSpin": 0.9,
       "inertiaTranslate": 0.85,
       "inertiaZoom": 0.8,
@@ -75,13 +75,13 @@
     "extrudedHeightWithoutTerrain": 60,
     "rangeMultiplier": 1,
     "minimumRangeMobile": 2200,
-    "minimumRangeDesktop": 100,
+    "minimumRangeDesktop": 4000,
     "headingDegrees": 22,
     "pitchWithTerrainDegrees": -45,
     "pitchWithoutTerrainDegrees": -36,
-    "flyToDurationSeconds": 1.4,
+    "flyToDurationSeconds": 1,
     "maximumHeightMultiplier": 2.4,
-    "postFlyZoomInAmount": 1500
+    "postFlyZoomInAmount": 3000
   },
   "cameraRestore": {
     "minimumHeight": 80,

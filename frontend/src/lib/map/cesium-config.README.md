@@ -93,6 +93,11 @@ Camera and selection behavior when focusing a bounding box.
 - `maximumHeightMultiplier`: Maximum fly-to height multiplier relative to range.
 - `postFlyZoomInAmount`: Additional zoom-in amount applied after focus.
 
+Recommended guardrails for stable entry focus:
+- `minimumRangeDesktop >= 400` to avoid overly-close initial camera placement.
+- `postFlyZoomInAmount <= 800` for typical AOI entry flows (if extra zoom is desired).
+- These guardrails apply to entry/refocus behavior, not LoD1/Photogrammetry mode toggling.
+
 ## cameraRestore
 
 - `minimumHeight`: Minimum camera height enforced when restoring saved camera state.
@@ -103,5 +108,7 @@ Camera and selection behavior when focusing a bounding box.
 - Environment variables still control secret/runtime values:
   - `VITE_CESIUM_ION_TOKEN`
   - `VITE_CESIUM_IMAGERY_URL`
-  - `VITE_CESIUM_3DTILES_ASSET_IDS`
+  - `VITE_CESIUM_3DTILES_ASSET_ID_PHOTOGRAMMETRY`
+  - `VITE_CESIUM_3DTILES_ASSET_ID_LOD1`
+  - `VITE_CESIUM_3DTILES_ASSET_ID_LOD1_GROUND`
 - If you change JSON keys, update `cesium-manager.ts` accordingly.
