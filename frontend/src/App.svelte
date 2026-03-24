@@ -15,7 +15,7 @@
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive } from './lib/stores/ui'
+  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, hasUnseenBookmarks, hasUnseenDatasets } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
@@ -174,6 +174,9 @@
           }
           return [...$j, event.data]
         })
+        if (event.type === 'job_complete') {
+          hasUnseenDatasets.set(true)
+        }
       }
     })
   })
@@ -192,6 +195,7 @@
     const currentBbox = get(bbox)
     if (currentBbox) {
       bookmarkMgr.saveBookmark(name, currentBbox)
+      hasUnseenBookmarks.set(true)
     }
   }
 
@@ -245,9 +249,7 @@
     <MapView bind:this={mapView} />
     <Toolbar
       onClear={handleClear}
-      onSave={() => saveDialogOpen = true}
       onToggle3D={handleToggle3D}
-      onCoordInput={() => coordDialogOpen = true}
     />
     <SidePanel>
       {#if $activePanel === 'datasets'}
@@ -255,9 +257,28 @@
       {:else if $activePanel === 'dataset-form'}
         <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
+        {#if $bbox}
+          <div class="px-4 py-3 border-b border-dtcc-border-light bg-dtcc-orange/5 flex items-center justify-between">
+            <span class="text-xs text-dtcc-dark">Save current area as bookmark?</span>
+            <button
+              class="px-3 py-1 bg-dtcc-orange text-white text-xs font-semibold rounded hover:bg-dtcc-orange-dark transition-colors"
+              onclick={() => { saveDialogOpen = true }}
+            >Save</button>
+          </div>
+        {/if}
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {:else if $activePanel === 'uploads'}
         <UploadWizard onIngested={handleIngested} />
+      {:else if $activePanel === 'layers'}
+        <div class="p-6 text-center text-dtcc-muted">
+          <div class="text-sm font-medium text-dtcc-dark mb-2">Layers</div>
+          <p class="text-xs">No layers generated yet. Draw a region and generate data to see layers here.</p>
+        </div>
+      {:else if $activePanel === 'downloads'}
+        <div class="p-6 text-center text-dtcc-muted">
+          <div class="text-sm font-medium text-dtcc-dark mb-2">Downloads</div>
+          <p class="text-xs">No data available for download. Generate data from a drawn region first.</p>
+        </div>
       {/if}
     </SidePanel>
     <EmptyState />

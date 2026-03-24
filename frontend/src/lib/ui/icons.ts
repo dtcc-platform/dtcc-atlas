@@ -1,20 +1,37 @@
-/**
- * Heroicons outline icons (24x24px)
- * https://heroicons.com/
- */
+// Toolbar icons from Figma (DTCC Atlas v.0.2.2 / Components / Navbar Sidebar)
+// Stroke color uses var(--stroke-0, #5F5F6D); override --stroke-0 for active states
 export const Icons = {
-  draw: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>`,
+  // Toolbar: draw region (square with plus)
+  draw: `<svg aria-hidden="true" fill="none" viewBox="0 0 35.5 37.8"><path d="M14.7 36.8H5.6C3 36.8 1 34.8 1 32.3V5.5C1 3 3 1 5.6 1h20.6c2.5 0 4.6 2 4.6 4.5v12.3M28 36V29.7M28 29.7v-6.3M28 29.7h-6.5M28 29.7h6.5" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
-  coords: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5l-3.9 19.5m-2.1-19.5l-3.9 19.5" /></svg>`,
+  // Toolbar: cancel / close (X)
+  clear: `<svg aria-hidden="true" fill="none" viewBox="0 0 32 31.3"><path d="M31 1L1 30.3M31 30.3L1 1" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
 
-  clear: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`,
+  // Toolbar: bookmark
+  bookmark: `<svg aria-hidden="true" fill="none" viewBox="0 0 26.4 34.4"><path d="M8.1 7.4h10.2M13.2 23.4l11.4 9.9c.3.3.8.1.8-.4V3c0-1.1-.9-2-2-2H3C1.9 1 1 1.9 1 3v29.9c0 .4.5.7.8.4l11.4-9.9Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
-  bookmark: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" /></svg>`,
+  // Toolbar: dataset / data tree
+  dataTree: `<svg aria-hidden="true" fill="none" viewBox="0 0 31 38"><path d="M10 33.4c.6 0 1-.4 1-1s-.4-1-1-1v1 1ZM1 26.4H0h1Zm1-16.2V9.2H1v1h1ZM10 11.2c.6 0 1-.5 1-1s-.4-1-1-1v1 1ZM28 15v-1h-9v1 1h9v-1ZM30 1l-1 0-1 12h1 1l1-12H30ZM28 15v1c1.7 0 3-.7 3-2.3l-1 0-1 0c0 .6-.4 1-1 1v1ZM17 13h-1c0 1.7 1.3 3 3 3v-1-1c-.6 0-1-.4-1-1h-1ZM17 13h1V5h-1-1v8h1ZM21.5 1v1h8.5V1 0h-8.5v1ZM21.5 1l-.7-.7-4.5 4 .7.7.7.8 4.5-4-.7-.8ZM28 37v-1h-9v1 1h9v-1ZM30 23l-1 0-1 12h1 1l1-12H30ZM28 37v1c1.7 0 3-.7 3-2.3l-1 0-1 0c0 .6-.4 1-1 1v1ZM17 35h-1c0 1.7 1.3 3 3 3v-1-1c-.6 0-1-.4-1-1h-1ZM17 35h1V27h-1-1v8h1ZM21.5 23v1h8.5v-1-1h-8.5v1ZM21.5 23l-.7-.7-4.5 4 .7.7.7.8 4.5-4-.7-.8ZM10 32.4v-1H7v1 1h3v-1ZM1 26.4h1V10.2H1 0v16.2h1ZM1 10.2h1V1H1 0v9.2h1ZM10 10.2V9.2H1v1 1h9v-1ZM7 32.4v-1c-2.8 0-5 2.2-5 5h1 1c0-1.7 1.3-3 3-3v-1Z" fill="var(--stroke-0, #5F5F6D)"/></svg>`,
 
-  list: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>`,
+  // Toolbar: layers (stacked diamonds)
+  layers: `<svg aria-hidden="true" fill="none" viewBox="0 0 37.2 37.2"><path d="M36.2 18.6l-17.6 9M36.2 27.2l-17.6 9-17.6-9M18.6 1l17.6 9-17.6 9L1 10l17.6-9Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
-  search: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>`,
+  // Toolbar: download
+  download: `<svg aria-hidden="true" fill="none" viewBox="0 0 32 35"><path d="M1 23.4v6.7c0 1 .4 2 1.1 2.7.7.7 1.7 1.1 2.7 1.1h22.5c1 0 1.9-.4 2.7-1.1.7-.7 1.1-1.7 1.1-2.7v-6.7M16 1v21.9M16 22.9l8.6-8.4M16 22.9l-8.6-8.4" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
+  // Toolbar: upload
+  upload: `<svg aria-hidden="true" fill="none" viewBox="0 0 32 36.5"><path d="M1 24.4v7.1c0 1.1.4 2.1 1.1 2.9.7.7 1.7 1.2 2.7 1.2h22.5c1 0 1.9-.4 2.7-1.2.7-.7 1.1-1.7 1.1-2.9v-7.1M16 23.9V1M16 1L7.4 9.7M16 1l8.6 8.7" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
+  // Toolbar: search (magnifier)
+  search: `<svg aria-hidden="true" fill="none" viewBox="0 0 32.8 33.5"><path d="M25.4 26.2l6.4 6.3M29.7 15.7c0 8.1-6.4 14.7-14.4 14.7C7.4 30.4 1 23.8 1 15.7 1 7.6 7.4 1 15.4 1c7.9 0 14.4 6.6 14.4 14.7Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+  // Toolbar: 3D view (cube with 3D text)
+  view3d: `<svg aria-hidden="true" fill="none" viewBox="0 0 33 38.5"><path d="M15.9.1c.3-.1.6-.1.9.1l15.2 9.1c.3.2.5.5.5.9v11.1h-2V12.5l-13.2 8.4v14.8l4-2.4v2.3l-4.5 2.7c-.3.2-.7.2-1 0L.5 29.2c-.3-.2-.5-.5-.5-.9V10.1c0-.4.2-.7.5-.9L15.7.1ZM2 27.8l13.2 7.9V20.9L2 12.5v15.3Zm.5-17.4l13.8 8.8 13.8-8.8L16.2 2.2 2.5 10.4Z" fill="var(--stroke-0, #5F5F6D)"/><text x="22" y="33" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="16" fill="var(--stroke-0, #5F5F6D)" text-anchor="start">3D</text></svg>`,
+
+  // Toolbar: 2D view (cube with 2D text, shown when 3D mode is active)
+  view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 33 38.5"><path d="M15.9.1c.3-.1.6-.1.9.1l15.2 9.1c.3.2.5.5.5.9v11.1h-2V12.5l-13.2 8.4v14.8l4-2.4v2.3l-4.5 2.7c-.3.2-.7.2-1 0L.5 29.2c-.3-.2-.5-.5-.5-.9V10.1c0-.4.2-.7.5-.9L15.7.1ZM2 27.8l13.2 7.9V20.9L2 12.5v15.3Zm.5-17.4l13.8 8.8 13.8-8.8L16.2 2.2 2.5 10.4Z" fill="var(--stroke-0, #5F5F6D)"/><text x="22" y="33" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="16" fill="var(--stroke-0, #5F5F6D)" text-anchor="start">2D</text></svg>`,
+
+  // Utility icons (Heroicons, used outside toolbar)
   close: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`,
 
   arrowLeft: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>`,
@@ -22,14 +39,6 @@ export const Icons = {
   check: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>`,
 
   trash: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`,
-
-  download: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>`,
-
-  upload: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 10.5L12 6m0 0l4.5 4.5M12 6v12" /></svg>`,
-
-  view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>`,
-
-  view3d: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>`,
 
   chevronDown: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`,
 };
