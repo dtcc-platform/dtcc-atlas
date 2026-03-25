@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { get } from 'svelte/store'
-  import Header from './lib/components/Header.svelte'
+  // REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert
+  // import Header from './lib/components/Header.svelte'
+  import TopBar from './lib/components/TopBar.svelte'
   import MapView from './lib/components/MapView.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
   import SidePanel from './lib/components/SidePanel.svelte'
@@ -37,6 +39,10 @@
   let saveDialogOpen = $state(false)
   let sessionDialogOpen = $state(false)
   let coordDialogOpen = $state(false)
+  let sessionChangeOpen = $state(false)
+  let sessionChangeCurrent = $state('')
+  let sessionChangeNext = $state('')
+  let sessionChangeError = $state('')
 
   function onBookmarksChanged() {
     const allBookmarks = bookmarkMgr.getAllBookmarks()
@@ -233,6 +239,49 @@
       console.error('Failed to retry job:', e)
     }
   }
+
+  function handleEditSession(current: string, next: string) {
+    // Client-side validation: alphanumeric, underscore, hyphen, 6-12 chars
+    if (!/^[A-Za-z0-9_-]{6,12}$/.test(next)) {
+      sessionChangeError = `Invalid session code "${next}". Must be 6-12 alphanumeric characters.`
+      return
+    }
+    sessionChangeCurrent = current
+    sessionChangeNext = next
+    sessionChangeOpen = true
+  }
+
+  async function confirmSessionChange(save: boolean) {
+    if (save) {
+      const sid = get(sessionId)
+      if (sid) {
+        const mapState = mapView?.getMapState?.() ?? null
+        const state = {
+          ui: { activePanel: get(activePanel) },
+          map: mapState ? { ...mapState, is3D: get(is3D) } : { is3D: get(is3D) }
+        }
+        try {
+          await updateSessionState(sid, state)
+        } catch (e) {
+          console.warn('Failed to save session before switching:', e)
+        }
+      }
+    }
+    // Navigate to new session (full page load to reinitialize).
+    // If the session code does not exist on the server, App.svelte onMount
+    // will create a new session with a different ID and redirect.
+    window.location.href = `/s/${sessionChangeNext}`
+  }
+
+  function cancelSessionChange() {
+    sessionChangeOpen = false
+    sessionChangeCurrent = ''
+    sessionChangeNext = ''
+  }
+
+  function dismissSessionError() {
+    sessionChangeError = ''
+  }
 </script>
 
 <svelte:window onkeydown={(e) => {
@@ -241,14 +290,18 @@
     searchOpen.update(v => !v)
   }
   if (e.key === 'Escape') {
+    // Don't close panels if a session dialog is open -- those handle Escape themselves
+    if (sessionChangeOpen || sessionChangeError) return
     closeAllPanels()
     drawingActive.set(false)
   }
 }} />
 
-<div class="h-screen w-screen flex flex-col">
-  <Header onSessionDialog={() => sessionDialogOpen = true} />
-  <div class="flex-1 relative overflow-hidden">
+<div class="h-screen w-screen relative">
+  <!-- REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert -->
+  <!-- <Header onSessionDialog={() => sessionDialogOpen = true} /> -->
+  <TopBar onEditSession={handleEditSession} />
+  <div class="absolute inset-0 overflow-hidden">
     <MapView bind:this={mapView} />
     <Toolbar
       onClear={handleClear}
@@ -292,5 +345,53 @@
     <SessionDialog bind:open={sessionDialogOpen} />
     <CoordinateInputDialog bind:open={coordDialogOpen} onApply={(b) => mapView?.loadBbox(b)} />
     <JobTray onRetry={handleRetryJob} />
+
+    <!-- Session change confirmation dialog -->
+    {#if sessionChangeOpen}
+      <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default" aria-label="Close dialog" onclick={cancelSessionChange}></button>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+        w-[400px] bg-white rounded-xl shadow-2xl p-5"
+        role="dialog" aria-modal="true" tabindex="-1"
+        onkeydown={(e) => { if (e.key === 'Escape') cancelSessionChange() }}>
+        <h3 class="text-[16px] font-semibold text-dtcc-navy mb-3">Change Session</h3>
+        <p class="text-[13px] text-dtcc-muted mb-5">
+          Session will change from <span class="font-mono font-medium text-dtcc-navy">{sessionChangeCurrent}</span> to <span class="font-mono font-medium text-dtcc-navy">{sessionChangeNext}</span>. Would you like to proceed?
+        </p>
+        <div class="flex gap-2 justify-end">
+          <button
+            class="px-4 h-9 rounded-lg text-[13px] text-dtcc-muted hover:bg-black/5 cursor-pointer"
+            onclick={cancelSessionChange}
+          >Cancel</button>
+          <button
+            class="px-4 h-9 rounded-lg border border-dtcc-border-light text-[13px] text-dtcc-navy font-medium hover:bg-black/5 cursor-pointer"
+            onclick={() => confirmSessionChange(false)}
+          >Switch</button>
+          <button
+            class="px-4 h-9 rounded-lg bg-dtcc-orange text-white text-[13px] font-semibold hover:bg-dtcc-orange-dark cursor-pointer"
+            onclick={() => confirmSessionChange(true)}
+          >Save &amp; Switch</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Session change error popup -->
+    {#if sessionChangeError}
+      <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default" aria-label="Close error" onclick={dismissSessionError}></button>
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+        w-[360px] bg-white rounded-xl shadow-2xl p-5"
+        role="alertdialog" aria-modal="true" tabindex="-1"
+        onkeydown={(e) => { if (e.key === 'Escape') dismissSessionError() }}>
+        <h3 class="text-[16px] font-semibold text-red-600 mb-3">Invalid Session</h3>
+        <p class="text-[13px] text-dtcc-muted mb-5">{sessionChangeError}</p>
+        <div class="flex justify-end">
+          <button
+            class="px-4 h-9 rounded-lg bg-dtcc-navy text-white text-[13px] font-semibold hover:bg-dtcc-navy/90 cursor-pointer"
+            onclick={dismissSessionError}
+          >OK</button>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
