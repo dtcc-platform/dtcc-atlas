@@ -31,6 +31,9 @@ export const Icons = {
   // Toolbar: 2D view (cube with 2D text, shown when 3D mode is active)
   view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 33 38.5"><path d="M15.9.1c.3-.1.6-.1.9.1l15.2 9.1c.3.2.5.5.5.9v11.1h-2V12.5l-13.2 8.4v14.8l4-2.4v2.3l-4.5 2.7c-.3.2-.7.2-1 0L.5 29.2c-.3-.2-.5-.5-.5-.9V10.1c0-.4.2-.7.5-.9L15.7.1ZM2 27.8l13.2 7.9V20.9L2 12.5v15.3Zm.5-17.4l13.8 8.8 13.8-8.8L16.2 2.2 2.5 10.4Z" fill="var(--stroke-0, #5F5F6D)"/><text x="22" y="33" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="16" fill="var(--stroke-0, #5F5F6D)" text-anchor="start">2D</text></svg>`,
 
+  // Toolbar: chat (speech bubble)
+  chat: `<svg aria-hidden="true" fill="none" viewBox="0 0 34 34"><path d="M29.7 22.3c1.4-2.4 2.2-5.2 2.2-8.1C31.9 6.3 24.8 0 16 0S.1 6.3.1 14.2c0 7.9 7.1 14.2 15.9 14.2 2 0 3.8-.3 5.6-.9l8.4 3.5-2-8.5.2-.1-.5-.1Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
   // Utility icons (Heroicons, used outside toolbar)
   close: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`,
 

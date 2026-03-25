@@ -28,7 +28,7 @@
   <div
     class="absolute top-0 right-0 h-full w-full sm:w-[360px] z-30
       bg-white/90 backdrop-blur-xl border-l border-black/5 shadow-2xl
-      {animatingOut ? 'animate-slide-out' : 'animate-slide-in'} overflow-y-auto"
+      {animatingOut ? 'animate-slide-out' : 'animate-slide-in'} {$activePanel === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'}"
   >
     {@render children()}
   </div>

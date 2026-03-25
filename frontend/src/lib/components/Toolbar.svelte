@@ -107,6 +107,12 @@
     onclick={() => searchOpen.update(v => !v)}
   />
   <ToolbarButton
+    icon={Icons.chat}
+    label="Chat"
+    active={$activePanel === 'chat'}
+    onclick={() => activePanel.update(v => v === 'chat' ? null : 'chat')}
+  />
+  <ToolbarButton
     icon={$is3D ? Icons.view2d : Icons.view3d}
     label={$is3D ? '2D view' : '3D view'}
     active={$is3D}

@@ -15,6 +15,7 @@
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
+  import ChatPanel from './lib/components/ChatPanel.svelte'
   import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, hasUnseenBookmarks, hasUnseenDatasets } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
@@ -279,6 +280,8 @@
           <div class="text-sm font-medium text-dtcc-dark mb-2">Downloads</div>
           <p class="text-xs">No data available for download. Generate data from a drawn region first.</p>
         </div>
+      {:else if $activePanel === 'chat'}
+        <ChatPanel />
       {/if}
     </SidePanel>
     <EmptyState />
