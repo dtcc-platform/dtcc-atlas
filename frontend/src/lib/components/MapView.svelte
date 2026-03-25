@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte'
   import { mapManager } from '../map/map-manager'
   import { BBoxDrawer } from '../map/bbox-drawer'
-  import { registerProjections } from '../map/projections'
+  import { registerProjections, transformCoordinates } from '../map/projections'
   import { bbox } from '../stores/map'
   import { datasets } from '../stores/datasets'
   import { activePanel, drawingActive } from '../stores/ui'
@@ -64,6 +64,12 @@
 
   export function flyTo(lon: number, lat: number) {
     mapManager.getMap()?.flyTo({ center: [lon, lat], zoom: 14 })
+  }
+
+  export function fitBounds(b: BoundingBox) {
+    const sw = transformCoordinates([b.minX, b.minY], 'EPSG:3006', 'EPSG:4326')
+    const ne = transformCoordinates([b.maxX, b.maxY], 'EPSG:3006', 'EPSG:4326')
+    mapManager.getMap()?.fitBounds([sw, ne], { padding: 50, animate: true })
   }
 
   export function getMapState() {

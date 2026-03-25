@@ -16,7 +16,7 @@
   import SessionDialog from './lib/components/SessionDialog.svelte'
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
   import ChatPanel from './lib/components/ChatPanel.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, hasUnseenBookmarks, hasUnseenDatasets } from './lib/stores/ui'
+  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDatasets } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
@@ -176,7 +176,7 @@
           return [...$j, event.data]
         })
         if (event.type === 'job_complete') {
-          hasUnseenDatasets.set(true)
+          unseenDatasets.update(n => n + 1)
         }
       }
     })
@@ -196,12 +196,13 @@
     const currentBbox = get(bbox)
     if (currentBbox) {
       bookmarkMgr.saveBookmark(name, currentBbox)
-      hasUnseenBookmarks.set(true)
+      unseenBookmarks.update(n => n + 1)
     }
   }
 
   function handleBookmarkLoad(bookmark: SavedBookmark) {
     mapView?.loadBbox(bookmark.bbox)
+    mapView?.fitBounds(bookmark.bbox)
     activePanel.set(null)
   }
 
@@ -216,6 +217,7 @@
 
   function handleClear() {
     mapView?.clearBbox()
+    drawingActive.set(false)
   }
 
   function handleIngested(bounds: BoundingBox, label: string) {

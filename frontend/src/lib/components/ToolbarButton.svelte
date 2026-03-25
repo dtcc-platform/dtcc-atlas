@@ -4,16 +4,27 @@
     label: string
     active?: boolean
     disabled?: boolean
-    badge?: boolean
+    badge?: number
     onclick?: () => void
   }
 
-  let { icon, label, active = false, disabled = false, badge = false, onclick }: Props = $props()
+  let { icon, label, active = false, disabled = false, badge = 0, onclick }: Props = $props()
+
+  function badgeText(n: number): string {
+    if (n >= 100) return '99+'
+    return String(n)
+  }
+
+  function badgeFontSize(n: number): string {
+    if (n >= 100) return '5px'
+    if (n >= 10) return '6px'
+    return '7px'
+  }
 </script>
 
 <div class="group relative">
   <button
-    class="relative w-11 h-11 flex items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+    class="relative w-[53px] h-[55px] flex items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
       {active ? 'bg-dtcc-orange/10' : 'hover:bg-black/5'}
       {disabled ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}"
     style={active ? '--stroke-0: #E35A1D' : ''}
@@ -22,8 +33,10 @@
     aria-label={label}
   >
     {@html icon}
-    {#if badge}
-      <div class="absolute top-1 right-1 w-2 h-2 rounded-full bg-dtcc-orange"></div>
+    {#if badge > 0}
+      <div class="absolute top-1 right-0.5 w-[14px] h-[14px] rounded-full bg-dtcc-orange flex items-center justify-center">
+        <span class="text-gray-200 font-semibold leading-none" style="font-size: {badgeFontSize(badge)}">{badgeText(badge)}</span>
+      </div>
     {/if}
   </button>
   <div class="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3

@@ -4,7 +4,7 @@
   import { Icons } from '../ui/icons'
   import { fetchDatasetList } from '../api/dataset-api'
   import { datasets } from '../stores/datasets'
-  import { drawingActive, activePanel, searchOpen, is3D, hasUnseenBookmarks, hasUnseenDatasets, hasUnseenLayers } from '../stores/ui'
+  import { drawingActive, activePanel, searchOpen, is3D, unseenBookmarks, unseenDatasets, unseenLayers } from '../stores/ui'
   import { bbox } from '../stores/map'
 
   interface Props {
@@ -13,6 +13,21 @@
   }
 
   let { onClear, onToggle3D }: Props = $props()
+  let toolbarEl: HTMLDivElement
+
+  $effect(() => {
+    if (!toolbarEl) return
+
+    function updateScale() {
+      const available = window.innerHeight - 32
+      const scale = Math.min(1, available / 633)
+      toolbarEl.style.transform = `scale(${scale})`
+      toolbarEl.style.transformOrigin = 'top left'
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  })
 
   async function toggleDatasetsPanel() {
     const current = get(activePanel)
@@ -31,10 +46,10 @@
   }
 </script>
 
-<div class="absolute z-20 sm:z-40
-  max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-full
-  sm:top-4 sm:left-4 sm:flex-col
-  flex items-center bg-white/10 backdrop-blur-xl rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20 px-2 py-2.5 gap-0.5">
+<div bind:this={toolbarEl} class="absolute z-20 sm:z-40
+  max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-full max-sm:px-2 max-sm:py-2.5 max-sm:gap-0.5
+  sm:top-4 sm:left-4 sm:flex-col sm:w-[75px] sm:rounded-[50px] sm:px-[11px] sm:py-5 sm:justify-between
+  flex items-center bg-white/10 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20">
   <!-- Actions group -->
   <ToolbarButton
     icon={Icons.draw}
@@ -45,31 +60,31 @@
   <ToolbarButton
     icon={Icons.clear}
     label="Cancel"
-    disabled={!$bbox}
+    disabled={!$bbox && !$drawingActive}
     onclick={onClear}
   />
   <ToolbarButton
     icon={Icons.bookmark}
     label="Bookmarks"
     active={$activePanel === 'bookmarks'}
-    badge={$hasUnseenBookmarks}
+    badge={$unseenBookmarks}
     onclick={() => {
-      hasUnseenBookmarks.set(false)
+      unseenBookmarks.set(0)
       activePanel.update(v => v === 'bookmarks' ? null : 'bookmarks')
     }}
   />
 
   <!-- Divider -->
-  <div class="sm:mx-2 sm:my-1.5 sm:border-t max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center border-white/10 sm:w-full"></div>
+  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[10px] sm:w-[50px] sm:border-t sm:border-white/10 sm:opacity-10"></div>
 
   <!-- Data group -->
   <ToolbarButton
     icon={Icons.dataTree}
     label="Datasets"
     active={$activePanel === 'datasets' || $activePanel === 'dataset-form'}
-    badge={$hasUnseenDatasets}
+    badge={$unseenDatasets}
     onclick={() => {
-      hasUnseenDatasets.set(false)
+      unseenDatasets.set(0)
       toggleDatasetsPanel()
     }}
   />
@@ -77,9 +92,9 @@
     icon={Icons.layers}
     label="Layers"
     active={$activePanel === 'layers'}
-    badge={$hasUnseenLayers}
+    badge={$unseenLayers}
     onclick={() => {
-      hasUnseenLayers.set(false)
+      unseenLayers.set(0)
       activePanel.update(v => v === 'layers' ? null : 'layers')
     }}
   />
@@ -97,7 +112,7 @@
   />
 
   <!-- Divider -->
-  <div class="sm:mx-2 sm:my-1.5 sm:border-t max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center border-white/10 sm:w-full"></div>
+  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[10px] sm:w-[50px] sm:border-t sm:border-white/10 sm:opacity-10"></div>
 
   <!-- Tools group -->
   <ToolbarButton
@@ -115,7 +130,6 @@
   <ToolbarButton
     icon={$is3D ? Icons.view2d : Icons.view3d}
     label={$is3D ? '2D view' : '3D view'}
-    active={$is3D}
     onclick={onToggle3D}
   />
 </div>
