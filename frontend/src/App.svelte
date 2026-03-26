@@ -6,6 +6,7 @@
   import TopBar from './lib/components/TopBar.svelte'
   import MapView from './lib/components/MapView.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
+  import NavbarHelperBottom from './lib/components/NavbarHelperBottom.svelte'
   import SidePanel from './lib/components/SidePanel.svelte'
   import DatasetList from './lib/components/DatasetList.svelte'
   import DatasetForm from './lib/components/DatasetForm.svelte'
@@ -339,6 +340,7 @@
         <ChatPanel />
       {/if}
     </SidePanel>
+    <NavbarHelperBottom />
     <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />

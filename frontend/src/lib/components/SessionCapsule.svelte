@@ -15,12 +15,15 @@
   let copied = $state(false)
   let editValue = $state('')
   let inputEl: HTMLInputElement | undefined = $state(undefined)
+  let containerEl: HTMLDivElement | undefined = $state(undefined)
 
-  // Clean up timers on destroy
+  // Clean up timers on destroy and remove document click listener
   $effect(() => {
+    document.addEventListener('click', handleDocumentClick)
     return () => {
       if (collapseTimer) clearTimeout(collapseTimer)
       if (copiedTimer) clearTimeout(copiedTimer)
+      document.removeEventListener('click', handleDocumentClick)
     }
   })
 
@@ -45,6 +48,14 @@
 
   function handleMouseLeave() {
     if (state === 'expanded') startCollapseTimer()
+  }
+
+  // Auto-collapse when user clicks outside the capsule (e.g. on the map)
+  function handleDocumentClick(e: MouseEvent) {
+    if (state === 'expanded' && containerEl && !containerEl.contains(e.target as Node)) {
+      state = 'collapsed'
+      clearCollapseTimer()
+    }
   }
 
   function handlePenClick() {
@@ -97,7 +108,9 @@
 </script>
 
 <div
-  class="flex items-center h-[40px] rounded-[100px] transition-all duration-200"
+  bind:this={containerEl}
+  class="flex items-center h-[40px] rounded-[100px] transition-all duration-300 ease-in-out
+    border border-white/25"
   role="group"
   aria-label="Session controls"
   onmouseenter={handleMouseEnter}
@@ -106,42 +119,47 @@
   {#if state === 'editing'}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- onkeydown on container so Escape is caught even when focus is on buttons, not just the input -->
-    <div class="flex items-center gap-1.5 pt-[11px] pr-[12px] pb-[10px] pl-[19px]" onkeydown={handleKeydown}>
+    <div class="flex items-center gap-2 pt-[11px] pr-[12px] pb-[10px] pl-[19px]" onkeydown={handleKeydown}>
       <input
         bind:this={inputEl}
         bind:value={editValue}
         class="w-[90px] bg-transparent border-b border-dtcc-orange/50 text-dtcc-orange font-semibold text-[16px] leading-[24px] outline-none"
       />
       <button
-        class="w-[16px] h-[16px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        style="--stroke-0: #E35A1D"
         onclick={handlePenClick}
         title="Confirm edit"
       >{@html Icons.pen}</button>
       <button
-        class="w-[16px] h-[16px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        style="--stroke-0: #E35A1D"
         onclick={cancelEdit}
         title="Cancel edit"
       >{@html Icons.close}</button>
     </div>
   {:else}
-    <div class="flex items-center gap-1.5 pt-[11px] pr-[12px] pb-[10px] pl-[19px]">
+    <div class="flex items-center gap-2 pt-[11px] pr-[12px] pb-[10px] pl-[19px]">
       <span class="text-dtcc-orange font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
         {copied ? 'Copied!' : sessionCode}
       </span>
       {#if state === 'expanded'}
-        <div class="flex items-center gap-1 ml-1">
+        <div class="flex items-center gap-2 ml-1">
           <button
-            class="w-[16px] h-[16px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            style="--stroke-0: #E35A1D"
             onclick={handlePenClick}
             title="Edit session code"
           >{@html Icons.pen}</button>
           <button
-            class="w-[16px] h-[16px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            style="--stroke-0: #E35A1D"
             onclick={handleCopy}
             title="Copy session code"
           >{@html Icons.copy}</button>
           <button
-            class="w-[16px] h-[16px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            style="--stroke-0: #E35A1D"
             onclick={handleShare}
             title="Copy session URL"
           >{@html Icons.share}</button>
@@ -152,9 +170,9 @@
 </div>
 
 <style>
-  /* Render session capsule icons at 16x16 */
+  /* Session icons sized proportionally to 16px text (Figma 150-1660: 34x35 NavItem wrappers) */
   button :global(svg) {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
   }
 </style>

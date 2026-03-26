@@ -48,8 +48,10 @@
 </div>
 
 <style>
+  /* Sized to fill the 53x55 NavItem wrapper proportionally (Figma 86-1936: 50x50 icon area).
+     At 34px, stroke-width:2 SVGs render with ~1.8-2px visual strokes, matching the hamburger. */
   button :global(svg) {
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
   }
 </style>

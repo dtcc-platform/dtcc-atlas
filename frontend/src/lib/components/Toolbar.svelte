@@ -15,11 +15,15 @@
   let { onClear, onToggle3D }: Props = $props()
   let toolbarEl: HTMLDivElement
 
+  // Responsive scaling: sidebar starts at 77px from top, needs 16px bottom margin.
+  // Scale down proportionally when viewport is too short for the full 633px sidebar height.
   $effect(() => {
     if (!toolbarEl) return
 
     function updateScale() {
-      const available = window.innerHeight - 32
+      const topOffset = 77
+      const bottomMargin = 16
+      const available = window.innerHeight - topOffset - bottomMargin
       const scale = Math.min(1, available / 633)
       toolbarEl.style.transform = `scale(${scale})`
       toolbarEl.style.transformOrigin = 'top left'
@@ -46,9 +50,15 @@
   }
 </script>
 
-<div bind:this={toolbarEl} class="absolute z-20 sm:z-40
+<!-- TODO: SideNavBar does not scale proportionally at small window heights.
+     Icons become inaccessible when viewport height is too small.
+     Fix: scale sidebar and icon wrappers proportionally with viewport height.
+     Implement when a shared responsive scaling system is established.
+     See also: same issue logged for TopNavBar. -->
+<!-- Anchored below TopNavBar: top-4 (16px) + h-[49px] + 12px gap = 77px (spec 4.6) -->
+<div bind:this={toolbarEl} class="absolute z-20 sm:z-30
   max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-full max-sm:px-2 max-sm:py-2.5 max-sm:gap-0.5
-  sm:top-4 sm:left-4 sm:flex-col sm:w-[75px] sm:rounded-[50px] sm:px-[11px] sm:py-5 sm:justify-between
+  sm:top-[77px] sm:left-4 sm:flex-col sm:w-[75px] sm:rounded-[50px] sm:px-[11px] sm:py-5 sm:justify-between
   flex items-center bg-white/10 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20">
   <!-- Actions group -->
   <ToolbarButton

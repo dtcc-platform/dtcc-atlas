@@ -26,13 +26,16 @@ export const Icons = {
   search: `<svg aria-hidden="true" fill="none" viewBox="0 0 32.8 33.5"><path d="M25.4 26.2l6.4 6.3M29.7 15.7c0 8.1-6.4 14.7-14.4 14.7C7.4 30.4 1 23.8 1 15.7 1 7.6 7.4 1 15.4 1c7.9 0 14.4 6.6 14.4 14.7Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
 
   // Toolbar: 3D view (cube with 3D text)
-  view3d: `<svg aria-hidden="true" fill="none" viewBox="0 0 50 50"><path d="M25.4 7.1c.2-.1.5-.1.7.1l12.2 7.3c.2.1.4.4.4.7v8.9h-1.6V13l-10.6 6.7v11.8l3.2-1.9v1.8l-3.6 2.2c-.2.1-.5.1-.8 0L13.4 26.3c-.2-.2-.4-.4-.4-.7V11.1c0-.3.2-.6.4-.7L25.4 3.1ZM14.6 25.2l10.6 6.3V19.7L14.6 13v12.2Zm.4-13.9l11 7 11-7L25.8 4.8 15 11.3Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(0 4)"/><text x="35" y="42" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="13" fill="var(--stroke-0, #5F5F6D)">3D</text></svg>`,
+  // viewBox tightened from "0 0 50 50" to reduce internal whitespace and fix text clipping
+  view3d: `<svg aria-hidden="true" fill="none" viewBox="10 4 45 41"><path d="M25.4 7.1c.2-.1.5-.1.7.1l12.2 7.3c.2.1.4.4.4.7v8.9h-1.6V13l-10.6 6.7v11.8l3.2-1.9v1.8l-3.6 2.2c-.2.1-.5.1-.8 0L13.4 26.3c-.2-.2-.4-.4-.4-.7V11.1c0-.3.2-.6.4-.7L25.4 3.1ZM14.6 25.2l10.6 6.3V19.7L14.6 13v12.2Zm.4-13.9l11 7 11-7L25.8 4.8 15 11.3Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(0 4)"/><text x="35" y="42" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="13" fill="var(--stroke-0, #5F5F6D)">3D</text></svg>`,
 
   // Toolbar: 2D view (cube with 2D text, shown when 3D mode is active)
-  view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 50 50"><path d="M25.4 7.1c.2-.1.5-.1.7.1l12.2 7.3c.2.1.4.4.4.7v8.9h-1.6V13l-10.6 6.7v11.8l3.2-1.9v1.8l-3.6 2.2c-.2.1-.5.1-.8 0L13.4 26.3c-.2-.2-.4-.4-.4-.7V11.1c0-.3.2-.6.4-.7L25.4 3.1ZM14.6 25.2l10.6 6.3V19.7L14.6 13v12.2Zm.4-13.9l11 7 11-7L25.8 4.8 15 11.3Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(0 4)"/><text x="35" y="42" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="13" fill="var(--stroke-0, #5F5F6D)">2D</text></svg>`,
+  // viewBox tightened from "0 0 50 50" to reduce internal whitespace and fix text clipping
+  view2d: `<svg aria-hidden="true" fill="none" viewBox="10 4 45 41"><path d="M25.4 7.1c.2-.1.5-.1.7.1l12.2 7.3c.2.1.4.4.4.7v8.9h-1.6V13l-10.6 6.7v11.8l3.2-1.9v1.8l-3.6 2.2c-.2.1-.5.1-.8 0L13.4 26.3c-.2-.2-.4-.4-.4-.7V11.1c0-.3.2-.6.4-.7L25.4 3.1ZM14.6 25.2l10.6 6.3V19.7L14.6 13v12.2Zm.4-13.9l11 7 11-7L25.8 4.8 15 11.3Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(0 4)"/><text x="35" y="42" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="13" fill="var(--stroke-0, #5F5F6D)">2D</text></svg>`,
 
   // Toolbar: chat (speech bubble)
-  chat: `<svg aria-hidden="true" fill="none" viewBox="0 0 34 34"><path d="M29.7 22.3c1.4-2.4 2.2-5.2 2.2-8.1C31.9 6.3 24.8 0 16 0S.1 6.3.1 14.2c0 7.9 7.1 14.2 15.9 14.2 2 0 3.8-.3 5.6-.9l8.4 3.5-2-8.5.2-.1-.5-.1Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  // viewBox expanded from "0 0 34 34" to prevent stroke clipping at edges
+  chat: `<svg aria-hidden="true" fill="none" viewBox="-1 -1 36 36"><path d="M29.7 22.3c1.4-2.4 2.2-5.2 2.2-8.1C31.9 6.3 24.8 0 16 0S.1 6.3.1 14.2c0 7.9 7.1 14.2 15.9 14.2 2 0 3.8-.3 5.6-.9l8.4 3.5-2-8.5.2-.1-.5-.1Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   // Topbar: hamburger menu (three horizontal lines)
   hamburger: `<svg aria-hidden="true" fill="none" viewBox="0 0 30 22"><path d="M1 1h28M1 11h28M1 21h28" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,

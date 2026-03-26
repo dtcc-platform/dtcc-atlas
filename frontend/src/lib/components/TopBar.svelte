@@ -48,9 +48,13 @@
   })
 </script>
 
+<!-- TODO: TopNavBar height and text are not reactive to small window heights.
+     When window height is small the topbar covers too much of the map.
+     Fix: scale topbar height and font sizes proportionally with viewport height.
+     Implement when a shared responsive scaling system is established. -->
 <!-- Topbar floating capsule -->
 <header
-  class="fixed top-4 left-4 right-4 h-[49px] z-50
+  class="fixed top-4 left-4 right-4 h-[49px] z-40
     flex items-center justify-between
     bg-white/10 backdrop-blur-xl
     border border-white/20
@@ -84,10 +88,9 @@
       <span class="text-black font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
         DTCC Atlas v.0.2.2
       </span>
-      <!-- Server status dot: positioned outside the text bounding box at top-right corner -->
-      <!-- Figma shows the dot overlapping the corner, so negative offsets are correct -->
+      <!-- Server status dot: ~70% of previous 15px = 10px, offset increased per Figma 148-1368 -->
       <div
-        class="absolute -top-[2px] right-[-15px] w-[15px] h-[15px] rounded-full
+        class="absolute -top-[5px] right-[-14px] w-[10px] h-[10px] rounded-full
           {connected ? 'bg-green-400' : 'bg-red-400'}"
         aria-label={connected ? 'Server: Ready' : 'Server: Disconnected'}
       ></div>
@@ -108,7 +111,7 @@
 <!-- Cursor-following tooltip -->
 {#if tooltipVisible}
   <div
-    class="fixed pointer-events-none z-50
+    class="fixed pointer-events-none z-[60]
       px-2.5 py-1 rounded-md bg-dtcc-navy text-white text-[11px] font-medium whitespace-nowrap shadow-lg
       transition-opacity delay-300"
     style="top: 70px; left: {tooltipX}px; transform: translateX(-50%);"
