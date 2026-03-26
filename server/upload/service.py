@@ -47,6 +47,8 @@ def list_uploaded_datasets_for_api() -> list[dict[str, Any]]:
                 "data_kind_label": _format_data_kind_label(inferred_type),
                 "return_types": [inferred_type],
                 "supported_formats": [detected_format] if detected_format else [],
+                "previewable": inferred_type == "vector",
+                "preview_formats": ["geojson"] if inferred_type == "vector" else [],
                 "upload_batch_id": rec.get("source_batch_id"),
                 "upload_name": rec.get("batch_name") or "User upload",
                 "uploaded_at": rec.get("batch_created_at") or rec.get("created_at"),
@@ -218,6 +220,25 @@ def resolve_uploaded_job_result(
     if not ext:
         ext = _suffix_no_dot(Path(dataset["primary_file"]))
     return (content, ext, media_type)
+
+
+def get_uploaded_dataset_preview(
+    dataset_name: str,
+    format_name: str = "geojson",
+) -> tuple[bytes, str]:
+    dataset = get_uploaded_dataset(dataset_name)
+    if not dataset:
+        raise FileNotFoundError(f"Uploaded dataset '{dataset_name}' not found.")
+
+    inferred_type = dataset.get("inferred_type", "unknown")
+    if inferred_type != "vector" or format_name.lower() != "geojson":
+        raise ValueError("Preview not available for this dataset.")
+
+    source_file = Path(dataset["primary_file"])
+    if not source_file.exists():
+        raise FileNotFoundError(f"Preview source for '{dataset_name}' not found.")
+
+    return (source_file.read_bytes(), "application/geo+json")
 
 
 def _suffix_no_dot(path: Path) -> str:

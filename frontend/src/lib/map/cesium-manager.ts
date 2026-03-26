@@ -4,16 +4,22 @@ import {
   Cesium3DTileset,
   Cesium3DTileStyle,
   Color,
+  ColorMaterialProperty,
+  ConstantProperty,
   createWorldTerrainAsync,
   type Entity,
+  GeoJsonDataSource,
   HeadingPitchRange,
+  HeightReference,
   Ion,
   Math as CesiumMath,
   OpenStreetMapImageryProvider,
+  PointGraphics,
   Rectangle,
   SceneMode,
   Viewer,
 } from 'cesium';
+import type { GeoJsonFeatureCollection } from '../types';
 import cesiumConfigRaw from './cesium-config.json';
 import {
   clampCameraCenterToBounds,
@@ -56,6 +62,10 @@ export type CesiumCameraState = {
   heading: number;
   pitch: number;
   roll: number;
+};
+
+type GeoJsonLayerOptions = {
+  zoomTo?: boolean;
 };
 
 type CesiumRuntimeConfig = {
@@ -165,6 +175,8 @@ export class CesiumManager {
   private activeTilesets = new Map<number, Cesium3DTileset>();
   private tilesetEntries = new Map<number, TilesetEntry>();
   private activeAssetIds: number[] = [];
+  private geoJsonLayers = new Map<string, GeoJsonDataSource>();
+  private visibleGeoJsonLayers = new Set<string>();
   private currentBuildingMode: Building3DMode = 'photogrammetry';
   private tilesStatus: TilesetStatus = 'idle';
 
@@ -228,6 +240,10 @@ export class CesiumManager {
     };
   }
 
+  hasGeoJsonLayer(datasetName: string): boolean {
+    return this.geoJsonLayers.has(datasetName);
+  }
+
   private removeTileset(assetId: number): void {
     if (!this.viewer) return;
     const existing = this.activeTilesets.get(assetId);
@@ -245,6 +261,133 @@ export class CesiumManager {
     }
 
     this.viewer.scene.globe.show = mode === 'lod1' ? true : cesiumConfig.viewer.scene.showGlobe;
+  }
+
+  private applyGeoJsonStyle(dataSource: GeoJsonDataSource): void {
+    const pointColor = Color.CYAN;
+    const lineColor = Color.ORANGE;
+    const polygonFill = Color.CYAN.withAlpha(0.22);
+    const polygonOutline = Color.ORANGE;
+
+    for (const entity of dataSource.entities.values) {
+      entity.label = undefined;
+
+      if (!entity.point && entity.billboard && entity.position) {
+        entity.point = new PointGraphics({
+          color: new ConstantProperty(pointColor),
+          outlineColor: new ConstantProperty(Color.WHITE),
+          outlineWidth: new ConstantProperty(1.5),
+          pixelSize: new ConstantProperty(10),
+          heightReference: new ConstantProperty(HeightReference.CLAMP_TO_GROUND),
+          disableDepthTestDistance: new ConstantProperty(Number.POSITIVE_INFINITY),
+        });
+      }
+
+      entity.billboard = undefined;
+
+      if (entity.point) {
+        entity.point.color = new ConstantProperty(pointColor);
+        entity.point.outlineColor = new ConstantProperty(Color.WHITE);
+        entity.point.outlineWidth = new ConstantProperty(1.5);
+        entity.point.pixelSize = new ConstantProperty(10);
+        entity.point.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
+        entity.point.disableDepthTestDistance = new ConstantProperty(Number.POSITIVE_INFINITY);
+      }
+
+      if (entity.polyline) {
+        entity.polyline.material = new ColorMaterialProperty(lineColor);
+        entity.polyline.width = new ConstantProperty(2);
+      }
+
+      if (entity.polygon) {
+        entity.polygon.material = new ColorMaterialProperty(polygonFill);
+        entity.polygon.outline = new ConstantProperty(true);
+        entity.polygon.outlineColor = new ConstantProperty(polygonOutline);
+        entity.polygon.extrudedHeight = undefined;
+      }
+    }
+  }
+
+  async loadGeoJsonLayer(
+    datasetName: string,
+    geojson: GeoJsonFeatureCollection,
+    options: GeoJsonLayerOptions = {},
+  ): Promise<void> {
+    if (!this.viewer) {
+      throw new Error('Cesium viewer is not initialized');
+    }
+
+    const existing = this.geoJsonLayers.get(datasetName);
+    if (existing) {
+      existing.show = true;
+      this.visibleGeoJsonLayers.add(datasetName);
+      if (options.zoomTo) {
+        await this.viewer.flyTo(existing);
+      }
+      return;
+    }
+
+    const dataSource = await GeoJsonDataSource.load(geojson, {
+      clampToGround: false,
+    });
+    this.applyGeoJsonStyle(dataSource);
+    dataSource.show = true;
+    await this.viewer.dataSources.add(dataSource);
+    this.geoJsonLayers.set(datasetName, dataSource);
+    this.visibleGeoJsonLayers.add(datasetName);
+
+    if (options.zoomTo) {
+      await this.viewer.flyTo(dataSource);
+    }
+  }
+
+  showGeoJsonLayer(datasetName: string): void {
+    const dataSource = this.geoJsonLayers.get(datasetName);
+    if (!dataSource) {
+      return;
+    }
+    dataSource.show = true;
+    this.visibleGeoJsonLayers.add(datasetName);
+  }
+
+  hideGeoJsonLayer(datasetName: string): void {
+    const dataSource = this.geoJsonLayers.get(datasetName);
+    if (!dataSource) {
+      return;
+    }
+    dataSource.show = false;
+    this.visibleGeoJsonLayers.delete(datasetName);
+  }
+
+  removeGeoJsonLayer(datasetName: string): void {
+    if (!this.viewer) {
+      return;
+    }
+    const dataSource = this.geoJsonLayers.get(datasetName);
+    if (!dataSource) {
+      return;
+    }
+    this.viewer.dataSources.remove(dataSource, true);
+    this.geoJsonLayers.delete(datasetName);
+    this.visibleGeoJsonLayers.delete(datasetName);
+  }
+
+  getGeoJsonLayerState(): { enabledDatasetNames: string[] } {
+    return { enabledDatasetNames: Array.from(this.visibleGeoJsonLayers) };
+  }
+
+  clearGeoJsonLayers(): void {
+    if (!this.viewer) {
+      this.geoJsonLayers.clear();
+      this.visibleGeoJsonLayers.clear();
+      return;
+    }
+
+    for (const dataSource of this.geoJsonLayers.values()) {
+      this.viewer.dataSources.remove(dataSource, true);
+    }
+    this.geoJsonLayers.clear();
+    this.visibleGeoJsonLayers.clear();
   }
 
   private setupAoiLockListener(): void {
@@ -730,6 +873,7 @@ export class CesiumManager {
     if (!this.viewer) {
       return;
     }
+    this.clearGeoJsonLayers();
     this.unloadTilesOutsideAoi(null);
     if (this.interactionDebugCleanup) {
       this.interactionDebugCleanup();

@@ -60,6 +60,8 @@ def discover_published_datasets(published_dir: Path | None = None) -> list[dict]
                     "source": metadata.get("source", "lm-geotorget"),
                     "path": f"{subdir.name}/",
                     "bounds": metadata.get("bounds"),
+                    "previewable": True,
+                    "preview_formats": ["geojson"],
                 })
             except (json.JSONDecodeError, IOError):
                 continue
@@ -113,5 +115,13 @@ def get_dataset_geojson_path(dataset_name: str, published_dir: Path | None = Non
 
     if geojson_path.exists():
         return geojson_path
+
+    metadata = get_dataset_metadata(dataset_name, published_dir)
+    if metadata and metadata.get("data_path"):
+        custom_path = Path(str(metadata["data_path"]))
+        if not custom_path.is_absolute():
+            custom_path = (published_dir / dataset_name / custom_path).resolve()
+        if custom_path.exists():
+            return custom_path
 
     return None

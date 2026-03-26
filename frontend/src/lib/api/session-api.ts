@@ -28,6 +28,9 @@ export interface SessionData {
       tiles3D?: {
         activeAssetIds: number[]
       } | null
+      geoJsonLayers?: {
+        enabledDatasetNames: string[]
+      } | null
     }
     ui?: {
       activePanel?: string | null

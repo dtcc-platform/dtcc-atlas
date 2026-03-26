@@ -1,6 +1,13 @@
 <script lang="ts">
   import { datasets, selectedDataset, formConfig } from '../stores/datasets'
-  import { activePanel } from '../stores/ui'
+  import {
+    activePanel,
+    disableGeoJsonLayer,
+    enableGeoJsonLayer,
+    enabledGeoJsonLayers,
+    geoJsonLayerErrors,
+    geoJsonLayerStatusByDataset,
+  } from '../stores/ui'
   import { bbox } from '../stores/map'
   import { fetchDatasetSchema } from '../api/dataset-api'
   import { schemaParser } from '../forms/schema-parser'
@@ -198,6 +205,43 @@
       [groupKey]: !isCollapsed(groupKey),
     }
   }
+
+  function isGeoJsonPreviewable(dataset: DatasetInfo): boolean {
+    const source = (dataset.source_group || dataset.source || '').toLowerCase()
+    return (
+      (source === 'user-uploaded' || source === 'uploaded' || source === 'published') &&
+      !!dataset.previewable &&
+      (dataset.preview_formats || []).includes('geojson')
+    )
+  }
+
+  function isLayerEnabled(datasetName: string): boolean {
+    return $enabledGeoJsonLayers.includes(datasetName)
+  }
+
+  function layerStatusLabel(datasetName: string): string {
+    const status = $geoJsonLayerStatusByDataset[datasetName] || 'idle'
+    if (status === 'loading') return 'Loading'
+    if (status === 'ready') return 'Visible in 3D'
+    if (status === 'error') return 'Preview error'
+    return 'Hidden'
+  }
+
+  function layerStatusClass(datasetName: string): string {
+    const status = $geoJsonLayerStatusByDataset[datasetName] || 'idle'
+    if (status === 'loading') return 'bg-amber-50 text-amber-700 border-amber-200'
+    if (status === 'ready') return 'bg-cyan-50 text-cyan-700 border-cyan-200'
+    if (status === 'error') return 'bg-red-50 text-red-700 border-red-200'
+    return 'bg-slate-50 text-slate-600 border-slate-200'
+  }
+
+  function toggleGeoJsonLayer(datasetName: string) {
+    if (isLayerEnabled(datasetName)) {
+      disableGeoJsonLayer(datasetName)
+      return
+    }
+    enableGeoJsonLayer(datasetName)
+  }
 </script>
 
 <div class="p-5 h-full flex flex-col min-h-0">
@@ -240,19 +284,42 @@
           {#if !isCollapsed(groupStateKey)}
             <div class="p-2 flex flex-col gap-1 max-h-[44vh] overflow-y-auto">
               {#each group.datasets as dataset}
-                {@const coverage = datasetCoverageStatus(dataset)}
-                <button
-                  class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none bg-white`}
-                  onclick={() => selectDataset(dataset)}
-                >
-                  <div class="min-w-0">
-                    <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
-                    <div class="mt-0.5">
-                      <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
-                    </div>
+                <div class="w-full rounded-lg bg-white px-3 py-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <button
+                      class="min-w-0 flex-1 text-left hover:text-dtcc-orange transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                      onclick={() => selectDataset(dataset)}
+                    >
+                      <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
+                      <div class="mt-0.5">
+                        <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
+                      </div>
+                    </button>
+                    <span class="text-dtcc-muted mt-0.5">&rarr;</span>
                   </div>
-                  <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
-                </button>
+                  {#if isGeoJsonPreviewable(dataset)}
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        class={`rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                          isLayerEnabled(dataset.name)
+                            ? 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+                            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                        }`}
+                        onclick={() => toggleGeoJsonLayer(dataset.name)}
+                      >
+                        {isLayerEnabled(dataset.name) ? 'Hide 3D layer' : 'Show in 3D'}
+                      </button>
+                      <span class={`rounded-full border px-2 py-1 text-[10px] font-medium ${layerStatusClass(dataset.name)}`}>
+                        {layerStatusLabel(dataset.name)}
+                      </span>
+                    </div>
+                    {#if $geoJsonLayerErrors[dataset.name]}
+                      <div class="mt-1 text-[11px] text-red-600">
+                        {$geoJsonLayerErrors[dataset.name]}
+                      </div>
+                    {/if}
+                  {/if}
+                </div>
               {/each}
             </div>
           {/if}
@@ -285,19 +352,42 @@
             {#if !isCollapsed(uploadStateKey)}
               <div class="p-2 flex flex-col gap-1 max-h-[44vh] overflow-y-auto">
                 {#each uploadGroup.datasets as dataset}
-                  {@const coverage = datasetCoverageStatus(dataset)}
-                  <button
-                    class={`w-full flex items-start justify-between px-3 py-3 rounded-lg text-left hover:bg-black/5 transition-colors group cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none bg-white`}
-                    onclick={() => selectDataset(dataset)}
-                  >
-                    <div class="min-w-0">
-                      <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
-                      <div class="mt-0.5">
-                        <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
-                      </div>
+                  <div class="w-full rounded-lg bg-white px-3 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                      <button
+                        class="min-w-0 flex-1 text-left hover:text-dtcc-orange transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                        onclick={() => selectDataset(dataset)}
+                      >
+                        <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
+                        <div class="mt-0.5">
+                          <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
+                        </div>
+                      </button>
+                      <span class="text-dtcc-muted mt-0.5">&rarr;</span>
                     </div>
-                    <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
-                  </button>
+                    {#if isGeoJsonPreviewable(dataset)}
+                      <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          class={`rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                            isLayerEnabled(dataset.name)
+                              ? 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+                              : 'border-[#f0e4da] bg-[#fff8f4] text-[#7c4a2f] hover:bg-[#fff0e6]'
+                          }`}
+                          onclick={() => toggleGeoJsonLayer(dataset.name)}
+                        >
+                          {isLayerEnabled(dataset.name) ? 'Hide 3D layer' : 'Show in 3D'}
+                        </button>
+                        <span class={`rounded-full border px-2 py-1 text-[10px] font-medium ${layerStatusClass(dataset.name)}`}>
+                          {layerStatusLabel(dataset.name)}
+                        </span>
+                      </div>
+                      {#if $geoJsonLayerErrors[dataset.name]}
+                        <div class="mt-1 text-[11px] text-red-600">
+                          {$geoJsonLayerErrors[dataset.name]}
+                        </div>
+                      {/if}
+                    {/if}
+                  </div>
                 {/each}
               </div>
             {/if}

@@ -30,7 +30,28 @@ export interface DatasetInfo {
   uploaded_at?: string;
   version?: number;
   bounds?: number[]; // [minX, minY, maxX, maxY] when known
+  previewable?: boolean;
+  preview_formats?: string[];
 }
+
+export type GeoJsonGeometry = {
+  type: string;
+  coordinates?: unknown;
+  geometries?: GeoJsonGeometry[];
+};
+
+export type GeoJsonFeature = {
+  type: 'Feature';
+  id?: string | number;
+  geometry: GeoJsonGeometry | null;
+  properties?: Record<string, unknown> | null;
+};
+
+export type GeoJsonFeatureCollection = {
+  type: 'FeatureCollection';
+  features: GeoJsonFeature[];
+  bbox?: number[];
+};
 
 export interface MapConfig {
   center: [number, number];

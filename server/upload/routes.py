@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import shutil
 import uuid
 from datetime import datetime
@@ -21,6 +22,8 @@ from .deterministic_checks import check_all_candidates
 from .ingest import ingest_candidate
 from .quality_gate import _collect_existing_datasets, run_quality_gate
 from .service import ensure_catalog_directories, get_catalog
+
+logger = logging.getLogger(__name__)
 
 
 def _safe_rel_path(filename: str) -> str:
@@ -209,23 +212,30 @@ def create_upload_router() -> APIRouter:
         catalog.update_batch_status(batch_id, "scanned")
         print(f"[upload] Batch {batch_id}: scan completed, detected {len(candidates)} candidates")
 
-        # Run deterministic quality checks immediately (instant, no AI)
-        existing_datasets = _collect_existing_datasets(catalog)
-        verdicts = check_all_candidates(candidates, existing_datasets)
-        name_to_id: dict[str, str] = {c["name"]: c["id"] for c in candidates}
-        for v in verdicts:
-            cid = name_to_id.get(v["name"])
-            if cid:
-                catalog.update_candidate_verdict(
-                    candidate_id=cid,
-                    verdict=v["verdict"],
-                    issues=v["issues"],
-                    summary=v["summary"],
-                    thumbnail_path=None,
-                )
-        # Re-fetch candidates so response includes verdicts
-        candidates = catalog.list_candidates(batch_id)
-        print(f"[upload] Batch {batch_id}: deterministic checks complete")
+        # Run deterministic quality checks immediately (instant, no AI).
+        # These checks enrich the review UI but must never block upload scanning.
+        try:
+            existing_datasets = _collect_existing_datasets(catalog)
+            verdicts = check_all_candidates(candidates, existing_datasets)
+            name_to_id: dict[str, str] = {c["name"]: c["id"] for c in candidates}
+            for v in verdicts:
+                cid = name_to_id.get(v["name"])
+                if cid:
+                    catalog.update_candidate_verdict(
+                        candidate_id=cid,
+                        verdict=v["verdict"],
+                        issues=v["issues"],
+                        summary=v["summary"],
+                        thumbnail_path=None,
+                    )
+            # Re-fetch candidates so response includes verdicts
+            candidates = catalog.list_candidates(batch_id)
+            print(f"[upload] Batch {batch_id}: deterministic checks complete")
+        except Exception:
+            logger.exception(
+                "Deterministic checks failed for upload batch %s; returning scanned candidates without verdicts",
+                batch_id,
+            )
 
         return {
             "batch_id": batch_id,

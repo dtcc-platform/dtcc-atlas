@@ -28,6 +28,7 @@ from server.upload import (
     create_upload_router,
     ensure_catalog_directories,
     get_catalog,
+    get_uploaded_dataset_preview,
     list_uploaded_datasets_for_api,
     uploaded_dataset_schema,
     process_uploaded_dataset_download,
@@ -229,6 +230,8 @@ def list_datasets():
         dataset.setdefault("data_kind_label", "Vector")
         dataset.setdefault("return_types", ["vector"])
         dataset.setdefault("supported_formats", ["geojson"])
+        dataset.setdefault("previewable", True)
+        dataset.setdefault("preview_formats", ["geojson"])
     all_datasets.extend(published)
 
     # Add uploaded datasets from catalog
@@ -257,6 +260,25 @@ def get_dataset_args(dataset_name: str):
         return uploaded_schema
 
     raise fastapi.HTTPException(status_code=404, detail="Dataset not found")
+
+
+@app.get("/api/v1/datasets/{dataset_name}/preview")
+def get_dataset_preview(dataset_name: str, format: str = "geojson"):
+    """Return preview payloads for uploaded or published GeoJSON datasets."""
+    if format.lower() != "geojson":
+        raise fastapi.HTTPException(status_code=415, detail="Preview not available for this dataset.")
+
+    published_geojson_path = get_dataset_geojson_path(dataset_name)
+    if published_geojson_path:
+        return FileResponse(published_geojson_path, media_type="application/geo+json")
+
+    try:
+        content, media_type = get_uploaded_dataset_preview(dataset_name, format)
+        return Response(content=content, media_type=media_type)
+    except FileNotFoundError as e:
+        raise fastapi.HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise fastapi.HTTPException(status_code=415, detail=str(e))
 
 
 class DatasetDownloadRequest(BaseModel):

@@ -39,6 +39,15 @@ def process_uploaded_dataset_download(
     return _process_uploaded_dataset_download(dataset_name, bounds, filename)
 
 
+def get_uploaded_dataset_preview(
+    dataset_name: str,
+    format_name: str = "geojson",
+) -> tuple[bytes, str]:
+    from .service import get_uploaded_dataset_preview as _get_uploaded_dataset_preview
+
+    return _get_uploaded_dataset_preview(dataset_name, format_name)
+
+
 def resolve_uploaded_job_result(
     dataset_name: str,
     params: dict[str, Any],
@@ -65,6 +74,7 @@ __all__ = [
     "ensure_catalog_directories",
     "get_catalog",
     "get_uploaded_dataset",
+    "get_uploaded_dataset_preview",
     "list_uploaded_datasets_for_api",
     "process_uploaded_dataset_download",
     "resolve_uploaded_job_result",

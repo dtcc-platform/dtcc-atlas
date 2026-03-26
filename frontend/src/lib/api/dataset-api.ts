@@ -4,6 +4,7 @@ import type {
   DatasetDownloadRequest,
   DatasetDownloadResponse,
   DatasetInfo,
+  GeoJsonFeatureCollection,
 } from '../types';
 import type { DatasetSchemaResponse } from '../types/json-schema';
 import { API_BASE_URL } from '../config';
@@ -60,6 +61,39 @@ export async function fetchDatasetSchema(
 
   const schema = await response.json();
   return schema as DatasetSchemaResponse;
+}
+
+export async function fetchDatasetGeoJsonPreview(
+  datasetName: string
+): Promise<GeoJsonFeatureCollection> {
+  const response = await fetch(
+    `${API_BASE_URL}/datasets/${encodeURIComponent(datasetName)}/preview?format=geojson`
+  );
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(`Dataset "${datasetName}" not found`);
+    }
+    if (response.status === 415) {
+      throw new Error('Preview not available for this dataset');
+    }
+    throw new Error(`Failed to fetch GeoJSON preview: ${response.statusText}`);
+  }
+
+  const geojson = await response.json();
+  if (
+    !geojson ||
+    geojson.type !== 'FeatureCollection' ||
+    !Array.isArray(geojson.features)
+  ) {
+    throw new Error('Invalid GeoJSON preview response');
+  }
+
+  if (geojson.features.length === 0) {
+    throw new Error('No renderable GeoJSON features');
+  }
+
+  return geojson as GeoJsonFeatureCollection;
 }
 
 /**

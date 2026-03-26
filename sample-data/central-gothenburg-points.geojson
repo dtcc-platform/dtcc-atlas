@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "name": "central-gothenburg-points",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "name": "Brunnsparken",
+        "category": "transit",
+        "description": "Major central transit hub in Gothenburg."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9674, 57.7089]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "name": "Gustaf Adolfs Torg",
+        "category": "landmark",
+        "description": "Civic square near the city hall."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9662, 57.7082]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "name": "Järntorget",
+        "category": "square",
+        "description": "Busy public square on the west side of the center."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9525, 57.6997]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 4,
+        "name": "Haga Nygata",
+        "category": "district",
+        "description": "Representative point in the Haga area."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9597, 57.6992]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 5,
+        "name": "Kungsportsplatsen",
+        "category": "transit",
+        "description": "Central stop and public space by the canal."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9749, 57.7045]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 6,
+        "name": "Lilla Bommen",
+        "category": "waterfront",
+        "description": "Riverfront point near the harbor area."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [11.9736, 57.7133]
+      }
+    }
+  ]
+}

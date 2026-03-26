@@ -15,10 +15,20 @@
   import { parseTilesetAssetIds } from '../map/tiles3d-utils'
   import { BBoxDrawer } from '../map/bbox-drawer'
   import { registerProjections } from '../map/projections'
+  import { fetchDatasetGeoJsonPreview, fetchDatasetList } from '../api/dataset-api'
   import { bbox } from '../stores/map'
   import { datasets } from '../stores/datasets'
-  import { activePanel, building3DMode, drawingActive, is3D, map3DStatus, type Building3DMode } from '../stores/ui'
-  import { fetchDatasetList } from '../api/dataset-api'
+  import {
+    activePanel,
+    building3DMode,
+    drawingActive,
+    enabledGeoJsonLayers,
+    is3D,
+    map3DStatus,
+    setGeoJsonLayerError,
+    setGeoJsonLayerStatus,
+    type Building3DMode,
+  } from '../stores/ui'
   import type { BoundingBox } from '../types'
 
   type Persisted3DState = {
@@ -26,6 +36,9 @@
     camera3D?: CesiumCameraState | null
     tilesAssetIds?: number[]
     buildingMode?: Building3DMode
+    geoJsonLayers?: {
+      enabledDatasetNames: string[]
+    } | null
   }
 
   type BuildingTilesByMode = {
@@ -41,6 +54,11 @@
   let was3D = false
   let lastBuildingMode: Building3DMode = 'photogrammetry'
   let envTilesByMode = $state<BuildingTilesByMode>({ photogrammetry: [], lod1: [] })
+  let previousEnabledGeoJsonLayers: string[] = []
+  let pendingGeoJsonZoomNames = new Set<string>()
+  let failedGeoJsonLoads = new Set<string>()
+  let inFlightGeoJsonLoads = new Map<string, Promise<void>>()
+  let suppressNextGeoJsonZoom = false
 
   function resolveEnvTilesByMode(): BuildingTilesByMode {
     const photogrammetry = parseTilesetAssetIds(import.meta.env.VITE_CESIUM_3DTILES_ASSET_ID_PHOTOGRAMMETRY)
@@ -185,6 +203,69 @@
     }
   }
 
+  async function syncGeoJsonLayersIn3D(): Promise<void> {
+    if (!$is3D || !cesiumContainer) return
+
+    const enabledNames = [...$enabledGeoJsonLayers]
+    const quality = detectQualityProfile()
+    const aoiBounds = currentLonLatBbox ?? restored3DState?.aoiBounds ?? null
+    const mode = resolveAvailableMode(restored3DState?.buildingMode ?? $building3DMode)
+
+    await ensureCesiumReadyFor3D(aoiBounds, quality, mode, false)
+
+    for (const visibleName of cesiumManager.getGeoJsonLayerState().enabledDatasetNames) {
+      if (!enabledNames.includes(visibleName)) {
+        cesiumManager.hideGeoJsonLayer(visibleName)
+      }
+    }
+
+    for (const datasetName of enabledNames) {
+      if (cesiumManager.hasGeoJsonLayer(datasetName)) {
+        cesiumManager.showGeoJsonLayer(datasetName)
+        setGeoJsonLayerStatus(datasetName, 'ready')
+        setGeoJsonLayerError(datasetName, undefined)
+        continue
+      }
+
+      if (failedGeoJsonLoads.has(datasetName)) {
+        continue
+      }
+
+      const inFlight = inFlightGeoJsonLoads.get(datasetName)
+      if (inFlight) {
+        await inFlight
+        continue
+      }
+
+      setGeoJsonLayerStatus(datasetName, 'loading')
+      setGeoJsonLayerError(datasetName, undefined)
+
+      const loadPromise = (async () => {
+        try {
+          const geojson = await fetchDatasetGeoJsonPreview(datasetName)
+          const zoomTo = pendingGeoJsonZoomNames.has(datasetName) && !suppressNextGeoJsonZoom
+          await cesiumManager.loadGeoJsonLayer(datasetName, geojson, { zoomTo })
+          pendingGeoJsonZoomNames.delete(datasetName)
+          setGeoJsonLayerStatus(datasetName, 'ready')
+          setGeoJsonLayerError(datasetName, undefined)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Failed to load GeoJSON preview'
+          failedGeoJsonLoads.add(datasetName)
+          pendingGeoJsonZoomNames.delete(datasetName)
+          setGeoJsonLayerStatus(datasetName, 'error')
+          setGeoJsonLayerError(datasetName, message)
+        } finally {
+          inFlightGeoJsonLoads.delete(datasetName)
+        }
+      })()
+
+      inFlightGeoJsonLoads.set(datasetName, loadPromise)
+      await loadPromise
+    }
+
+    suppressNextGeoJsonZoom = false
+  }
+
   onMount(() => {
     registerProjections()
     envTilesByMode = resolveEnvTilesByMode()
@@ -238,6 +319,33 @@
     lastBuildingMode = currentBuildingMode
   })
 
+  $effect(() => {
+    const enabledNames = $enabledGeoJsonLayers
+    const newlyEnabled = enabledNames.filter((name) => !previousEnabledGeoJsonLayers.includes(name))
+    const newlyDisabled = previousEnabledGeoJsonLayers.filter((name) => !enabledNames.includes(name))
+
+    for (const datasetName of newlyEnabled) {
+      failedGeoJsonLoads.delete(datasetName)
+      pendingGeoJsonZoomNames.add(datasetName)
+      setGeoJsonLayerStatus(datasetName, 'idle')
+      setGeoJsonLayerError(datasetName, undefined)
+    }
+
+    for (const datasetName of newlyDisabled) {
+      failedGeoJsonLoads.delete(datasetName)
+      pendingGeoJsonZoomNames.delete(datasetName)
+      cesiumManager.hideGeoJsonLayer(datasetName)
+      setGeoJsonLayerStatus(datasetName, 'idle')
+      setGeoJsonLayerError(datasetName, undefined)
+    }
+
+    previousEnabledGeoJsonLayers = [...enabledNames]
+
+    if ($is3D) {
+      void syncGeoJsonLayersIn3D()
+    }
+  })
+
   onDestroy(() => {
     drawer?.clearBoundingBox()
     cesiumManager.setStatusListener(null)
@@ -288,6 +396,9 @@
         activeAssetIds: number[]
         buildingMode?: Building3DMode
       }
+      geoJsonLayers?: {
+        enabledDatasetNames: string[]
+      }
     } = {}
 
     if (map) {
@@ -305,12 +416,18 @@
         activeAssetIds: cesiumManager.getConfiguredTilesetIds(),
         buildingMode: $building3DMode,
       }
+      state.geoJsonLayers = {
+        enabledDatasetNames: [...$enabledGeoJsonLayers],
+      }
     } else {
       state.aoiBounds = currentLonLatBbox
       state.camera3D = null
       state.tiles3D = {
         activeAssetIds: getTilesForMode($building3DMode),
         buildingMode: $building3DMode,
+      }
+      state.geoJsonLayers = {
+        enabledDatasetNames: [...$enabledGeoJsonLayers],
       }
     }
 
@@ -329,6 +446,9 @@
       activeAssetIds: number[]
       buildingMode?: Building3DMode
     } | null
+    geoJsonLayers?: {
+      enabledDatasetNames: string[]
+    } | null
   }) {
     const map = mapManager.getMap()
     if (map && state.center && state.zoom !== undefined) {
@@ -345,9 +465,16 @@
       camera3D: state.camera3D ?? null,
       tilesAssetIds: state.tiles3D?.activeAssetIds,
       buildingMode: state.tiles3D?.buildingMode,
+      geoJsonLayers: state.geoJsonLayers ?? null,
     }
     if (state.tiles3D?.buildingMode) {
       building3DMode.set(resolveAvailableMode(state.tiles3D.buildingMode))
+    }
+    if (state.geoJsonLayers?.enabledDatasetNames) {
+      suppressNextGeoJsonZoom = true
+      enabledGeoJsonLayers.set(state.geoJsonLayers.enabledDatasetNames)
+    } else {
+      enabledGeoJsonLayers.set([])
     }
   }
 </script>

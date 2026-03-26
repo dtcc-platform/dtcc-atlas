@@ -15,7 +15,7 @@
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive } from './lib/stores/ui'
+  import { activePanel, searchOpen, closeAllPanels, enabledGeoJsonLayers, is3D, drawingActive } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
@@ -58,6 +58,7 @@
   let unsubJobEvents: (() => void) | null = null
   let unsubPanel: (() => void) | null = null
   let unsubIs3D: (() => void) | null = null
+  let unsubGeoJsonLayers: (() => void) | null = null
   let stateSyncTimer: ReturnType<typeof setTimeout> | null = null
 
   // Debounced state sync to server
@@ -141,7 +142,7 @@
       is3D.set(sessionData.state.map.is3D)
     }
 
-    if (sessionData?.state?.map?.center || sessionData?.state?.map?.aoiBounds || sessionData?.state?.map?.camera3D || sessionData?.state?.map?.tiles3D) {
+    if (sessionData?.state?.map?.center || sessionData?.state?.map?.aoiBounds || sessionData?.state?.map?.camera3D || sessionData?.state?.map?.tiles3D || sessionData?.state?.map?.geoJsonLayers) {
       setTimeout(() => {
         mapView?.setMapState(sessionData!.state.map as {
           center?: [number, number]
@@ -161,6 +162,9 @@
           tiles3D?: {
             activeAssetIds: number[]
           } | null
+          geoJsonLayers?: {
+            enabledDatasetNames: string[]
+          } | null
         })
       }, 200)
     }
@@ -168,6 +172,7 @@
     // --- Subscribe to stores for debounced state sync ---
     unsubPanel = activePanel.subscribe(() => syncStateToServer())
     unsubIs3D = is3D.subscribe(() => syncStateToServer())
+    unsubGeoJsonLayers = enabledGeoJsonLayers.subscribe(() => syncStateToServer())
 
     // --- Connect SSE + load jobs (existing logic) ---
     jobService.connectSSE()
@@ -201,6 +206,7 @@
     if (unsubJobEvents) unsubJobEvents()
     if (unsubPanel) unsubPanel()
     if (unsubIs3D) unsubIs3D()
+    if (unsubGeoJsonLayers) unsubGeoJsonLayers()
     if (stateSyncTimer) clearTimeout(stateSyncTimer)
   })
 
