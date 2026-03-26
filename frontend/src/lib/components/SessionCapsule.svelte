@@ -170,9 +170,10 @@
 </div>
 
 <style>
-  /* Session icons sized proportionally to 16px text (Figma 150-1660: 34x35 NavItem wrappers) */
+  /* Session icons fill their 24px wrapper proportionally (Figma 150-1660: 34x35 NavItem wrappers).
+     At 22px with stroke-width:2, visual weight matches sidebar icons scaled to capsule context. */
   button :global(svg) {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
 </style>
