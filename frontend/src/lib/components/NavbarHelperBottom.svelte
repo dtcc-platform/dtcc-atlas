@@ -29,22 +29,41 @@
     if ($searchOpen) return 'to search for a location'
     return 'to draw a region on the map'
   })
+
+  // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
+  let bottomEl: HTMLElement
+  let uiScale = $state(1)
+  $effect(() => {
+    if (!bottomEl) return
+    function updateScale() {
+      const topOffset = 77
+      const bottomMargin = 16
+      const available = window.innerHeight - topOffset - bottomMargin
+      uiScale = Math.min(1, available / 633)
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  })
 </script>
 
 <!-- Navbar Helper Bottom: floating capsule matching TopNavBar/SideNavBar visual style (spec 5.2) -->
 <!-- Hidden on mobile where the Toolbar already serves as bottom nav -->
 <div
-  class="hidden sm:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-30
+  bind:this={bottomEl}
+  class="hidden sm:flex fixed bottom-4 left-1/2 z-30
     h-[49px] items-center
     bg-white/10 backdrop-blur-xl
     border border-white/20
     shadow-[0_0_30px_rgba(255,255,255,0.15)]
     rounded-[50px]
     px-5"
+  style="transform: translateX(-50%) scale({uiScale}); transform-origin: bottom center;"
   role="status"
   aria-label="Navigation helper"
 >
   <div class="flex items-center gap-3">
+    <span class="text-[#5F5F6D] font-light text-xl leading-[30px] tracking-[-0.18px] whitespace-nowrap select-none">Click</span>
     <span class="w-[24px] h-[24px] shrink-0 flex items-center justify-center">{@html helperIcon}</span>
     <span class="text-[#5F5F6D] font-light text-xl leading-[30px] tracking-[-0.18px] whitespace-nowrap select-none">
       {helperText}

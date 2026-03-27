@@ -50,11 +50,6 @@
   }
 </script>
 
-<!-- TODO: SideNavBar does not scale proportionally at small window heights.
-     Icons become inaccessible when viewport height is too small.
-     Fix: scale sidebar and icon wrappers proportionally with viewport height.
-     Implement when a shared responsive scaling system is established.
-     See also: same issue logged for TopNavBar. -->
 <!-- Anchored below TopNavBar: top-4 (16px) + h-[49px] + 12px gap = 77px (spec 4.6) -->
 <div bind:this={toolbarEl} class="absolute z-20 sm:z-30
   max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-full max-sm:px-2 max-sm:py-2.5 max-sm:gap-0.5

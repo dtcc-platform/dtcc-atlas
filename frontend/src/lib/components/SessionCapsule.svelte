@@ -16,6 +16,10 @@
   let editValue = $state('')
   let inputEl: HTMLInputElement | undefined = $state(undefined)
   let containerEl: HTMLDivElement | undefined = $state(undefined)
+  let sharePopupVisible = $state(false)
+  let shareCopied = $state(false)
+  let shareCopiedTimer: ReturnType<typeof setTimeout> | null = $state(null)
+  let shareUrl = $derived(`${typeof window !== 'undefined' ? window.location.origin : ''}/s/${sessionCode}`)
 
   // Clean up timers on destroy and remove document click listener
   $effect(() => {
@@ -23,6 +27,7 @@
     return () => {
       if (collapseTimer) clearTimeout(collapseTimer)
       if (copiedTimer) clearTimeout(copiedTimer)
+      if (shareCopiedTimer) clearTimeout(shareCopiedTimer)
       document.removeEventListener('click', handleDocumentClick)
     }
   })
@@ -30,7 +35,10 @@
   function startCollapseTimer() {
     clearCollapseTimer()
     collapseTimer = setTimeout(() => {
-      if (state === 'expanded') state = 'collapsed'
+      if (state === 'expanded') {
+        state = 'collapsed'
+        sharePopupVisible = false
+      }
     }, 5000)
   }
 
@@ -52,9 +60,12 @@
 
   // Auto-collapse when user clicks outside the capsule (e.g. on the map)
   function handleDocumentClick(e: MouseEvent) {
-    if (state === 'expanded' && containerEl && !containerEl.contains(e.target as Node)) {
-      state = 'collapsed'
-      clearCollapseTimer()
+    if (containerEl && !containerEl.contains(e.target as Node)) {
+      if (sharePopupVisible) sharePopupVisible = false
+      if (state === 'expanded') {
+        state = 'collapsed'
+        clearCollapseTimer()
+      }
     }
   }
 
@@ -79,9 +90,16 @@
   }
 
   function handleShare() {
-    // Uses window.location.origin so URLs work in all environments (dev, staging, prod)
-    const url = `${window.location.origin}/s/${sessionCode}`
-    navigator.clipboard.writeText(url).then(showCopiedFeedback)
+    sharePopupVisible = !sharePopupVisible
+    shareCopied = false
+  }
+
+  function copyShareUrl() {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      if (shareCopiedTimer) clearTimeout(shareCopiedTimer)
+      shareCopied = true
+      shareCopiedTimer = setTimeout(() => shareCopied = false, 1500)
+    })
   }
 
   function submitEdit() {
@@ -109,7 +127,7 @@
 
 <div
   bind:this={containerEl}
-  class="flex items-center h-[40px] rounded-[100px] transition-all duration-300 ease-in-out
+  class="relative flex items-center h-[40px] rounded-[100px] transition-all duration-300 ease-in-out
     border border-white/25"
   role="group"
   aria-label="Session controls"
@@ -119,7 +137,7 @@
   {#if state === 'editing'}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- onkeydown on container so Escape is caught even when focus is on buttons, not just the input -->
-    <div class="flex items-center gap-2 pt-[11px] pr-[12px] pb-[10px] pl-[19px]" onkeydown={handleKeydown}>
+    <div class="flex items-center gap-2 pt-[10px] pr-[12px] pb-[10px] pl-[19px]" onkeydown={handleKeydown}>
       <input
         bind:this={inputEl}
         bind:value={editValue}
@@ -139,7 +157,7 @@
       >{@html Icons.close}</button>
     </div>
   {:else}
-    <div class="flex items-center gap-2 pt-[11px] pr-[12px] pb-[10px] pl-[19px]">
+    <div class="flex items-center gap-2 pt-[10px] pr-[12px] pb-[10px] pl-[19px]">
       <span class="text-dtcc-orange font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
         {copied ? 'Copied!' : sessionCode}
       </span>
@@ -161,10 +179,33 @@
             class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
             style="--stroke-0: #E35A1D"
             onclick={handleShare}
-            title="Copy session URL"
+            title="Share session link"
           >{@html Icons.share}</button>
         </div>
       {/if}
+    </div>
+  {/if}
+
+  <!-- Share URL popup -->
+  {#if sharePopupVisible}
+    <div class="absolute top-full right-0 mt-2
+      flex items-center gap-2
+      bg-white/90 backdrop-blur-xl
+      border border-white/30
+      shadow-[0_0_30px_rgba(255,255,255,0.15)]
+      rounded-2xl px-3 py-2 z-50">
+      <input
+        readonly
+        value={shareUrl}
+        class="text-[13px] text-dtcc-dark bg-transparent outline-none w-[260px] select-all font-medium"
+        onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
+      />
+      <button
+        class="shrink-0 text-[12px] font-semibold cursor-pointer
+          {shareCopied ? 'text-green-600' : 'text-dtcc-orange hover:text-dtcc-orange-dark'}
+          transition-colors"
+        onclick={copyShareUrl}
+      >{shareCopied ? 'Copied!' : 'Copy'}</button>
     </div>
   {/if}
 </div>

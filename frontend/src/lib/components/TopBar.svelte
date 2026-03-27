@@ -23,6 +23,24 @@
   // Yellow/idle state requires a new detection mechanism -- not implemented yet
   let connected = $state(false)
 
+  // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
+  // Scale down proportionally when viewport height can't fit the full 633px sidebar.
+  let headerEl: HTMLElement
+  $effect(() => {
+    if (!headerEl) return
+    function updateScale() {
+      const topOffset = 77
+      const bottomMargin = 16
+      const available = window.innerHeight - topOffset - bottomMargin
+      const scale = Math.min(1, available / 633)
+      headerEl.style.transform = `scale(${scale})`
+      headerEl.style.transformOrigin = 'top center'
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  })
+
   // Cursor-following tooltip
   let tooltipVisible = $state(false)
   let tooltipX = $state(0)
@@ -48,18 +66,15 @@
   })
 </script>
 
-<!-- TODO: TopNavBar height and text are not reactive to small window heights.
-     When window height is small the topbar covers too much of the map.
-     Fix: scale topbar height and font sizes proportionally with viewport height.
-     Implement when a shared responsive scaling system is established. -->
 <!-- Topbar floating capsule -->
 <header
+  bind:this={headerEl}
   class="fixed top-4 left-4 right-4 h-[49px] z-40
     flex items-center justify-between
     bg-white/10 backdrop-blur-xl
     border border-white/20
     shadow-[0_0_30px_rgba(255,255,255,0.15)]
-    rounded-[50px] overflow-clip
+    rounded-[50px]
     pl-[13px] pr-[2px]"
 >
   <!-- Left: hamburger menu -->
@@ -85,7 +100,7 @@
     role="status"
   >
     <div class="relative">
-      <span class="text-black font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
+      <span class="text-dtcc-dark font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
         DTCC Atlas v.0.2.2
       </span>
       <!-- Server status dot: ~70% of previous 15px = 10px, offset increased per Figma 148-1368 -->
