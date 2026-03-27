@@ -16,10 +16,8 @@ cd frontend
 npm run build
 cd ..
 
-echo "Copying static files to server/static..."
-rm -rf server/static
-mkdir -p server/static
-cp -r frontend/dist/* server/static/
+# Vite outputs directly to server/static/ (configured in vite.config.ts)
+# No copy step needed.
 
-echo "Starting FastAPI server..."
-uvicorn server.main:app --host 0.0.0.0 --port 8000 --loop asyncio
+echo "Starting FastAPI server (in fenicsx-env)..."
+conda run --no-capture-output -n fenicsx-env uvicorn server.main:app --host 0.0.0.0 --port 8000 --loop asyncio

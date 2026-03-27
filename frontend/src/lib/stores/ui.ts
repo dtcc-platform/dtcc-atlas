@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store'
 import type { Map3DStatus } from '../map/cesium-manager'
 
-export type PanelView = 'datasets' | 'dataset-form' | 'bookmarks' | 'uploads' | null
+export type PanelView = 'datasets' | 'dataset-form' | 'bookmarks' | 'uploads' | 'layers' | 'downloads' | 'chat' | null
 export type Building3DMode = 'photogrammetry' | 'lod1'
 export type GeoJsonLayerStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -32,6 +32,11 @@ export function setGeoJsonLayerStatus(datasetName: string, status: GeoJsonLayerS
 export function setGeoJsonLayerError(datasetName: string, message?: string) {
   geoJsonLayerErrors.update((entries) => ({ ...entries, [datasetName]: message }))
 }
+
+// Notification dot counts -- 0 means no unseen content
+export const unseenBookmarks = writable(0)
+export const unseenDatasets = writable(0)
+export const unseenLayers = writable(0)
 
 export function closeAllPanels() {
   activePanel.set(null)

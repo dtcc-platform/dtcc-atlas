@@ -34,6 +34,7 @@ from server.upload import (
     process_uploaded_dataset_download,
 )
 from server.session import create_session_router
+from server.agent import create_agent_router
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
 import json
@@ -446,6 +447,11 @@ print("Upload router mounted at /api/v1/uploads")
 session_router = create_session_router(get_catalog())
 app.include_router(session_router, prefix="/api/v1")
 print("Session router mounted at /api/v1/sessions")
+
+# Mount agent chat router
+agent_router = create_agent_router(available_datasets=available_dataset_names)
+app.include_router(agent_router, prefix="/api/v1")
+print("Agent chat router mounted at /api/v1/agent")
 
 
 # Mount static files (must be last due to catch-all route)
