@@ -81,7 +81,7 @@
   <!-- svelte-ignore a11y_consider_explicit_label -->
   <button class="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm cursor-default focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" aria-label="Close search" onclick={() => searchOpen.set(false)}></button>
   <div class="fixed top-[20%] left-1/2 -translate-x-1/2 z-50 w-[480px]" onkeydown={trapFocus}>
-    <div class="bg-white rounded-xl shadow-2xl border border-black/10 overflow-hidden">
+    <div class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px] overflow-hidden">
       <div class="flex items-center gap-3 px-4 h-12 border-b border-black/5">
         <span class="w-5 h-5 text-dtcc-muted shrink-0">{@html Icons.search}</span>
         <input

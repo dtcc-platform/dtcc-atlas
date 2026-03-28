@@ -27,13 +27,15 @@ export const Icons = {
   // Toolbar: search (magnifier)
   search: `<svg aria-hidden="true" fill="none" viewBox="0 0 32.8 33.5"><path d="M25.4 26.2l6.4 6.3M29.7 15.7c0 8.1-6.4 14.7-14.4 14.7C7.4 30.4 1 23.8 1 15.7 1 7.6 7.4 1 15.4 1c7.9 0 14.4 6.6 14.4 14.7Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
 
-  // Toolbar: 3D view (cube with 3D label, exact Figma geometry from node 44-1828)
-  // Cube SVG path from Figma asset, placed at (9, 6) in 50x50 container per Figma layout
-  view3d: `<svg aria-hidden="true" fill="none" viewBox="0 0 50 50"><path d="M15.8506 0.0798727C16.142 -0.044191 16.4784 -0.0237592 16.7549 0.141396L31.9971 9.25272C32.2991 9.43326 32.4844 9.75928 32.4844 10.1111V21.2029H30.4844V12.4715L17.2422 20.909V35.6805L21.2422 33.2889V35.6199L16.7549 38.3025C16.439 38.4911 16.0443 38.4913 15.7285 38.3025L0.487305 29.1912C0.185385 29.0107 2.16293e-05 28.6846 0 28.3328V10.1111C0 9.75934 0.185399 9.43327 0.487305 9.25272L15.7285 0.141396L15.8506 0.0798727ZM2 27.7654L15.2422 35.6814V20.909L2 12.4725V27.7654ZM2.4668 10.3982C2.47098 10.4008 2.47533 10.4034 2.47949 10.406L16.2422 19.1746L30.0049 10.406C30.0086 10.4036 30.0128 10.4015 30.0166 10.3992L16.2412 2.16483L2.4668 10.3982Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(9 6)"/><text x="49" y="45" text-anchor="end" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="16" letter-spacing="-0.18" fill="var(--stroke-0, #5F5F6D)">3D</text></svg>`,
+  // Toolbar: 3D view (cube with 3D label)
+  // viewBox tightened to content bounds so the icon fills the 34x34 wrapper at the
+  // same visual weight as other toolbar icons. Font size increased to match.
+  view3d: `<svg aria-hidden="true" fill="none" viewBox="0 0 42 40"><path d="M15.8506 0.0798727C16.142 -0.044191 16.4784 -0.0237592 16.7549 0.141396L31.9971 9.25272C32.2991 9.43326 32.4844 9.75928 32.4844 10.1111V21.2029H30.4844V12.4715L17.2422 20.909V35.6805L21.2422 33.2889V35.6199L16.7549 38.3025C16.439 38.4911 16.0443 38.4913 15.7285 38.3025L0.487305 29.1912C0.185385 29.0107 2.16293e-05 28.6846 0 28.3328V10.1111C0 9.75934 0.185399 9.43327 0.487305 9.25272L15.7285 0.141396L15.8506 0.0798727ZM2 27.7654L15.2422 35.6814V20.909L2 12.4725V27.7654ZM2.4668 10.3982C2.47098 10.4008 2.47533 10.4034 2.47949 10.406L16.2422 19.1746L30.0049 10.406C30.0086 10.4036 30.0128 10.4015 30.0166 10.3992L16.2412 2.16483L2.4668 10.3982Z" fill="var(--stroke-0, #5F5F6D)"/><text x="42" y="38" text-anchor="end" font-family="Inter,system-ui,sans-serif" font-weight="700" font-size="19" letter-spacing="-0.5" fill="var(--stroke-0, #5F5F6D)">3D</text></svg>`,
 
-  // Toolbar: 2D view (open-corner square with 2D label, exact Figma geometry from node 44-1853)
-  // Square SVG path from Figma asset, placed at (9, 9) in 50x50 container per Figma layout
-  view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 50 50"><path d="M31 0C31.5523 0 32 0.447715 32 1V25H29.7002V2.2998H2.2998V29.7002H20V32H1L0.897461 31.9951C0.427034 31.9472 0.0527828 31.573 0.00488281 31.1025L0 31V1C0 0.447715 0.447715 0 1 0H31Z" fill="var(--stroke-0, #5F5F6D)" transform="translate(9 9)"/><text x="49" y="45" text-anchor="end" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="16" letter-spacing="-0.18" fill="var(--stroke-0, #5F5F6D)">2D</text></svg>`,
+  // Toolbar: 2D view (open-corner square with 2D label)
+  // viewBox tightened to content bounds so the icon fills the 34x34 wrapper at the
+  // same visual weight as other toolbar icons. Font size increased to match.
+  view2d: `<svg aria-hidden="true" fill="none" viewBox="0 0 42 40"><path d="M31 0C31.5523 0 32 0.447715 32 1V25H29.7002V2.2998H2.2998V29.7002H20V32H1L0.897461 31.9951C0.427034 31.9472 0.0527828 31.573 0.00488281 31.1025L0 31V1C0 0.447715 0.447715 0 1 0H31Z" fill="var(--stroke-0, #5F5F6D)"/><text x="42" y="38" text-anchor="end" font-family="Inter,system-ui,sans-serif" font-weight="700" font-size="19" letter-spacing="-0.5" fill="var(--stroke-0, #5F5F6D)">2D</text></svg>`,
 
   // Toolbar: chat (speech bubble)
   // viewBox expanded from "0 0 34 34" to prevent stroke clipping at edges
@@ -51,6 +53,9 @@ export const Icons = {
   // Topbar session: share link
   share: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
+  // Send arrow (upward arrow for chat input)
+  sendArrow: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24"><path d="M12 19V5M12 5l-7 7M12 5l7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
   // Utility icons (Heroicons, used outside toolbar)
   close: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>`,
 
@@ -61,4 +66,13 @@ export const Icons = {
   trash: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>`,
 
   chevronDown: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`,
+
+  // Layer panel: eye open (visible layer)
+  eyeOpen: `<svg aria-hidden="true" fill="none" viewBox="0 0 30 22"><path d="M1 11s5.5-10 14-10 14 10 14 10-5.5 10-14 10S1 11 1 11Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15" cy="11" r="3.5" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2"/></svg>`,
+
+  // Layer panel: eye closed (hidden layer, with strike-through)
+  eyeClosed: `<svg aria-hidden="true" fill="none" viewBox="0 0 30 22"><path d="M1 11s5.5-10 14-10 14 10 14 10-5.5 10-14 10S1 11 1 11Z" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20L26 2" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+  // Layer panel: drag handle (three horizontal lines, used for reordering)
+  dragHandle: `<svg aria-hidden="true" fill="none" viewBox="0 0 30 22"><path d="M1 1h28M1 11h28M1 21h28" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
 };

@@ -128,7 +128,7 @@
 <div
   bind:this={containerEl}
   class="relative flex items-center h-[40px] rounded-[100px] transition-all duration-300 ease-in-out
-    border border-white/25"
+    bg-white/50 border border-white/20"
   role="group"
   aria-label="Session controls"
   onmouseenter={handleMouseEnter}
@@ -190,8 +190,8 @@
   {#if sharePopupVisible}
     <div class="absolute top-full right-0 mt-2
       flex items-center gap-2
-      bg-white/90 backdrop-blur-xl
-      border border-white/30
+      bg-white/50 backdrop-blur-xl
+      border border-white/20
       shadow-[0_0_30px_rgba(255,255,255,0.15)]
       rounded-2xl px-3 py-2 z-50">
       <input

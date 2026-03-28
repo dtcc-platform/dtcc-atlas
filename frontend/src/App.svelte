@@ -18,12 +18,14 @@
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
-  import ChatPanel from './lib/components/ChatPanel.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDatasets } from './lib/stores/ui'
+  import LurkieChat from './lib/components/LurkieChat.svelte'
+  import LayersPanel from './lib/components/LayersPanel.svelte'
+  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
   import { jobs } from './lib/stores/jobs'
+  import { addLayer } from './lib/stores/layers'
   import { sessionId, sessionLoading, getSessionIdFromUrl, navigateToSession } from './lib/stores/session'
   import { BookmarkManager } from './lib/bookmarks/bookmark-manager'
   import { LocalBookmarkStorage } from './lib/storage/local-bookmark-storage'
@@ -182,8 +184,8 @@
           }
           return [...$j, event.data]
         })
-        if (event.type === 'job_complete') {
-          unseenDatasets.update(n => n + 1)
+        if (event.type === 'job_complete' || event.type === 'job_failed') {
+          unseenDownloads.update(n => n + 1)
         }
       }
     })
@@ -308,10 +310,11 @@
       onClear={handleClear}
       onToggle3D={handleToggle3D}
     />
+    {#if $activePanel === 'datasets'}
+      <DatasetList />
+    {/if}
     <SidePanel>
-      {#if $activePanel === 'datasets'}
-        <DatasetList />
-      {:else if $activePanel === 'dataset-form'}
+      {#if $activePanel === 'dataset-form'}
         <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
         {#if $bbox}
@@ -326,27 +329,72 @@
         <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
       {:else if $activePanel === 'uploads'}
         <UploadWizard onIngested={handleIngested} />
-      {:else if $activePanel === 'layers'}
-        <div class="p-6 text-center text-dtcc-muted">
-          <div class="text-sm font-medium text-dtcc-dark mb-2">Layers</div>
-          <p class="text-xs">No layers generated yet. Draw a region and generate data to see layers here.</p>
-        </div>
       {:else if $activePanel === 'downloads'}
-        <div class="p-6 text-center text-dtcc-muted">
-          <div class="text-sm font-medium text-dtcc-dark mb-2">Downloads</div>
-          <p class="text-xs">No data available for download. Generate data from a drawn region first.</p>
-        </div>
-      {:else if $activePanel === 'chat'}
-        <ChatPanel />
+        {#if $jobs.length === 0}
+          <div class="p-6 text-center text-dtcc-muted">
+            <p class="text-xs">No data available for download. Generate data from a drawn region first.</p>
+          </div>
+        {:else}
+          <div class="flex flex-col gap-1">
+            {#each $jobs as job (job.id)}
+              <div class="px-3 py-2.5 rounded-lg border border-black/5 bg-white/30">
+                <div class="flex items-center gap-2 min-w-0">
+                  {#if job.status === 'processing' || job.status === 'queued'}
+                    <div class="w-3 h-3 border-2 border-dtcc-orange border-t-transparent rounded-full animate-spin shrink-0"></div>
+                  {:else if job.status === 'complete'}
+                    <span class="w-3 h-3 text-green-500 shrink-0 text-center">&#10003;</span>
+                  {:else if job.status === 'failed'}
+                    <span class="w-3 h-3 text-red-500 shrink-0 text-center">&#10005;</span>
+                  {/if}
+                  <span class="truncate text-sm text-dtcc-dark flex-1">{job.dataset || job.id.slice(0, 8)}</span>
+                  <span class="text-xs text-dtcc-muted capitalize shrink-0">{job.status}</span>
+                </div>
+                {#if job.status === 'processing'}
+                  <div class="mt-1.5 h-1 bg-black/5 rounded-full overflow-hidden">
+                    {#if job.progress?.percent != null}
+                      <div class="h-full bg-dtcc-orange rounded-full transition-all duration-300" style="width: {job.progress.percent}%"></div>
+                    {:else}
+                      <div class="h-full bg-dtcc-orange rounded-full animate-pulse w-1/3"></div>
+                    {/if}
+                  </div>
+                {/if}
+                {#if job.status === 'complete'}
+                  <div class="flex items-center gap-2 mt-2">
+                    <button
+                      class="flex-1 px-2 py-1 text-xs font-medium text-white bg-dtcc-orange rounded-md hover:bg-dtcc-orange-dark transition-colors cursor-pointer"
+                      onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
+                    >Download</button>
+                    <button
+                      class="flex-1 px-2 py-1 text-xs font-medium text-dtcc-dark border border-black/10 rounded-md hover:bg-black/5 transition-colors cursor-pointer"
+                      onclick={() => {
+                        addLayer(job.dataset || job.filename || 'Downloaded dataset')
+                        unseenLayers.update(n => n + 1)
+                      }}
+                    >Add to layers</button>
+                  </div>
+                {/if}
+                {#if job.status === 'failed' && job.error}
+                  <p class="mt-1 text-xs text-red-500 truncate">{job.error}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
       {/if}
     </SidePanel>
+    {#if $activePanel === 'layers'}
+      <LayersPanel />
+    {/if}
     <NavbarHelperBottom />
+    <LurkieChat />
     <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
     <SessionDialog bind:open={sessionDialogOpen} />
     <CoordinateInputDialog bind:open={coordDialogOpen} onApply={(b) => mapView?.loadBbox(b)} />
-    <JobTray onRetry={handleRetryJob} />
+    <!-- JobTray removed: job progress is now shown inside the Downloads panel (spec 8.2).
+         The bottom-right popup is no longer used for job notifications. -->
+    <!-- <JobTray onRetry={handleRetryJob} /> -->
 
     <!-- Session change confirmation dialog -->
     {#if sessionChangeOpen}

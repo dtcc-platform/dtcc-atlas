@@ -1,6 +1,5 @@
 <script lang="ts">
   import { bookmarks } from '../stores/bookmarks'
-  import { activePanel } from '../stores/ui'
   import { Icons } from '../ui/icons'
   import type { SavedBookmark } from '../types/bookmarks'
 
@@ -28,13 +27,6 @@
 </script>
 
 <div class="p-5">
-  <div class="flex items-center justify-between mb-4">
-    <h3 class="text-[16px] font-semibold text-dtcc-navy">Bookmarks</h3>
-    <button class="p-1 rounded hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => activePanel.set(null)}>
-      {@html Icons.close}
-    </button>
-  </div>
-
   {#if $bookmarks.length === 0}
     <div class="text-center py-8 flex flex-col items-center gap-2">
       <span class="w-8 h-8 text-dtcc-muted/30">{@html Icons.bookmark}</span>

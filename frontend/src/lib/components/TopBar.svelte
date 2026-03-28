@@ -25,6 +25,7 @@
 
   // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
   // Scale down proportionally when viewport height can't fit the full 633px sidebar.
+  // Margins around the header also scale so gaps don't grow when the window shrinks.
   let headerEl: HTMLElement
   $effect(() => {
     if (!headerEl) return
@@ -33,8 +34,12 @@
       const bottomMargin = 16
       const available = window.innerHeight - topOffset - bottomMargin
       const scale = Math.min(1, available / 633)
+      const margin = 16 * scale
       headerEl.style.transform = `scale(${scale})`
       headerEl.style.transformOrigin = 'top center'
+      headerEl.style.top = `${margin}px`
+      headerEl.style.left = `${margin}px`
+      headerEl.style.right = `${margin}px`
     }
     updateScale()
     window.addEventListener('resize', updateScale)
@@ -69,9 +74,9 @@
 <!-- Topbar floating capsule -->
 <header
   bind:this={headerEl}
-  class="fixed top-4 left-4 right-4 h-[49px] z-40
+  class="fixed h-[49px] z-40
     flex items-center justify-between
-    bg-white/10 backdrop-blur-xl
+    bg-white/50 backdrop-blur-xl
     border border-white/20
     shadow-[0_0_30px_rgba(255,255,255,0.15)]
     rounded-[50px]
