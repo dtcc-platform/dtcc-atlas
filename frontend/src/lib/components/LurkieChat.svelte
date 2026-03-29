@@ -1,9 +1,15 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte'
+  import { Marked } from 'marked'
+  import DOMPurify from 'dompurify'
   import { Icons } from '../ui/icons'
   import { chatMessages, chatLoading, chatError, addUserMessage, clearChat } from '../stores/chat-store'
   import { chatService } from '../services/chat-service'
   import type { ChatMessage } from '../stores/chat-store'
+
+  const md = new Marked({ breaks: true })
+  const renderMarkdown = (text: string) =>
+    DOMPurify.sanitize(md.parse(text, { async: false }))
 
   // Chat states: 'collapsed' (icon only), 'expanded' (input bar), 'active' (chat + input)
   type ChatState = 'collapsed' | 'expanded' | 'active'
@@ -173,13 +179,18 @@
 
       <!-- Messages area -->
       <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-5 py-2 space-y-3 scrollbar-subtle" role="log" aria-live="polite">
-        {#each $chatMessages as msg}
+        {#each $chatMessages as msg, i}
+          {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
           <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
             <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm
               {msg.role === 'user'
                 ? 'opacity-50 text-dtcc-dark'
                 : 'text-dtcc-dark'}">
-              <div class="whitespace-pre-wrap break-words">{msg.content}</div>
+              {#if isStreaming}
+                <div class="whitespace-pre-wrap break-words">{msg.content}</div>
+              {:else}
+                <div class="chat-markdown break-words">{@html renderMarkdown(msg.content)}</div>
+              {/if}
               {#if msg.toolCalls.length > 0}
                 <div class="mt-1.5 pt-1.5 border-t border-black/10 space-y-0.5">
                   {#each msg.toolCalls as tc}
@@ -293,5 +304,41 @@
   }
   .scrollbar-subtle:hover::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.2);
+  }
+
+  /* Markdown rendering within chat bubbles */
+  .chat-markdown :global(p) {
+    margin: 0;
+  }
+  .chat-markdown :global(p + p) {
+    margin-top: 0.5em;
+  }
+  .chat-markdown :global(strong) {
+    font-weight: 600;
+  }
+  .chat-markdown :global(code) {
+    font-size: 0.85em;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+  .chat-markdown :global(pre) {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 0.5em 0.75em;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.4em 0;
+  }
+  .chat-markdown :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+  .chat-markdown :global(ul), .chat-markdown :global(ol) {
+    margin: 0.3em 0;
+    padding-left: 1.4em;
+  }
+  .chat-markdown :global(a) {
+    color: #E35A1D;
+    text-decoration: underline;
   }
 </style>

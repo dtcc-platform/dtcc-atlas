@@ -37,14 +37,40 @@ def create_agent_router(available_datasets: list[str] | None = None) -> APIRoute
         logger.info("[%s] WebSocket connected", session_id)
         await ws.send_json({"type": "session", "session_id": session_id})
 
+        # Create persistent SDK client for this WebSocket session
+        try:
+            client = await _create_client(service)
+        except ImportError:
+            await ws.send_json({
+                "type": "error",
+                "content": "Agent SDK not installed. Install claude-agent-sdk to use chat.",
+            })
+            return
+        except Exception:
+            logger.exception("[%s] Failed to create SDK client", session_id)
+            await ws.send_json({
+                "type": "error",
+                "content": "Failed to start agent. Check server logs.",
+            })
+            return
+
         try:
             while True:
                 data = await ws.receive_json()
                 msg_type = data.get("type")
 
                 if msg_type == "new_chat":
-                    logger.info("[%s] Clearing conversation", session_id)
-                    service.clear_sdk_session(session_id)
+                    logger.info("[%s] New chat -- reconnecting client", session_id)
+                    await _safe_disconnect(client, session_id)
+                    try:
+                        client = await _create_client(service)
+                    except Exception:
+                        logger.exception("[%s] Failed to create new client", session_id)
+                        await ws.send_json({
+                            "type": "error",
+                            "content": "Failed to reset chat. Please refresh the page.",
+                        })
+                        return
                     continue
 
                 if msg_type != "message":
@@ -64,141 +90,122 @@ def create_agent_router(available_datasets: list[str] | None = None) -> APIRoute
                 context_str = build_context(client_context, _datasets)
                 await ws.send_json({"type": "status", "content": "thinking"})
 
-                await _stream_agent_response(
-                    ws, service, session_id, user_text, context_str,
-                )
+                try:
+                    await _process_message(ws, client, user_text, context_str)
+                except Exception:
+                    logger.exception("[%s] Error during message -- reconnecting", session_id)
+                    await _safe_disconnect(client, session_id)
+                    try:
+                        client = await _create_client(service)
+                        await ws.send_json({
+                            "type": "error",
+                            "content": "An error occurred. Session has been reset -- please resend your message.",
+                        })
+                    except Exception:
+                        logger.exception("[%s] Reconnect failed", session_id)
+                        await ws.send_json({
+                            "type": "error",
+                            "content": "Sorry, an error occurred. Please try starting a new chat.",
+                        })
+                        return
+                    continue
 
                 await ws.send_json({"type": "done"})
 
         except WebSocketDisconnect:
             logger.info("[%s] Client disconnected", session_id)
+        finally:
+            await _safe_disconnect(client, session_id)
 
     return router
 
 
-async def _stream_agent_response(
-    ws: WebSocket,
-    service: AgentService,
-    session_id: str,
-    user_text: str,
-    context_str: str,
-) -> None:
-    """Stream Agent SDK response over WebSocket with keepalive."""
-    try:
-        from claude_agent_sdk import (
-            ClaudeSDKClient,
-            ClaudeAgentOptions,
-            AssistantMessage,
-            UserMessage,
-            ResultMessage,
-            TextBlock,
-            ToolUseBlock,
-            ToolResultBlock,
-        )
-    except ImportError:
-        await ws.send_json({
-            "type": "error",
-            "content": "Agent SDK not installed. Install claude-agent-sdk to use chat.",
-        })
-        return
-
-    sdk_session_id = service.get_sdk_session(session_id)
-    system_prompt = service.build_system_prompt(context_str)
+async def _create_client(service: AgentService):
+    """Create and connect a persistent ClaudeSDKClient."""
+    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
     options = ClaudeAgentOptions(
-        system_prompt=system_prompt,
+        system_prompt=service.build_system_prompt(),
         mcp_servers=service.get_mcp_config(),
         permission_mode="bypassPermissions",
         model="claude-sonnet-4-5",
     )
-    if sdk_session_id:
-        options.resume = sdk_session_id
-        logger.info("[%s] Resuming SDK session %s", session_id, sdk_session_id)
+    client = ClaudeSDKClient(options=options)
+    await client.connect()
+    return client
+
+
+async def _safe_disconnect(client, session_id: str) -> None:
+    """Disconnect a client, swallowing errors."""
+    try:
+        await client.disconnect()
+    except Exception:
+        logger.warning("[%s] Error during client disconnect (ignored)", session_id)
+
+
+async def _process_message(
+    ws: WebSocket,
+    client,
+    user_text: str,
+    context_str: str,
+) -> None:
+    """Send a query on the persistent client and stream the response."""
+    from claude_agent_sdk import (
+        AssistantMessage,
+        UserMessage,
+        ResultMessage,
+        TextBlock,
+        ToolUseBlock,
+        ToolResultBlock,
+    )
+
+    if context_str:
+        query_text = f"[Context: {context_str}]\n\n{user_text}"
+    else:
+        query_text = user_text
+
+    await client.query(query_text)
+
+    keepalive_task = asyncio.create_task(_keepalive_loop(ws))
+    tool_id_to_name: dict[str, str] = {}
 
     try:
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(user_text)
+        async for msg in client.receive_response():
+            if isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        await ws.send_json({
+                            "type": "text",
+                            "content": block.text,
+                        })
+                    elif isinstance(block, ToolUseBlock):
+                        tool_id_to_name[block.id] = block.name
+                        await ws.send_json({
+                            "type": "tool_call",
+                            "name": block.name,
+                            "status": "running",
+                        })
 
-            keepalive_task = asyncio.create_task(_keepalive_loop(ws))
-            tool_id_to_name: dict[str, str] = {}
+            elif isinstance(msg, UserMessage):
+                for block in msg.content:
+                    if isinstance(block, ToolResultBlock):
+                        tool_name = tool_id_to_name.get(
+                            getattr(block, "tool_use_id", ""), "tool"
+                        )
+                        await ws.send_json({
+                            "type": "tool_call",
+                            "name": tool_name,
+                            "status": "complete",
+                        })
 
-            try:
-                async for msg in client.receive_response():
-                    if isinstance(msg, AssistantMessage):
-                        for block in msg.content:
-                            if isinstance(block, TextBlock):
-                                await ws.send_json({
-                                    "type": "text",
-                                    "content": block.text,
-                                })
-                            elif isinstance(block, ToolUseBlock):
-                                tool_id_to_name[block.id] = block.name
-                                await ws.send_json({
-                                    "type": "tool_call",
-                                    "name": block.name,
-                                    "status": "running",
-                                })
-
-                    elif isinstance(msg, UserMessage):
-                        for block in msg.content:
-                            if isinstance(block, ToolResultBlock):
-                                tool_name = tool_id_to_name.get(
-                                    getattr(block, "tool_use_id", ""), "tool"
-                                )
-                                await ws.send_json({
-                                    "type": "tool_call",
-                                    "name": tool_name,
-                                    "status": "complete",
-                                })
-
-                    elif isinstance(msg, ResultMessage):
-                        if msg.session_id:
-                            service.set_sdk_session(session_id, msg.session_id)
-                        break
-            finally:
-                keepalive_task.cancel()
-                try:
-                    await keepalive_task
-                except asyncio.CancelledError:
-                    pass
-
-    except Exception:
-        logger.exception("[%s] Agent SDK error", session_id)
-        if sdk_session_id:
-            logger.info("[%s] Retrying with fresh session", session_id)
-            service.clear_sdk_session(session_id)
-            try:
-                options_fresh = ClaudeAgentOptions(
-                    system_prompt=system_prompt,
-                    mcp_servers=service.get_mcp_config(),
-                    permission_mode="bypassPermissions",
-                    model="claude-sonnet-4-5",
-                )
-                async with ClaudeSDKClient(options=options_fresh) as client:
-                    await client.query(user_text)
-                    async for msg in client.receive_response():
-                        if isinstance(msg, AssistantMessage):
-                            for block in msg.content:
-                                if isinstance(block, TextBlock):
-                                    await ws.send_json({
-                                        "type": "text",
-                                        "content": block.text,
-                                    })
-                        elif isinstance(msg, ResultMessage):
-                            if msg.session_id:
-                                service.set_sdk_session(session_id, msg.session_id)
-                            break
-            except Exception:
-                logger.exception("[%s] Fresh session also failed", session_id)
-                await ws.send_json({
-                    "type": "error",
-                    "content": "Sorry, an error occurred. Please try starting a new chat.",
-                })
-        else:
-            await ws.send_json({
-                "type": "error",
-                "content": "Sorry, an error occurred. Check server logs for details.",
-            })
+            elif isinstance(msg, ResultMessage):
+                break
+    finally:
+        keepalive_task.cancel()
+        try:
+            await keepalive_task
+        except asyncio.CancelledError:
+            pass
 
 
 async def _keepalive_loop(ws: WebSocket) -> None:

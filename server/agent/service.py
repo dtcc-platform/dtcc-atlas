@@ -24,7 +24,6 @@ class AgentService:
 
     def __init__(self):
         os.environ.pop("CLAUDECODE", None)
-        self._sdk_sessions: dict[str, str] = {}
 
     def get_mcp_config(self) -> dict:
         """Return MCP server configuration for dtcc-agent."""
@@ -48,10 +47,8 @@ class AgentService:
             }
         }
 
-    def build_system_prompt(self, context: str) -> str:
-        """Build system prompt with injected Atlas context."""
-        if context:
-            return f"{SYSTEM_PROMPT}\n\n{context}"
+    def build_system_prompt(self) -> str:
+        """Return the static system prompt."""
         return SYSTEM_PROMPT
 
     def validate_message(self, text: str) -> str | None:
@@ -63,11 +60,3 @@ class AgentService:
             return f"Message too long ({len(stripped)} chars). Please keep it under 10,000."
         return None
 
-    def get_sdk_session(self, atlas_session_id: str) -> str | None:
-        return self._sdk_sessions.get(atlas_session_id)
-
-    def set_sdk_session(self, atlas_session_id: str, sdk_session_id: str) -> None:
-        self._sdk_sessions[atlas_session_id] = sdk_session_id
-
-    def clear_sdk_session(self, atlas_session_id: str) -> None:
-        self._sdk_sessions.pop(atlas_session_id, None)

@@ -44,13 +44,11 @@ def test_validate_message_rejects_too_long():
     assert "10,000" in error
 
 
-def test_session_tracking():
+def test_build_system_prompt():
     service = AgentService()
-    assert service.get_sdk_session("sess-1") is None
-    service.set_sdk_session("sess-1", "sdk-abc")
-    assert service.get_sdk_session("sess-1") == "sdk-abc"
-    service.clear_sdk_session("sess-1")
-    assert service.get_sdk_session("sess-1") is None
+    prompt = service.build_system_prompt()
+    assert "Lurkie" in prompt
+    assert "dtcc-agent" in prompt
 
 
 def test_claudecode_env_cleared():
