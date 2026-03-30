@@ -1,7 +1,7 @@
 <script lang="ts">
   import FloatingPanel from './FloatingPanel.svelte'
   import LayerTag from './LayerTag.svelte'
-  import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers } from '../stores/layers'
+  import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer } from '../stores/layers'
   import { activePanel } from '../stores/ui'
 
   // TODO: Add layer button -- not yet implemented.
@@ -100,6 +100,8 @@
             {layer}
             onToggleVisibility={() => toggleLayerVisibility(layer.id)}
             onToggleExpanded={() => toggleLayerExpanded(layer.id)}
+            onOpacityChange={(opacity) => setLayerOpacity(layer.id, opacity)}
+            onZoomToLayer={() => zoomToLayer(layer.id)}
             onDragStart={handleDragStart(index)}
             onDragOver={handleDragOver(index)}
             onDrop={handleDrop(index)}

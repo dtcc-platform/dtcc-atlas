@@ -3,13 +3,55 @@
   import { Marked } from 'marked'
   import DOMPurify from 'dompurify'
   import { Icons } from '../ui/icons'
-  import { chatMessages, chatLoading, chatError, addUserMessage, clearChat } from '../stores/chat-store'
+  import { chatMessages, chatLoading, chatError, addUserMessage, clearChat, hasMessages } from '../stores/chat-store'
   import { chatService } from '../services/chat-service'
-  import type { ChatMessage } from '../stores/chat-store'
 
   const md = new Marked({ breaks: true })
   const renderMarkdown = (text: string) =>
     DOMPurify.sanitize(md.parse(text, { async: false }))
+
+  const LURKIE_LABELS = [
+    'Lurking...', 'Pondering...', 'Tinkering...', 'Snooping...', 'Crunching...',
+    'Investigating...', 'Inspecting...', 'Examining...', 'Scouting...', 'Surveying...', 'Peeking...',
+    'Scheming...', 'Brewing...', 'Noodling...', 'Rummaging...',
+    'Computing...', 'Processing...', 'Digesting...',
+    'Mulling...', 'Conjuring...', 'Percolating...', 'Marinating...', 'Untangling...', 'Deciphering...',
+  ]
+  let lurkieLabel = $state(LURKIE_LABELS[0])
+  let lurkieLabelFaded = $state(false)
+  let lurkieLabelTimer: ReturnType<typeof setInterval> | null = null
+  let lurkieFadeTimer: ReturnType<typeof setTimeout> | null = null
+
+  function nextLurkieLabel() {
+    let next: string
+    do {
+      next = LURKIE_LABELS[Math.floor(Math.random() * LURKIE_LABELS.length)]
+    } while (next === lurkieLabel)
+    lurkieLabel = next
+  }
+
+  function lurkieTick() {
+    lurkieLabelFaded = true
+    lurkieFadeTimer = setTimeout(() => {
+      nextLurkieLabel()
+      lurkieLabelFaded = false
+      lurkieFadeTimer = null
+    }, 300)
+  }
+
+  $effect(() => {
+    if ($chatLoading) {
+      if (!lurkieLabelTimer) {
+        lurkieLabel = LURKIE_LABELS[Math.floor(Math.random() * LURKIE_LABELS.length)]
+        lurkieLabelFaded = false
+        lurkieLabelTimer = setInterval(lurkieTick, 3000)
+      }
+    } else {
+      if (lurkieLabelTimer) { clearInterval(lurkieLabelTimer); lurkieLabelTimer = null }
+      if (lurkieFadeTimer) { clearTimeout(lurkieFadeTimer); lurkieFadeTimer = null }
+      lurkieLabelFaded = false
+    }
+  })
 
   // Chat states: 'collapsed' (icon only), 'expanded' (input bar), 'active' (chat + input)
   type ChatState = 'collapsed' | 'expanded' | 'active'
@@ -19,12 +61,36 @@
   let inputEl: HTMLTextAreaElement
   let containerEl: HTMLDivElement
 
-  // Derive whether we have messages (determines if click-outside collapses)
-  let hasMessages = $derived($chatMessages.length > 0)
+  // Drag state
+  let dragOffset = $state<{ x: number; y: number } | null>(null)
+  let dragging = $state(false)
+  let dragPos = $state<{ x: number; y: number } | null>(null)
+
+  function handleDragStart(e: MouseEvent) {
+    if (!containerEl) return
+    const rect = containerEl.getBoundingClientRect()
+    dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+    dragging = true
+    // Prevent text selection during drag; also suppresses focus on header children
+    e.preventDefault()
+  }
+
+  function handleDragMove(e: MouseEvent) {
+    if (!dragging || !dragOffset) return
+    dragPos = {
+      x: Math.max(0, Math.min(window.innerWidth - (containerEl?.offsetWidth || 360), e.clientX - dragOffset.x)),
+      y: Math.max(0, Math.min(window.innerHeight - (containerEl?.offsetHeight || 100), e.clientY - dragOffset.y)),
+    }
+  }
+
+  function handleDragEnd() {
+    dragging = false
+    dragOffset = null
+  }
 
   // Transition to active state when messages exist
   $effect(() => {
-    if (hasMessages && chatState === 'expanded') {
+    if ($hasMessages && chatState === 'expanded') {
       chatState = 'active'
     }
   })
@@ -49,7 +115,7 @@
       triggerFlash = true
       setTimeout(() => {
         triggerFlash = false
-        chatState = hasMessages ? 'active' : 'expanded'
+        chatState = $hasMessages ? 'active' : 'expanded'
         tick().then(() => {
           if (inputEl) inputEl.focus()
         })
@@ -109,32 +175,53 @@
 
   // Responsive scaling: match the proportional scaling used by other floating panels.
   // Positions are set dynamically instead of using fixed Tailwind margin classes.
-  $effect(() => {
+  function applyPosition() {
     if (!containerEl) return
-    function updateScale() {
+    if (dragPos) {
+      const w = containerEl.offsetWidth || 360
+      const h = containerEl.offsetHeight || 100
+      const x = Math.max(0, Math.min(window.innerWidth - w, dragPos.x))
+      const y = Math.max(0, Math.min(window.innerHeight - h, dragPos.y))
+      containerEl.style.bottom = 'auto'
+      containerEl.style.right = 'auto'
+      containerEl.style.left = `${x}px`
+      containerEl.style.top = `${y}px`
+      containerEl.style.transform = ''
+      containerEl.style.transformOrigin = ''
+    } else {
       const topOffset = 77
       const bottomMargin = 16
       const available = window.innerHeight - topOffset - bottomMargin
       const scale = Math.min(1, available / 633)
       const margin = 16 * scale
+      containerEl.style.left = ''
+      containerEl.style.top = ''
       containerEl.style.bottom = `${margin}px`
       containerEl.style.right = `${margin}px`
       containerEl.style.transform = `scale(${scale})`
       containerEl.style.transformOrigin = 'bottom right'
     }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
+  }
+
+  $effect(() => {
+    // Re-run when dragPos changes or containerEl is bound
+    if (containerEl) applyPosition()
   })
 
   onMount(() => {
     chatService.connect()
     document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousemove', handleDragMove, { passive: true })
+    document.addEventListener('mouseup', handleDragEnd)
+    window.addEventListener('resize', applyPosition)
   })
 
   onDestroy(() => {
     chatService.disconnect()
     document.removeEventListener('mousedown', handleClickOutside)
+    document.removeEventListener('mousemove', handleDragMove)
+    document.removeEventListener('mouseup', handleDragEnd)
+    window.removeEventListener('resize', applyPosition)
   })
 </script>
 
@@ -151,14 +238,27 @@
         flex flex-col overflow-hidden animate-chat-in"
       style="max-height: calc(100vh - 200px);"
     >
-      <!-- Chat header -->
-      <div class="flex items-center justify-between px-5 pt-4 pb-2">
+      <!-- Chat header (drag handle) -->
+      <div
+        class="flex items-center justify-between px-5 pt-4 pb-2"
+        class:cursor-grab={!dragging}
+        class:cursor-grabbing={dragging}
+        onmousedown={handleDragStart}
+        role="toolbar"
+        tabindex="-1"
+        aria-label="Drag to reposition"
+      >
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold text-dtcc-dark">Lurkie</span>
-          {#if $chatLoading}
-            <span class="text-xs text-dtcc-muted animate-pulse">thinking...</span>
-          {/if}
         </div>
+        {#if $chatLoading}
+          <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
+            <span class="text-[10px] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
+            <div class="h-1 w-full rounded-full bg-black/5 overflow-hidden">
+              <div class="h-full w-1/3 rounded-full animate-lurkie-progress" style="background: #c44d18;"></div>
+            </div>
+          </div>
+        {/if}
         <div class="flex gap-1">
           <button
             class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
@@ -191,18 +291,12 @@
               {:else}
                 <div class="chat-markdown break-words">{@html renderMarkdown(msg.content)}</div>
               {/if}
-              {#if msg.toolCalls.length > 0}
-                <div class="mt-1.5 pt-1.5 border-t border-black/10 space-y-0.5">
-                  {#each msg.toolCalls as tc}
-                    <div class="text-xs text-dtcc-muted flex items-center gap-1">
-                      {#if tc.status === 'running'}
-                        <span class="animate-spin inline-block w-3 h-3 border border-dtcc-muted border-t-transparent rounded-full"></span>
-                      {:else}
-                        <span class="w-3 h-3 inline-flex items-center justify-center">{@html Icons.check}</span>
-                      {/if}
-                      <span>{tc.name}</span>
-                    </div>
-                  {/each}
+              {#if msg.toolCalls.some(tc => tc.status === 'running')}
+                <div class="mt-1.5 pt-1.5 border-t border-black/10">
+                  <div class="text-xs text-dtcc-muted flex items-center gap-1">
+                    <span class="animate-spin inline-block w-3 h-3 border border-dtcc-muted border-t-transparent rounded-full"></span>
+                    <span>Analyzing...</span>
+                  </div>
                 </div>
               {/if}
             </div>
@@ -243,7 +337,7 @@
         bind:this={inputEl}
         bind:value={inputText}
         onkeydown={handleKeydown}
-        placeholder={hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
+        placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
         rows="1"
         class="flex-1 resize-none bg-transparent text-sm text-dtcc-dark
           placeholder:opacity-50 placeholder:text-dtcc-muted
@@ -340,5 +434,12 @@
   .chat-markdown :global(a) {
     color: #E35A1D;
     text-decoration: underline;
+  }
+  @keyframes lurkie-progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+  .animate-lurkie-progress {
+    animation: lurkie-progress 1.5s ease-in-out infinite;
   }
 </style>

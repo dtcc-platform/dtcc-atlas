@@ -427,7 +427,7 @@ app.include_router(session_router, prefix="/api/v1")
 print("Session router mounted at /api/v1/sessions")
 
 # Mount agent chat router
-agent_router = create_agent_router(available_datasets=available_dataset_names)
+agent_router = create_agent_router(available_datasets=available_dataset_names, catalog=get_catalog())
 app.include_router(agent_router, prefix="/api/v1")
 print("Agent chat router mounted at /api/v1/agent")
 

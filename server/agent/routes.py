@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -14,15 +15,20 @@ logger = logging.getLogger("dtcc-atlas.agent")
 KEEPALIVE_INTERVAL = 30
 
 
-def create_agent_router(available_datasets: list[str] | None = None) -> APIRouter:
+def create_agent_router(
+    available_datasets: list[str] | None = None,
+    catalog: Any = None,
+) -> APIRouter:
     """Create the agent chat router.
 
     Args:
         available_datasets: List of dataset names for context injection.
+        catalog: UploadCatalog instance for querying ingested GeoJSON files.
     """
     router = APIRouter(prefix="/agent", tags=["agent"])
     service = AgentService()
     _datasets = available_datasets or []
+    _catalog = catalog
 
     @router.websocket("/chat")
     async def chat(ws: WebSocket):
@@ -87,7 +93,7 @@ def create_agent_router(available_datasets: list[str] | None = None) -> APIRoute
                 user_text = user_text.strip()
                 logger.info("[%s] User: %s", session_id, user_text[:200])
 
-                context_str = build_context(client_context, _datasets)
+                context_str = build_context(client_context, _datasets, catalog=_catalog)
                 await ws.send_json({"type": "status", "content": "thinking"})
 
                 try:

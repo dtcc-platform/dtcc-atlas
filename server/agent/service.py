@@ -16,6 +16,10 @@ Important tool usage guidelines:
 - Use a small geocoding radius (250m) unless the user explicitly asks for a \
 large area. Large bounding boxes download millions of points and are slow.
 - Parallelize tool calls whenever possible.
+- When the context lists uploaded GeoJSON files, you can analyze them using \
+load_geojson(file_path) to load the data, then query_geojson to filter \
+features by property values, and summarize_geojson_property for statistics. \
+Always load the file first before querying or summarizing.
 """
 
 

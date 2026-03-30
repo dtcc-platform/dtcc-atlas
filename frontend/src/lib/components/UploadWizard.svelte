@@ -1,6 +1,11 @@
 <script lang="ts">
-  import { activePanel } from '../stores/ui'
+  import { activePanel, unseenLayers } from '../stores/ui'
   import { datasets } from '../stores/datasets'
+  import { layerAddRequests, type LayerAddRequest } from '../stores/layers'
+  import { readFileAsGeoJson, detectGeometryKind, defaultStyleForGeometry, splitByLayerType, computeBounds } from '../map/geojson-utils'
+  import { transformCoordinates } from '../map/projections'
+  import { MAX_BBOX_AREA_M2 } from '../config'
+  import type { SplitLayer } from '../map/geojson-utils'
   import { Icons } from '../ui/icons'
   import { fetchDatasetList } from '../api/dataset-api'
   import {
@@ -49,6 +54,7 @@
   let aiEnriched = $state(false)
   let aiAvailable: boolean | null = $state(null)
   let aiUnavailableReason = $state('')
+  let parsedGeojsonLayers: SplitLayer[] = $state([])
 
   function fileKey(file: File): string {
     const relative = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
@@ -62,6 +68,7 @@
       map.set(fileKey(f), f)
     }
     for (const f of Array.from(fileList)) {
+      if (!f.name.toLowerCase().endsWith('.geojson')) continue
       map.set(fileKey(f), f)
     }
     selectedFiles = Array.from(map.values())
@@ -118,6 +125,21 @@
       message: 'Preparing upload...',
     }
     try {
+      // Parse any .geojson files client-side for map visualization
+      const allLayers: SplitLayer[] = []
+      for (const file of selectedFiles) {
+        if (file.name.toLowerCase().endsWith('.geojson')) {
+          try {
+            const geojson = await readFileAsGeoJson(file)
+            const baseName = file.name.replace(/\.(geo)?json$/i, '')
+            allLayers.push(...splitByLayerType(baseName, geojson))
+          } catch {
+            // Not a valid GeoJSON -- skip, let server handle it
+          }
+        }
+      }
+      parsedGeojsonLayers = allLayers
+
       const resp = await createUploadBatch(selectedFiles, uploadBatchName, (progress) => {
         scanProgress = progress
       })
@@ -183,16 +205,47 @@
       datasets.set(list)
       step = 'complete'
 
-      // Zoom map to uploaded data extent
+      // Add parsed GeoJSON layers (split by layer_type if present)
+      // Batch into a single store update to avoid re-entrant subscription issues
+      if (parsedGeojsonLayers.length > 0) {
+        const requests: LayerAddRequest[] = parsedGeojsonLayers.map(({ name, geojson }) => {
+          const kind = detectGeometryKind(geojson)
+          const { style, opacity } = defaultStyleForGeometry(kind, name)
+          return { name, geojson, style, opacity }
+        })
+        layerAddRequests.set(requests)
+        unseenLayers.update(n => n + requests.length)
+      }
+
+      // Set bbox from uploaded data extent so it doubles as a dataset selection.
+      // Clamp to 25 km² (MAX_BBOX_AREA_M2) by shrinking to a square centered on the extent.
+      let selectionBounds: BoundingBox | null = null
       if (resp.combined_bounds) {
-        const bounds: BoundingBox = {
+        selectionBounds = {
           minX: resp.combined_bounds.minX,
           minY: resp.combined_bounds.minY,
           maxX: resp.combined_bounds.maxX,
           maxY: resp.combined_bounds.maxY,
           crs: resp.combined_bounds.crs,
         }
-        onIngested?.(bounds, resp.batch_name || uploadBatchName)
+      } else if (parsedGeojsonLayers.length > 0) {
+        const allFeatures = parsedGeojsonLayers.flatMap(l => l.geojson.features)
+        const wgs84Bounds = computeBounds({ type: 'FeatureCollection', features: allFeatures })
+        if (wgs84Bounds) {
+          const sw = transformCoordinates([wgs84Bounds[0], wgs84Bounds[1]], 'EPSG:4326', 'EPSG:3006')
+          const ne = transformCoordinates([wgs84Bounds[2], wgs84Bounds[3]], 'EPSG:4326', 'EPSG:3006')
+          selectionBounds = { minX: sw[0], minY: sw[1], maxX: ne[0], maxY: ne[1], crs: 'EPSG:3006' }
+        }
+      }
+      if (selectionBounds) {
+        const areaM2 = (selectionBounds.maxX - selectionBounds.minX) * (selectionBounds.maxY - selectionBounds.minY)
+        if (areaM2 > MAX_BBOX_AREA_M2) {
+          const cx = (selectionBounds.minX + selectionBounds.maxX) / 2
+          const cy = (selectionBounds.minY + selectionBounds.maxY) / 2
+          const half = Math.sqrt(MAX_BBOX_AREA_M2) / 2
+          selectionBounds = { minX: cx - half, minY: cy - half, maxX: cx + half, maxY: cy + half, crs: 'EPSG:3006' }
+        }
+        onIngested?.(selectionBounds, resp.batch_name || uploadBatchName)
       }
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Ingestion failed'
@@ -252,6 +305,7 @@
     aiEnriched = false
     aiAvailable = null
     aiUnavailableReason = ''
+    parsedGeojsonLayers = []
     uploadBatchName = defaultUploadName()
     ingestResult = null
     errorMessage = ''
@@ -291,7 +345,7 @@
   {#if step === 'select'}
     <div class="flex flex-col gap-3">
       <p class="text-[12px] text-dtcc-muted">
-        Add files or a folder. Atlas will detect candidate datasets procedurally.
+        Add a GeoJSON file to visualize and analyze.
       </p>
 
       <div
@@ -315,11 +369,7 @@
         <div class="flex gap-2">
           <label class="px-3 py-2 rounded-lg bg-white border border-dtcc-border-light text-[12px] cursor-pointer hover:bg-black/5">
             Add files
-            <input type="file" multiple class="hidden" onchange={onFilesSelected} />
-          </label>
-          <label class="px-3 py-2 rounded-lg bg-white border border-dtcc-border-light text-[12px] cursor-pointer hover:bg-black/5">
-            Add folder
-            <input type="file" multiple webkitdirectory directory class="hidden" onchange={onFilesSelected} />
+            <input type="file" multiple accept=".geojson" class="hidden" onchange={onFilesSelected} />
           </label>
         </div>
         {#if isDragOver}

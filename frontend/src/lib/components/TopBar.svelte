@@ -106,7 +106,7 @@
   >
     <div class="relative">
       <span class="text-dtcc-dark font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
-        DTCC Atlas v.0.2.2
+        DTCC Atlas v.0.2.3
       </span>
       <!-- Server status dot: ~70% of previous 15px = 10px, offset increased per Figma 148-1368 -->
       <div

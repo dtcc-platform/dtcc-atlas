@@ -6,6 +6,8 @@
     layer: Layer
     onToggleVisibility: () => void
     onToggleExpanded: () => void
+    onOpacityChange: (opacity: number) => void
+    onZoomToLayer: () => void
     onDragStart: (e: DragEvent) => void
     onDragOver: (e: DragEvent) => void
     onDrop: (e: DragEvent) => void
@@ -18,6 +20,8 @@
     layer,
     onToggleVisibility,
     onToggleExpanded,
+    onOpacityChange,
+    onZoomToLayer,
     onDragStart,
     onDragOver,
     onDrop,
@@ -52,6 +56,19 @@
       >
         <span class="w-[24px] h-[17px]">{@html layer.visible ? Icons.eyeOpen : Icons.eyeClosed}</span>
       </button>
+
+      <!-- Zoom to extent -->
+      {#if layer.bounds}
+        <button
+          class="w-[40px] h-[41px] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
+            hover:bg-black/5 transition-colors
+            focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          onclick={onZoomToLayer}
+          aria-label="Zoom to {layer.name}"
+        >
+          <span class="w-[20px] h-[20px]">{@html Icons.zoomExtent}</span>
+        </button>
+      {/if}
 
       <!-- Layer name -->
       <span class="flex-1 text-[20px] font-light text-black tracking-[-0.18px] leading-[30px] truncate select-none">
@@ -90,9 +107,21 @@
 
   <!-- Expanded area -->
   {#if layer.expanded}
-    <div class="ml-[10px] mr-[50px] mb-[5px] h-[104px] rounded-[15px] bg-white/30 transition-all duration-200">
-      <!-- TODO: Layer settings content (transparency, color scheme, symbology) to be added here. -->
-      <!-- Awaiting design decision. Leave expanded area empty until specified. -->
+    <div class="ml-[10px] mr-[50px] mb-[5px] rounded-[15px] bg-white/30 transition-all duration-200 px-4 py-3">
+      <label class="flex flex-col text-sm text-[#5F5F6D]">
+        <span class="flex items-center justify-between">
+          <span class="select-none">Opacity</span>
+          <span class="text-xs font-mono tabular-nums">{Math.round(layer.opacity * 100)}%</span>
+        </span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={layer.opacity * 100}
+          oninput={(e) => onOpacityChange(Number((e.target as HTMLInputElement).value) / 100)}
+          class="w-full mt-2 h-1.5 rounded-full appearance-none bg-black/10 accent-[#E35A1D] cursor-pointer"
+        />
+      </label>
     </div>
   {/if}
 </div>

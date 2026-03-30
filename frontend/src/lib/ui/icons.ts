@@ -75,4 +75,7 @@ export const Icons = {
 
   // Layer panel: drag handle (three horizontal lines, used for reordering)
   dragHandle: `<svg aria-hidden="true" fill="none" viewBox="0 0 30 22"><path d="M1 1h28M1 11h28M1 21h28" stroke="var(--stroke-0, #5F5F6D)" stroke-width="2" stroke-linecap="round"/></svg>`,
+
+  // Layer panel: zoom to extent (crosshair/target)
+  zoomExtent: `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--stroke-0, #5F5F6D)"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.657-5.657L15.5 8.5m-7 7l-2.157 2.157m11.314 0L15.5 15.5m-7-7L6.343 6.343M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"/></svg>`,
 };

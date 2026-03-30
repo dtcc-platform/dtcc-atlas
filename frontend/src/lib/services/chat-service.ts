@@ -6,6 +6,7 @@ import { get } from 'svelte/store'
 import { API_BASE_URL } from '../config'
 import { sessionId } from '../stores/session'
 import { bbox } from '../stores/map'
+import { layers } from '../stores/layers'
 import { selectedDataset } from '../stores/datasets'
 import {
   chatLoading,
@@ -77,13 +78,16 @@ class ChatService {
       case 'session':
         break
       case 'status':
-        chatLoading.set(data.content === 'thinking')
+        if (data.content === 'thinking') chatLoading.set(true)
         break
       case 'text':
-        chatLoading.set(false)
+        // Don't set chatLoading false here -- done/error handle final state.
+        // Setting false on text causes a flicker when text precedes a tool_call.
         if (data.content) addAssistantChunk(data.content)
         break
       case 'tool_call':
+        // Keep loading true -- agent is still working between tool calls
+        chatLoading.set(true)
         if (data.name && data.status) {
           addToolCall(data.name, data.status as 'running' | 'complete')
         }
@@ -109,6 +113,7 @@ class ChatService {
     chatError.set(null)
     const currentBbox = get(bbox)
     const currentDataset = get(selectedDataset)
+    const currentLayers = get(layers)
 
     this.ws.send(JSON.stringify({
       type: 'message',
@@ -116,6 +121,7 @@ class ChatService {
       context: {
         bbox: currentBbox ? [currentBbox.minX, currentBbox.minY, currentBbox.maxX, currentBbox.maxY] : null,
         activeDataset: currentDataset?.name || null,
+        mapLayers: currentLayers.map(l => l.name),
       },
     }))
   }
