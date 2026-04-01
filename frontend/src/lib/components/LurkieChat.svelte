@@ -66,19 +66,6 @@
   let inputBarEl: HTMLElement
   let chatPanelEl: HTMLElement
 
-  // Drag state -- only affects the chat panel, never the trigger or input bar.
-  let dragOffset = $state<{ x: number; y: number } | null>(null)
-  let dragging = $state(false)
-  let dragPos = $state<{ x: number; y: number } | null>(null)
-
-  // Reset drag position when leaving active state so the chat panel
-  // returns to its default anchor above the input bar next time it opens.
-  $effect(() => {
-    if (chatState !== 'active') {
-      dragPos = null
-    }
-  })
-
   // Responsive scaling factor (shared formula with other floating panels).
   function getScale(): number {
     const topOffset = 77
@@ -88,7 +75,7 @@
   }
 
   // Apply fixed bottom-right position with responsive scaling.
-  // Used for both the trigger capsule and the input bar.
+  // Used for the expanded prompt bar.
   function applyBottomRight(el: HTMLElement | undefined) {
     if (!el) return
     const scale = getScale()
@@ -99,46 +86,28 @@
     el.style.transformOrigin = 'bottom right'
   }
 
-  // Position the chat panel above the input bar (or at dragged position).
+  // Position the chat panel above the input bar.
   function applyChatPosition() {
     if (!chatPanelEl) return
-    if (dragPos) {
-      const w = chatPanelEl.offsetWidth || 360
-      const h = chatPanelEl.offsetHeight || 100
-      const x = Math.max(0, Math.min(window.innerWidth - w, dragPos.x))
-      const y = Math.max(0, Math.min(window.innerHeight - h, dragPos.y))
-      chatPanelEl.style.bottom = 'auto'
-      chatPanelEl.style.right = 'auto'
-      chatPanelEl.style.left = `${x}px`
-      chatPanelEl.style.top = `${y}px`
-      chatPanelEl.style.transform = ''
-      chatPanelEl.style.transformOrigin = ''
-    } else {
-      const scale = getScale()
-      const margin = 16 * scale
-      // Measure the input bar's visual height so the chat panel sits directly above it.
-      const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48 * scale
-      const gap = 8 * scale
-      chatPanelEl.style.left = ''
-      chatPanelEl.style.top = ''
-      chatPanelEl.style.bottom = `${margin + inputBarHeight + gap}px`
-      chatPanelEl.style.right = `${margin}px`
-      chatPanelEl.style.transform = `scale(${scale})`
-      chatPanelEl.style.transformOrigin = 'bottom right'
-    }
+    const scale = getScale()
+    const margin = 16 * scale
+    // Measure the input bar's visual height so the chat panel sits directly above it.
+    const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48 * scale
+    const gap = 8 * scale
+    chatPanelEl.style.left = ''
+    chatPanelEl.style.top = ''
+    chatPanelEl.style.bottom = `${margin + inputBarHeight + gap}px`
+    chatPanelEl.style.right = `${margin}px`
+    chatPanelEl.style.transform = `scale(${scale})`
+    chatPanelEl.style.transformOrigin = 'bottom right'
   }
 
   // Positioning effects -- each element is tracked independently.
-  $effect(() => {
-    if (triggerEl) applyBottomRight(triggerEl)
-  })
-
   $effect(() => {
     if (inputBarEl) applyBottomRight(inputBarEl)
   })
 
   $effect(() => {
-    // applyChatPosition reads dragPos internally, which registers tracking.
     if (chatPanelEl) applyChatPosition()
   })
 
@@ -148,35 +117,6 @@
     const observer = new ResizeObserver(() => applyChatPosition())
     observer.observe(inputBarEl)
     return () => observer.disconnect()
-  })
-
-  // Drag handlers -- only for the chat panel header.
-  function handleDragStart(e: MouseEvent) {
-    if (!chatPanelEl) return
-    const rect = chatPanelEl.getBoundingClientRect()
-    dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
-    dragging = true
-    e.preventDefault()
-  }
-
-  function handleDragMove(e: MouseEvent) {
-    if (!dragging || !dragOffset) return
-    dragPos = {
-      x: Math.max(0, Math.min(window.innerWidth - (chatPanelEl?.offsetWidth || 360), e.clientX - dragOffset.x)),
-      y: Math.max(0, Math.min(window.innerHeight - (chatPanelEl?.offsetHeight || 100), e.clientY - dragOffset.y)),
-    }
-  }
-
-  function handleDragEnd() {
-    dragging = false
-    dragOffset = null
-  }
-
-  // Transition to active state when messages exist
-  $effect(() => {
-    if ($hasMessages && chatState === 'expanded') {
-      chatState = 'active'
-    }
   })
 
   // Auto-scroll messages to bottom
@@ -263,7 +203,6 @@
   }
 
   function handleResize() {
-    applyBottomRight(triggerEl)
     applyBottomRight(inputBarEl)
     applyChatPosition()
   }
@@ -271,21 +210,17 @@
   onMount(() => {
     chatService.connect()
     document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('mousemove', handleDragMove, { passive: true })
-    document.addEventListener('mouseup', handleDragEnd)
     window.addEventListener('resize', handleResize)
   })
 
   onDestroy(() => {
     chatService.disconnect()
     document.removeEventListener('mousedown', handleClickOutside)
-    document.removeEventListener('mousemove', handleDragMove)
-    document.removeEventListener('mouseup', handleDragEnd)
     window.removeEventListener('resize', handleResize)
   })
 </script>
 
-<!-- Chat panel: fixed, positioned above input bar, draggable independently -->
+<!-- Chat panel: fixed and anchored above the input bar -->
 {#if chatState === 'active'}
   <div
     bind:this={chatPanelEl}
@@ -294,15 +229,9 @@
       flex flex-col overflow-hidden animate-chat-in"
     style="bottom: 72px; right: 16px; max-height: calc(100vh - 200px);"
   >
-    <!-- Chat header (drag handle) -->
+    <!-- Chat header -->
     <div
       class="flex items-center justify-between px-5 pt-4 pb-2"
-      class:cursor-grab={!dragging}
-      class:cursor-grabbing={dragging}
-      onmousedown={handleDragStart}
-      role="toolbar"
-      tabindex="-1"
-      aria-label="Drag to reposition"
     >
       <div class="flex items-center gap-2">
         <span class="text-sm font-semibold text-dtcc-dark">Lurkie</span>

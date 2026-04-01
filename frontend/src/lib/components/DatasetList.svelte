@@ -109,7 +109,7 @@
     sm:w-[360px]
     flex flex-col gap-3
     animate-panel-in"
-  style="max-height: calc(100vh - 160px);"
+  style="top: 77px; right: 16px; max-height: calc(100vh - 160px);"
 >
   {#if showEmpty}
     <!-- Single empty panel when no datasets -->
