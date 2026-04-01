@@ -59,27 +59,111 @@
   let inputText = $state('')
   let messagesContainer: HTMLDivElement
   let inputEl: HTMLTextAreaElement
-  let containerEl: HTMLDivElement
 
-  // Drag state
+  // Independent element refs -- each Lurkie piece is positioned independently
+  // so that state transitions never cause position drift (spec sections 8-9).
+  let triggerEl: HTMLElement
+  let inputBarEl: HTMLElement
+  let chatPanelEl: HTMLElement
+
+  // Drag state -- only affects the chat panel, never the trigger or input bar.
   let dragOffset = $state<{ x: number; y: number } | null>(null)
   let dragging = $state(false)
   let dragPos = $state<{ x: number; y: number } | null>(null)
 
+  // Reset drag position when leaving active state so the chat panel
+  // returns to its default anchor above the input bar next time it opens.
+  $effect(() => {
+    if (chatState !== 'active') {
+      dragPos = null
+    }
+  })
+
+  // Responsive scaling factor (shared formula with other floating panels).
+  function getScale(): number {
+    const topOffset = 77
+    const bottomMargin = 16
+    const available = window.innerHeight - topOffset - bottomMargin
+    return Math.min(1, available / 633)
+  }
+
+  // Apply fixed bottom-right position with responsive scaling.
+  // Used for both the trigger capsule and the input bar.
+  function applyBottomRight(el: HTMLElement | undefined) {
+    if (!el) return
+    const scale = getScale()
+    const margin = 16 * scale
+    el.style.bottom = `${margin}px`
+    el.style.right = `${margin}px`
+    el.style.transform = `scale(${scale})`
+    el.style.transformOrigin = 'bottom right'
+  }
+
+  // Position the chat panel above the input bar (or at dragged position).
+  function applyChatPosition() {
+    if (!chatPanelEl) return
+    if (dragPos) {
+      const w = chatPanelEl.offsetWidth || 360
+      const h = chatPanelEl.offsetHeight || 100
+      const x = Math.max(0, Math.min(window.innerWidth - w, dragPos.x))
+      const y = Math.max(0, Math.min(window.innerHeight - h, dragPos.y))
+      chatPanelEl.style.bottom = 'auto'
+      chatPanelEl.style.right = 'auto'
+      chatPanelEl.style.left = `${x}px`
+      chatPanelEl.style.top = `${y}px`
+      chatPanelEl.style.transform = ''
+      chatPanelEl.style.transformOrigin = ''
+    } else {
+      const scale = getScale()
+      const margin = 16 * scale
+      // Measure the input bar's visual height so the chat panel sits directly above it.
+      const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48 * scale
+      const gap = 8 * scale
+      chatPanelEl.style.left = ''
+      chatPanelEl.style.top = ''
+      chatPanelEl.style.bottom = `${margin + inputBarHeight + gap}px`
+      chatPanelEl.style.right = `${margin}px`
+      chatPanelEl.style.transform = `scale(${scale})`
+      chatPanelEl.style.transformOrigin = 'bottom right'
+    }
+  }
+
+  // Positioning effects -- each element is tracked independently.
+  $effect(() => {
+    if (triggerEl) applyBottomRight(triggerEl)
+  })
+
+  $effect(() => {
+    if (inputBarEl) applyBottomRight(inputBarEl)
+  })
+
+  $effect(() => {
+    // applyChatPosition reads dragPos internally, which registers tracking.
+    if (chatPanelEl) applyChatPosition()
+  })
+
+  // Re-position chat panel when input bar resizes (textarea auto-grow).
+  $effect(() => {
+    if (!inputBarEl) return
+    const observer = new ResizeObserver(() => applyChatPosition())
+    observer.observe(inputBarEl)
+    return () => observer.disconnect()
+  })
+
+  // Drag handlers -- only for the chat panel header.
   function handleDragStart(e: MouseEvent) {
-    if (!containerEl) return
-    const rect = containerEl.getBoundingClientRect()
+    if (!chatPanelEl) return
+    const rect = chatPanelEl.getBoundingClientRect()
     dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top }
     dragging = true
-    // Prevent text selection during drag; also suppresses focus on header children
     e.preventDefault()
   }
 
   function handleDragMove(e: MouseEvent) {
     if (!dragging || !dragOffset) return
     dragPos = {
-      x: Math.max(0, Math.min(window.innerWidth - (containerEl?.offsetWidth || 360), e.clientX - dragOffset.x)),
-      y: Math.max(0, Math.min(window.innerHeight - (containerEl?.offsetHeight || 100), e.clientY - dragOffset.y)),
+      x: Math.max(0, Math.min(window.innerWidth - (chatPanelEl?.offsetWidth || 360), e.clientX - dragOffset.x)),
+      y: Math.max(0, Math.min(window.innerHeight - (chatPanelEl?.offsetHeight || 100), e.clientY - dragOffset.y)),
     }
   }
 
@@ -157,11 +241,16 @@
     inputText = ''
   }
 
+  // Click-outside detection checks all three independent elements.
   function handleClickOutside(e: MouseEvent) {
     if (chatState === 'collapsed') return
-    if (containerEl && !containerEl.contains(e.target as Node)) {
-      collapse()
-    }
+    const target = e.target as Node
+    if (
+      triggerEl?.contains(target) ||
+      inputBarEl?.contains(target) ||
+      chatPanelEl?.contains(target)
+    ) return
+    collapse()
   }
 
   function handleNewChat() {
@@ -173,47 +262,18 @@
     })
   }
 
-  // Responsive scaling: match the proportional scaling used by other floating panels.
-  // Positions are set dynamically instead of using fixed Tailwind margin classes.
-  function applyPosition() {
-    if (!containerEl) return
-    if (dragPos) {
-      const w = containerEl.offsetWidth || 360
-      const h = containerEl.offsetHeight || 100
-      const x = Math.max(0, Math.min(window.innerWidth - w, dragPos.x))
-      const y = Math.max(0, Math.min(window.innerHeight - h, dragPos.y))
-      containerEl.style.bottom = 'auto'
-      containerEl.style.right = 'auto'
-      containerEl.style.left = `${x}px`
-      containerEl.style.top = `${y}px`
-      containerEl.style.transform = ''
-      containerEl.style.transformOrigin = ''
-    } else {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      const scale = Math.min(1, available / 633)
-      const margin = 16 * scale
-      containerEl.style.left = ''
-      containerEl.style.top = ''
-      containerEl.style.bottom = `${margin}px`
-      containerEl.style.right = `${margin}px`
-      containerEl.style.transform = `scale(${scale})`
-      containerEl.style.transformOrigin = 'bottom right'
-    }
+  function handleResize() {
+    applyBottomRight(triggerEl)
+    applyBottomRight(inputBarEl)
+    applyChatPosition()
   }
-
-  $effect(() => {
-    // Re-run when dragPos changes or containerEl is bound
-    if (containerEl) applyPosition()
-  })
 
   onMount(() => {
     chatService.connect()
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('mousemove', handleDragMove, { passive: true })
     document.addEventListener('mouseup', handleDragEnd)
-    window.addEventListener('resize', applyPosition)
+    window.addEventListener('resize', handleResize)
   })
 
   onDestroy(() => {
@@ -221,143 +281,143 @@
     document.removeEventListener('mousedown', handleClickOutside)
     document.removeEventListener('mousemove', handleDragMove)
     document.removeEventListener('mouseup', handleDragEnd)
-    window.removeEventListener('resize', applyPosition)
+    window.removeEventListener('resize', handleResize)
   })
 </script>
 
-<!-- Self-contained Lurkie Chat: bottom-right fixed position -->
-<div bind:this={containerEl} class="fixed z-30 flex flex-col items-end gap-2">
-  <!-- TODO: Chat panel should respect inter-panel gaps when other panels (datasets, layers)
-       are open simultaneously. Currently positioned independently. A centralized panel layout
-       manager would be needed to coordinate positions across all floating panels. -->
-  <!-- State 3: Chat panel (above input bar) -->
-  {#if chatState === 'active'}
+<!-- Chat panel: fixed, positioned above input bar, draggable independently -->
+{#if chatState === 'active'}
+  <div
+    bind:this={chatPanelEl}
+    class="fixed z-30 w-[360px] bg-white/50 backdrop-blur-xl border border-white/20
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
+      flex flex-col overflow-hidden animate-chat-in"
+    style="bottom: 72px; right: 16px; max-height: calc(100vh - 200px);"
+  >
+    <!-- Chat header (drag handle) -->
     <div
-      class="w-[360px] bg-white/50 backdrop-blur-xl border border-white/20
-        shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
-        flex flex-col overflow-hidden animate-chat-in"
-      style="max-height: calc(100vh - 200px);"
+      class="flex items-center justify-between px-5 pt-4 pb-2"
+      class:cursor-grab={!dragging}
+      class:cursor-grabbing={dragging}
+      onmousedown={handleDragStart}
+      role="toolbar"
+      tabindex="-1"
+      aria-label="Drag to reposition"
     >
-      <!-- Chat header (drag handle) -->
-      <div
-        class="flex items-center justify-between px-5 pt-4 pb-2"
-        class:cursor-grab={!dragging}
-        class:cursor-grabbing={dragging}
-        onmousedown={handleDragStart}
-        role="toolbar"
-        tabindex="-1"
-        aria-label="Drag to reposition"
-      >
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-semibold text-dtcc-dark">Lurkie</span>
-        </div>
-        {#if $chatLoading}
-          <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
-            <span class="text-[10px] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
-            <div class="h-1 w-full rounded-full bg-black/5 overflow-hidden">
-              <div class="h-full w-1/3 rounded-full animate-lurkie-progress" style="background: #c44d18;"></div>
-            </div>
-          </div>
-        {/if}
-        <div class="flex gap-1">
-          <button
-            class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
-            title="New chat"
-            onclick={handleNewChat}
-          >
-            <span class="w-4 h-4 block">{@html `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>`}</span>
-          </button>
-          <button
-            class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
-            title="Close"
-            onclick={collapse}
-          >
-            <span class="w-4 h-4 block">{@html Icons.close}</span>
-          </button>
-        </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-semibold text-dtcc-dark">Lurkie</span>
       </div>
+      {#if $chatLoading}
+        <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
+          <span class="text-[10px] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
+          <div class="h-1 w-full rounded-full bg-black/5 overflow-hidden">
+            <div class="h-full w-1/3 rounded-full animate-lurkie-progress" style="background: #c44d18;"></div>
+          </div>
+        </div>
+      {/if}
+      <div class="flex gap-1">
+        <button
+          class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
+          title="New chat"
+          onclick={handleNewChat}
+        >
+          <span class="w-4 h-4 block">{@html `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>`}</span>
+        </button>
+        <button
+          class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
+          title="Close"
+          onclick={collapse}
+        >
+          <span class="w-4 h-4 block">{@html Icons.close}</span>
+        </button>
+      </div>
+    </div>
 
-      <!-- Messages area -->
-      <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-5 py-2 space-y-3 scrollbar-subtle" role="log" aria-live="polite">
-        {#each $chatMessages as msg, i}
-          {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
-          <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-            <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm
-              {msg.role === 'user'
-                ? 'opacity-50 text-dtcc-dark'
-                : 'text-dtcc-dark'}">
-              {#if isStreaming}
-                <div class="whitespace-pre-wrap break-words">{msg.content}</div>
-              {:else}
-                <div class="chat-markdown break-words">{@html renderMarkdown(msg.content)}</div>
-              {/if}
-              {#if msg.toolCalls.some(tc => tc.status === 'running')}
-                <div class="mt-1.5 pt-1.5 border-t border-black/10">
-                  <div class="text-xs text-dtcc-muted flex items-center gap-1">
-                    <span class="animate-spin inline-block w-3 h-3 border border-dtcc-muted border-t-transparent rounded-full"></span>
-                    <span>Analyzing...</span>
-                  </div>
+    <!-- Messages area -->
+    <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-5 py-2 space-y-3 scrollbar-subtle" role="log" aria-live="polite">
+      {#each $chatMessages as msg, i}
+        {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
+        <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+          <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm
+            {msg.role === 'user'
+              ? 'opacity-50 text-dtcc-dark'
+              : 'text-dtcc-dark'}">
+            {#if isStreaming}
+              <div class="whitespace-pre-wrap break-words">{msg.content}</div>
+            {:else}
+              <div class="chat-markdown break-words">{@html renderMarkdown(msg.content)}</div>
+            {/if}
+            {#if msg.toolCalls.some(tc => tc.status === 'running')}
+              <div class="mt-1.5 pt-1.5 border-t border-black/10">
+                <div class="text-xs text-dtcc-muted flex items-center gap-1">
+                  <span class="animate-spin inline-block w-3 h-3 border border-dtcc-muted border-t-transparent rounded-full"></span>
+                  <span>Analyzing...</span>
                 </div>
-              {/if}
-            </div>
+              </div>
+            {/if}
           </div>
-        {/each}
+        </div>
+      {/each}
 
-        {#if $chatError}
-          <div class="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{$chatError}</div>
-        {/if}
-      </div>
+      {#if $chatError}
+        <div class="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{$chatError}</div>
+      {/if}
     </div>
-  {/if}
+  </div>
+{/if}
 
-  <!-- State 1 (collapsed) / State 2 (expanded input bar) -->
-  {#if chatState === 'collapsed'}
-    <!-- Collapsed trigger capsule -->
+<!-- Trigger capsule: fixed bottom-right, independent positioning (never moves) -->
+{#if chatState === 'collapsed'}
+  <button
+    bind:this={triggerEl}
+    class="fixed z-30 w-[75px] h-[49px] flex items-center justify-center
+      bg-white/50 backdrop-blur-xl border border-white/20
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
+      hover:bg-black/5 transition-all duration-200 ease-out cursor-pointer"
+    style="bottom: 16px; right: 16px;"
+    style:--stroke-0={triggerFlash ? '#E35A1D' : undefined}
+    onclick={handleTriggerClick}
+    aria-label="Open Lurkie chat"
+  >
+    <span class="w-6 h-6 block text-dtcc-muted">{@html Icons.chat}</span>
+  </button>
+{/if}
+
+<!-- Input bar: fixed bottom-right, independent positioning (never moves) -->
+{#if chatState !== 'collapsed'}
+  <div
+    bind:this={inputBarEl}
+    class="fixed z-30 w-[360px] h-auto flex items-end gap-2
+      bg-white/50 backdrop-blur-xl border border-white/20
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
+      px-4 py-[6px]
+      animate-expand-in"
+    style="bottom: 16px; right: 16px;"
+  >
+    <textarea
+      bind:this={inputEl}
+      bind:value={inputText}
+      onkeydown={handleKeydown}
+      placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
+      rows="1"
+      class="flex-1 resize-none bg-transparent text-sm text-dtcc-dark
+        placeholder:opacity-50 placeholder:text-dtcc-muted
+        focus:outline-none py-2 leading-snug lurkie-textarea"
+    ></textarea>
     <button
-      class="w-[75px] h-[49px] flex items-center justify-center
-        bg-white/50 backdrop-blur-xl border border-white/20
-        shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
-        hover:bg-black/5 transition-all duration-200 ease-out cursor-pointer"
-      style={triggerFlash ? '--stroke-0: #E35A1D' : ''}
-      onclick={handleTriggerClick}
-      aria-label="Open Lurkie chat"
+      onclick={handleSend}
+      disabled={$chatLoading}
+      class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full
+        transition-all duration-150 active:scale-95 mb-[2px]
+        {inputText.trim()
+          ? 'bg-dtcc-orange text-white cursor-pointer'
+          : 'bg-black/5 text-dtcc-muted cursor-default'}"
+      aria-label="Send message"
     >
-      <span class="w-6 h-6 block text-dtcc-muted">{@html Icons.chat}</span>
+      <span class="w-5 h-5 block">{@html Icons.sendArrow}</span>
     </button>
-  {:else}
-    <!-- Expanded input bar -->
-    <div
-      class="w-[360px] h-auto flex items-end gap-2
-        bg-white/50 backdrop-blur-xl border border-white/20
-        shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
-        px-4 py-[6px]
-        animate-expand-in"
-    >
-      <textarea
-        bind:this={inputEl}
-        bind:value={inputText}
-        onkeydown={handleKeydown}
-        placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
-        rows="1"
-        class="flex-1 resize-none bg-transparent text-sm text-dtcc-dark
-          placeholder:opacity-50 placeholder:text-dtcc-muted
-          focus:outline-none py-2 leading-snug lurkie-textarea"
-      ></textarea>
-      <button
-        onclick={handleSend}
-        disabled={$chatLoading}
-        class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full
-          transition-all duration-150 active:scale-95 mb-[2px]
-          {inputText.trim()
-            ? 'bg-dtcc-orange text-white cursor-pointer'
-            : 'bg-black/5 text-dtcc-muted cursor-default'}"
-        aria-label="Send message"
-      >
-        <span class="w-5 h-5 block">{@html Icons.sendArrow}</span>
-      </button>
-    </div>
-  {/if}
-</div>
+  </div>
+{/if}
 
 <style>
   /* Auto-resize textarea using field-sizing (modern browsers) */

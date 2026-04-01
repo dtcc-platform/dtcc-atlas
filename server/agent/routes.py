@@ -134,7 +134,7 @@ async def _create_client(service: AgentService):
         system_prompt=service.build_system_prompt(),
         mcp_servers=service.get_mcp_config(),
         permission_mode="bypassPermissions",
-        model="claude-sonnet-4-5",
+        model="claude-opus-4-6",
     )
     client = ClaudeSDKClient(options=options)
     await client.connect()

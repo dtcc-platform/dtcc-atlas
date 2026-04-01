@@ -83,7 +83,7 @@
     max-sm:inset-0
     sm:w-[360px]
     animate-panel-in"
-  style="max-height: calc(100vh - 160px);"
+  style="top: 77px; left: 107px; max-height: calc(100vh - 160px);"
 >
   <FloatingPanel title="Layers" onClose={handleClose}>
     {#if $layers.length === 0}

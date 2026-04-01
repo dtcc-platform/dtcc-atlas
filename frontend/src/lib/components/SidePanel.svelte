@@ -74,7 +74,7 @@
       sm:w-[360px]
       overflow-hidden
       {animatingOut ? 'animate-panel-out' : 'animate-panel-in'}"
-    style="max-height: calc(100vh - 160px);"
+    style="top: 77px; right: 16px; max-height: calc(100vh - 160px);"
   >
     <FloatingPanel title={panelTitle} onClose={handleClose} class="h-full">
       {@render children()}

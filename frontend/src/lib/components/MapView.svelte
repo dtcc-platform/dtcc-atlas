@@ -93,8 +93,12 @@
     if (!drawer) return
     if ($drawingActive) {
       drawer.enableDrawing()
-    } else {
+    } else if (drawer.hasSelection()) {
+      // Completed draw exists -- just disable draw mode, keep the bbox visual
       drawer.disableDrawing()
+    } else {
+      // No completed draw (user aborted) -- clear any partial visual
+      drawer.clearBoundingBox()
     }
   })
 

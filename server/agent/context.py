@@ -72,8 +72,7 @@ def _get_uploaded_geojson_files(
     for ds in datasets:
         if ds.get("detected_format") != "geojson":
             continue
-        storage_dir = ds.get("storage_dir", "")
         primary_file = ds.get("primary_file", "")
-        if storage_dir and primary_file:
-            results.append((ds["dataset_name"], f"{storage_dir}/{primary_file}"))
+        if primary_file:
+            results.append((ds["dataset_name"], primary_file))
     return results

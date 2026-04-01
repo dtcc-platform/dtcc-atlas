@@ -5,7 +5,7 @@ const LAYER_COLORS = [
   '#1a9850', // green
   '#4575b4', // blue
   '#d73027', // red
-  '#fee08b', // yellow
+  '#b8860b', // dark goldenrod (visible on light basemaps)
   '#762a83', // purple
 ]
 
