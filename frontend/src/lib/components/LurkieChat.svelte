@@ -103,6 +103,7 @@
   }
 
   // Positioning effects -- each element is tracked independently.
+  // Trigger capsule uses pure CSS positioning (spec section 9.3).
   $effect(() => {
     if (inputBarEl) applyBottomRight(inputBarEl)
   })
@@ -356,10 +357,12 @@
     max-height: 30vh;
   }
 
-  /* Chat panel slide-in animation */
+  /* Chat panel fade-in animation.
+     Uses opacity only — transform is reserved for JS responsive scaling
+     so the two do not conflict on short viewports. */
   @keyframes chat-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   .animate-chat-in {
     animation: chat-in 200ms ease-out;
