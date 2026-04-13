@@ -3,6 +3,7 @@ import { writable } from 'svelte/store'
 export type PanelView = 'datasets' | 'dataset-form' | 'bookmarks' | 'uploads' | 'layers' | 'downloads' | null
 
 export const activePanel = writable<PanelView>(null)
+export const collapsedPanels = writable<Record<string, boolean>>({})
 export const searchOpen = writable(false)
 export const is3D = writable(false)
 export const drawingActive = writable(false)
@@ -18,4 +19,12 @@ export const unseenDownloads = writable(0)
 export function closeAllPanels() {
   activePanel.set(null)
   searchOpen.set(false)
+}
+
+export function setPanelCollapsed(panelId: string, collapsed: boolean) {
+  collapsedPanels.update((state) => ({ ...state, [panelId]: collapsed }))
+}
+
+export function togglePanelCollapsed(panelId: string) {
+  collapsedPanels.update((state) => ({ ...state, [panelId]: !state[panelId] }))
 }

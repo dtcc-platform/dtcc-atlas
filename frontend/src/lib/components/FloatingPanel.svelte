@@ -4,45 +4,52 @@
 
   interface Props {
     title: string
-    onClose: () => void
     children: Snippet
     class?: string
-    actionType?: 'close' | 'collapse-down' | 'collapse-up'
+    bodyClass?: string
     panelId?: string
+    collapsed?: boolean
+    onToggleCollapsed?: () => void
+    onClose?: () => void
+    leadingActionIcon?: string
+    leadingActionLabel?: string
+    onLeadingAction?: () => void
   }
 
-  let { title, onClose, children, class: className = '', actionType = 'close', panelId = '' }: Props = $props()
+  let {
+    title,
+    children,
+    class: className = '',
+    bodyClass = '',
+    panelId = '',
+    collapsed = false,
+    onToggleCollapsed,
+    onClose,
+    leadingActionIcon,
+    leadingActionLabel = '',
+    onLeadingAction,
+  }: Props = $props()
 </script>
 
 <div
-  class="bg-white/50 backdrop-blur-xl
-    border border-white/20
-    shadow-[0_0_30px_rgba(255,255,255,0.15)]
-    rounded-[25px]
-    p-5
-    flex flex-col gap-[10px]
-    overflow-hidden
-    {className}"
+  class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)]
+    flex flex-col overflow-hidden min-h-0 {className}"
+  style="border-radius: var(--atlas-panel-radius); padding: var(--atlas-panel-padding); gap: var(--atlas-panel-inner-gap);"
   data-panel-id={panelId || undefined}
 >
-  <PanelHeader {title} {onClose} {actionType} />
-  <div class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 scrollbar-subtle">
-    {@render children()}
-  </div>
-</div>
+  <PanelHeader
+    {title}
+    {collapsed}
+    {onToggleCollapsed}
+    {onClose}
+    {leadingActionIcon}
+    {leadingActionLabel}
+    {onLeadingAction}
+  />
 
-<style>
-  .scrollbar-subtle::-webkit-scrollbar {
-    width: 4px;
-  }
-  .scrollbar-subtle::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-subtle::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 2px;
-  }
-  .scrollbar-subtle:hover::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-  }
-</style>
+  {#if !collapsed}
+    <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-subtle {bodyClass}">
+      {@render children()}
+    </div>
+  {/if}
+</div>

@@ -57,56 +57,24 @@
   type ChatState = 'collapsed' | 'expanded' | 'active'
   let chatState = $state<ChatState>('collapsed')
   let inputText = $state('')
-  let messagesContainer: HTMLDivElement
-  let inputEl: HTMLTextAreaElement
+  let messagesContainer: HTMLDivElement | undefined = $state(undefined)
+  let inputEl: HTMLTextAreaElement | undefined = $state(undefined)
 
   // Independent element refs -- each Lurkie piece is positioned independently
   // so that state transitions never cause position drift (spec sections 8-9).
-  let triggerEl: HTMLElement
-  let inputBarEl: HTMLElement
-  let chatPanelEl: HTMLElement
-
-  // Responsive scaling factor (shared formula with other floating panels).
-  function getScale(): number {
-    const topOffset = 77
-    const bottomMargin = 16
-    const available = window.innerHeight - topOffset - bottomMargin
-    return Math.min(1, available / 633)
-  }
-
-  // Apply fixed bottom-right position with responsive scaling.
-  // Used for the expanded prompt bar.
-  function applyBottomRight(el: HTMLElement | undefined) {
-    if (!el) return
-    const scale = getScale()
-    const margin = 16 * scale
-    el.style.bottom = `${margin}px`
-    el.style.right = `${margin}px`
-    el.style.transform = `scale(${scale})`
-    el.style.transformOrigin = 'bottom right'
-  }
+  let triggerEl: HTMLElement | undefined = $state(undefined)
+  let inputBarEl: HTMLElement | undefined = $state(undefined)
+  let chatPanelEl: HTMLElement | undefined = $state(undefined)
 
   // Position the chat panel above the input bar.
   function applyChatPosition() {
     if (!chatPanelEl) return
-    const scale = getScale()
-    const margin = 16 * scale
-    // Measure the input bar's visual height so the chat panel sits directly above it.
-    const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48 * scale
-    const gap = 8 * scale
+    const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48
     chatPanelEl.style.left = ''
     chatPanelEl.style.top = ''
-    chatPanelEl.style.bottom = `${margin + inputBarHeight + gap}px`
-    chatPanelEl.style.right = `${margin}px`
-    chatPanelEl.style.transform = `scale(${scale})`
-    chatPanelEl.style.transformOrigin = 'bottom right'
+    chatPanelEl.style.bottom = `calc(var(--atlas-edge-gap) + ${inputBarHeight}px + var(--atlas-panel-gap))`
+    chatPanelEl.style.right = 'var(--atlas-edge-gap)'
   }
-
-  // Positioning effects -- each element is tracked independently.
-  // Trigger capsule uses pure CSS positioning (spec section 9.3).
-  $effect(() => {
-    if (inputBarEl) applyBottomRight(inputBarEl)
-  })
 
   $effect(() => {
     if (chatPanelEl) applyChatPosition()
@@ -204,7 +172,6 @@
   }
 
   function handleResize() {
-    applyBottomRight(inputBarEl)
     applyChatPosition()
   }
 
@@ -225,10 +192,10 @@
 {#if chatState === 'active'}
   <div
     bind:this={chatPanelEl}
-    class="fixed z-30 w-[360px] bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
+    class="fixed z-30 w-[var(--atlas-panel-width)] bg-white/50 backdrop-blur-xl border border-white/20
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
       flex flex-col overflow-hidden animate-chat-in"
-    style="bottom: 72px; right: 16px; max-height: calc(100vh - 200px);"
+    style="bottom: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap)); right: var(--atlas-edge-gap); max-height: calc(100dvh - var(--atlas-layout-top) - var(--atlas-edge-gap) - var(--atlas-bottom-bar-height) - (var(--atlas-panel-gap) * 2));"
   >
     <!-- Chat header -->
     <div
@@ -300,11 +267,11 @@
 {#if chatState === 'collapsed'}
   <button
     bind:this={triggerEl}
-    class="fixed z-30 w-[75px] h-[49px] flex items-center justify-center
+    class="fixed z-30 w-[var(--atlas-sidebar-width)] h-[var(--atlas-bottom-bar-height)] flex items-center justify-center
       bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
       hover:bg-black/5 transition-all duration-200 ease-out cursor-pointer"
-    style="bottom: 16px; right: 16px;"
+    style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap);"
     style:--stroke-0={triggerFlash ? '#E35A1D' : undefined}
     onclick={handleTriggerClick}
     aria-label="Open Lurkie chat"
@@ -317,12 +284,12 @@
 {#if chatState !== 'collapsed'}
   <div
     bind:this={inputBarEl}
-    class="fixed z-30 w-[360px] h-auto flex items-end gap-2
+    class="fixed z-30 w-[var(--atlas-panel-width)] h-auto flex items-end gap-2
       bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px]
-      px-4 py-[6px]
+      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
+      px-[clamp(12px,1.11vw,16px)] py-[clamp(5px,0.56vh,8px)]
       animate-expand-in"
-    style="bottom: 16px; right: 16px;"
+    style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap);"
   >
     <textarea
       bind:this={inputEl}
@@ -354,12 +321,10 @@
   .lurkie-textarea {
     field-sizing: content;
     min-height: 36px;
-    max-height: 30vh;
+    max-height: 26vh;
   }
 
-  /* Chat panel fade-in animation.
-     Uses opacity only — transform is reserved for JS responsive scaling
-     so the two do not conflict on short viewports. */
+  /* Chat panel fade-in animation. */
   @keyframes chat-in {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -370,26 +335,11 @@
 
   /* Input bar expand animation */
   @keyframes expand-in {
-    from { opacity: 0; width: 75px; }
-    to { opacity: 1; width: 360px; }
+    from { opacity: 0; width: var(--atlas-sidebar-width); }
+    to { opacity: 1; width: var(--atlas-panel-width); }
   }
   .animate-expand-in {
     animation: expand-in 200ms ease-out;
-  }
-
-  /* Scrollbar styling */
-  .scrollbar-subtle::-webkit-scrollbar {
-    width: 4px;
-  }
-  .scrollbar-subtle::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-subtle::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 2px;
-  }
-  .scrollbar-subtle:hover::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
   }
 
   /* Markdown rendering within chat bubbles */

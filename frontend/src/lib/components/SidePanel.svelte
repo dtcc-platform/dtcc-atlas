@@ -1,25 +1,37 @@
 <script lang="ts">
-  import { activePanel } from '../stores/ui'
+  import { onDestroy } from 'svelte'
+  import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
+  import { selectedDataset } from '../stores/datasets'
+  import { Icons } from '../ui/icons'
   import FloatingPanel from './FloatingPanel.svelte'
   import type { Snippet } from 'svelte'
+  import type { PanelView } from '../stores/ui'
 
   interface Props {
     children: Snippet
   }
 
   let { children }: Props = $props()
-  let visible = $state(false)
+  let renderedPanel = $state<Exclude<PanelView, 'datasets' | 'layers'> | null>(null)
   let animatingOut = $state(false)
-  let panelEl: HTMLElement
+  let hideTimer: ReturnType<typeof setTimeout> | null = null
 
   // Layers panel uses its own floating panel docked to the sidebar.
   // Datasets panel uses its own multi-panel stack (DatasetList.svelte).
-  const panelActive = $derived($activePanel !== null && $activePanel !== 'layers' && $activePanel !== 'datasets')
+  const nextPanel = $derived.by(() => {
+    if ($activePanel === null || $activePanel === 'layers' || $activePanel === 'datasets') {
+      return null
+    }
+    return $activePanel
+  })
+  const currentPanel = $derived(nextPanel ?? renderedPanel)
+  const panelId = $derived(currentPanel ? `side:${currentPanel}` : '')
+  const collapsed = $derived(panelId ? Boolean($collapsedPanels[panelId]) : false)
 
   // Panel title derived from active panel type
   const panelTitle = $derived.by(() => {
-    switch ($activePanel) {
-      case 'dataset-form': return 'Datasets'
+    switch (currentPanel) {
+      case 'dataset-form': return $selectedDataset?.title || $selectedDataset?.name || 'Configure Dataset'
       case 'bookmarks': return 'Bookmarks'
       case 'uploads': return 'Upload'
       case 'downloads': return 'Downloads'
@@ -27,56 +39,73 @@
     }
   })
 
+  const leadingActionIcon = $derived(currentPanel === 'dataset-form' ? Icons.arrowLeft : undefined)
+  const leadingActionLabel = $derived(currentPanel === 'dataset-form' ? 'Back to datasets' : '')
+
   $effect(() => {
-    if (panelActive) {
-      visible = true
+    if (hideTimer) {
+      clearTimeout(hideTimer)
+      hideTimer = null
+    }
+
+    if (nextPanel) {
+      renderedPanel = nextPanel
       animatingOut = false
-    } else if (visible) {
+      return
+    }
+
+    if (renderedPanel) {
       animatingOut = true
-      setTimeout(() => {
-        visible = false
+      hideTimer = setTimeout(() => {
+        renderedPanel = null
         animatingOut = false
+        hideTimer = null
       }, 200)
+    } else {
+      animatingOut = false
+    }
+
+    return () => {
+      if (hideTimer) {
+        clearTimeout(hideTimer)
+        hideTimer = null
+      }
     }
   })
 
-  // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
-  // Margins also scale so the panel tracks the navbar positions correctly.
-  $effect(() => {
-    if (!panelEl) return
-    function updateScale() {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      const scale = Math.min(1, available / 633)
-      const margin = 16 * scale
-      const scaledTopOffset = margin + 49 * scale + 12 * scale
-      panelEl.style.transform = `scale(${scale})`
-      panelEl.style.transformOrigin = 'top right'
-      panelEl.style.top = `${scaledTopOffset}px`
-      panelEl.style.right = `${margin}px`
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
+  onDestroy(() => {
+    if (hideTimer) clearTimeout(hideTimer)
   })
 
   function handleClose() {
     activePanel.set(null)
   }
+
+  function goBack() {
+    activePanel.set('datasets')
+  }
 </script>
 
-{#if visible}
+{#if currentPanel}
   <div
-    bind:this={panelEl}
-    class="absolute z-30
+    class="fixed z-30
       max-sm:inset-0
-      sm:w-[360px]
-      overflow-hidden
+      sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
+      overflow-visible
       {animatingOut ? 'animate-panel-out' : 'animate-panel-in'}"
-    style="top: 77px; right: 16px; max-height: calc(100vh - 160px);"
+    style="top: var(--atlas-layout-top); right: var(--atlas-edge-gap);"
   >
-    <FloatingPanel title={panelTitle} onClose={handleClose} class="h-full">
+    <FloatingPanel
+      title={panelTitle}
+      panelId={panelId}
+      collapsed={collapsed}
+      onToggleCollapsed={() => panelId && togglePanelCollapsed(panelId)}
+      onClose={handleClose}
+      leadingActionIcon={leadingActionIcon}
+      leadingActionLabel={leadingActionLabel}
+      onLeadingAction={currentPanel === 'dataset-form' ? goBack : undefined}
+      class={collapsed ? 'h-[var(--atlas-panel-collapsed-height)] self-start' : 'h-full'}
+    >
       {@render children()}
     </FloatingPanel>
   </div>

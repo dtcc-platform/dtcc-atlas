@@ -14,32 +14,6 @@
   }
 
   let { onClear, onToggle3D }: Props = $props()
-  let toolbarEl: HTMLDivElement
-
-  // Responsive scaling: sidebar starts at 77px from top, needs 16px bottom margin.
-  // Scale down proportionally when viewport is too short for the full 633px sidebar height.
-  // Margins also scale so gaps shrink proportionally with the content.
-  $effect(() => {
-    if (!toolbarEl) return
-
-    function updateScale() {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      const scale = Math.min(1, available / 633)
-      const margin = 16 * scale
-      // topOffset components: margin(16) + topbar height(49) + gap(12) = 77
-      // Scale the margin and gap portions; topbar height is handled by TopBar's own scaling
-      const scaledTopOffset = margin + 49 * scale + 12 * scale
-      toolbarEl.style.transform = `scale(${scale})`
-      toolbarEl.style.transformOrigin = 'top left'
-      toolbarEl.style.top = `${scaledTopOffset}px`
-      toolbarEl.style.left = `${margin}px`
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  })
 
   async function toggleDatasetsPanel() {
     const current = get(activePanel)
@@ -59,9 +33,11 @@
 </script>
 
 <!-- Anchored below TopNavBar: margin + topbar(49) + gap(12) -- positioned dynamically via JS scaling -->
-<div bind:this={toolbarEl} class="absolute z-20 sm:z-30
+<div class="fixed z-20 sm:z-30
   max-sm:bottom-4 max-sm:left-4 max-sm:right-4 max-sm:flex-row max-sm:justify-around max-sm:rounded-full max-sm:px-2 max-sm:py-2.5 max-sm:gap-0.5
-  sm:flex-col sm:w-[75px] sm:rounded-[50px] sm:px-[11px] sm:py-5 sm:justify-between
+  sm:top-[var(--atlas-layout-top)] sm:left-[var(--atlas-edge-gap)]
+  sm:flex-col sm:w-[var(--atlas-sidebar-width)] sm:h-[var(--atlas-docked-panel-height)] sm:max-h-[var(--atlas-toolbar-natural-height)] sm:rounded-[999px]
+  sm:px-[var(--atlas-toolbar-padding-x)] sm:py-[var(--atlas-toolbar-padding-y)] sm:justify-between
   flex items-center bg-white/50 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20">
   <!-- Actions group -->
   <ToolbarButton
@@ -88,7 +64,7 @@
   />
 
   <!-- Divider -->
-  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[10px] sm:w-[50px] sm:border-t sm:border-white/20"></div>
+  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[clamp(6px,1.11vh,10px)] sm:w-[clamp(36px,3.47vw,50px)] sm:border-t sm:border-white/20"></div>
 
   <!-- Data group -->
   <!-- TODO: unseenDatasets has no trigger yet. It should fire when new DTCC Core
@@ -132,7 +108,7 @@
   />
 
   <!-- Divider -->
-  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[10px] sm:w-[50px] sm:border-t sm:border-white/20"></div>
+  <div class="max-sm:my-0 max-sm:mx-1 max-sm:border-l max-sm:h-6 max-sm:self-center max-sm:border-white/10 sm:h-[clamp(6px,1.11vh,10px)] sm:w-[clamp(36px,3.47vw,50px)] sm:border-t sm:border-white/20"></div>
 
   <!-- Tools group -->
   <ToolbarButton

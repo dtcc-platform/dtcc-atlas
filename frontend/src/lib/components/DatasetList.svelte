@@ -1,7 +1,6 @@
 <script lang="ts">
   import { datasets, selectedDataset, formConfig } from '../stores/datasets'
-  import { activePanel } from '../stores/ui'
-  import { bbox } from '../stores/map'
+  import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
   import { fetchDatasetSchema } from '../api/dataset-api'
   import { schemaParser } from '../forms/schema-parser'
   import FloatingPanel from './FloatingPanel.svelte'
@@ -20,8 +19,6 @@
     { key: 'dtcc-sim', label: 'DTCC Sim' },
     { key: 'user-uploaded', label: 'User Uploads' },
   ]
-
-  let stackEl: HTMLElement
 
   function sourceGroupKey(dataset: DatasetInfo): CategoryKey {
     const source = (dataset.source_group || dataset.source || '').toLowerCase()
@@ -56,6 +53,7 @@
 
   // When no datasets at all, show a single empty panel
   const showEmpty = $derived($datasets.length === 0)
+  const stackRows = $derived(Math.max(activeCategories.length, 1))
 
   async function selectDataset(dataset: DatasetInfo) {
     selectedDataset.set(dataset)
@@ -80,71 +78,68 @@
     return bits.join(' \u2022 ')
   }
 
-  // Responsive scaling: same mechanism as Toolbar.svelte
-  $effect(() => {
-    if (!stackEl) return
-    function updateScale() {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      const scale = Math.min(1, available / 633)
-      const margin = 16 * scale
-      const scaledTopOffset = margin + 49 * scale + 12 * scale
-      stackEl.style.transform = `scale(${scale})`
-      stackEl.style.transformOrigin = 'top right'
-      stackEl.style.top = `${scaledTopOffset}px`
-      stackEl.style.right = `${margin}px`
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  })
+  function panelIdForCategory(key: string) {
+    return `datasets:${key}`
+  }
 </script>
 
 <!-- Dataset panel stack: 1-3 floating panels stacked vertically -->
 <div
-  bind:this={stackEl}
-  class="absolute z-30
+  class="fixed z-30
     max-sm:inset-0
-    sm:w-[360px]
-    flex flex-col gap-3
+    sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
+    grid gap-[var(--atlas-panel-gap)]
     animate-panel-in"
-  style="top: 77px; right: 16px; max-height: calc(100vh - 160px);"
+  style={`top: var(--atlas-layout-top); right: var(--atlas-edge-gap); grid-template-rows: repeat(${stackRows}, minmax(0, 1fr));`}
 >
   {#if showEmpty}
-    <!-- Single empty panel when no datasets -->
-    <FloatingPanel title="Datasets" onClose={handleClose} class="min-h-[200px]">
-      <div class="flex items-center justify-center h-full">
-        <p class="text-sm text-dtcc-muted">No datasets found. Try uploading data, then reopen this panel.</p>
-      </div>
-    </FloatingPanel>
-  {:else}
-    <!-- One panel per non-empty dataset category -->
-    {#each activeCategories as cat (cat.key)}
+    <div class="relative min-h-0">
       <FloatingPanel
-        title={cat.label}
+        title="Datasets"
+        panelId="datasets:empty"
+        collapsed={Boolean($collapsedPanels['datasets:empty'])}
+        onToggleCollapsed={() => togglePanelCollapsed('datasets:empty')}
         onClose={handleClose}
-        class="shrink min-h-[120px]"
+        class={Boolean($collapsedPanels['datasets:empty']) ? 'absolute top-0 left-0 right-0 h-[var(--atlas-panel-collapsed-height)]' : 'absolute inset-0'}
       >
-        <div class="flex flex-col gap-1">
-          {#each cat.datasets as dataset (dataset.name)}
-            <button
-              class="w-full flex items-start justify-between px-3 py-3 rounded-xl text-left
-                bg-white/30 hover:bg-white/50 transition-colors group cursor-pointer
-                focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
-              onclick={() => selectDataset(dataset)}
-            >
-              <div class="min-w-0">
-                <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
-                <div class="mt-0.5">
-                  <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
-                </div>
-              </div>
-              <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
-            </button>
-          {/each}
+        <div class="flex items-center justify-center h-full text-center">
+          <p class="text-sm text-dtcc-muted">No datasets found. Try uploading data, then reopen this panel.</p>
         </div>
       </FloatingPanel>
+    </div>
+  {:else}
+    <!-- One panel per non-empty dataset category -->
+    {#each activeCategories as cat, index (cat.key)}
+      {@const panelId = panelIdForCategory(cat.key)}
+      <div class="relative min-h-0">
+        <FloatingPanel
+          title={cat.label}
+          panelId={panelId}
+          collapsed={Boolean($collapsedPanels[panelId])}
+          onToggleCollapsed={() => togglePanelCollapsed(panelId)}
+          onClose={index === 0 ? handleClose : undefined}
+          class={Boolean($collapsedPanels[panelId]) ? 'absolute top-0 left-0 right-0 h-[var(--atlas-panel-collapsed-height)]' : 'absolute inset-0'}
+        >
+          <div class="flex flex-col gap-1">
+            {#each cat.datasets as dataset (dataset.name)}
+              <button
+                class="w-full flex items-start justify-between px-3 py-3 rounded-xl text-left
+                  bg-white/30 hover:bg-white/50 transition-colors group cursor-pointer
+                  focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                onclick={() => selectDataset(dataset)}
+              >
+                <div class="min-w-0">
+                  <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
+                  <div class="mt-0.5">
+                    <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
+                  </div>
+                </div>
+                <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
+              </button>
+            {/each}
+          </div>
+        </FloatingPanel>
+      </div>
     {/each}
   {/if}
 </div>

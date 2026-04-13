@@ -34,45 +34,28 @@
     return 'to draw a region on the map'
   })
 
-  // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
-  // Margins around the bar also scale so gaps don't grow when the window shrinks.
-  let bottomEl: HTMLElement
-  let uiScale = $state(1)
-  let bottomMarginPx = $state(16)
-  $effect(() => {
-    if (!bottomEl) return
-    function updateScale() {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      uiScale = Math.min(1, available / 633)
-      bottomMarginPx = 16 * uiScale
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  })
 </script>
 
 <!-- Navbar Helper Bottom: floating capsule matching TopNavBar/SideNavBar visual style (spec 5.2) -->
 <!-- Hidden on mobile where the Toolbar already serves as bottom nav -->
 <div
-  bind:this={bottomEl}
   class="hidden sm:flex fixed left-1/2 z-30
-    h-[49px] items-center
+    h-[var(--atlas-bottom-bar-height)] items-center
     bg-white/50 backdrop-blur-xl
     border border-white/20
     shadow-[0_0_30px_rgba(255,255,255,0.15)]
-    rounded-[50px]
-    px-5"
-  style="bottom: {bottomMarginPx}px; transform: translateX(-50%) scale({uiScale}); transform-origin: bottom center;"
+    rounded-[999px]
+    px-[clamp(14px,1.39vw,20px)]"
+  style="bottom: var(--atlas-edge-gap); transform: translateX(-50%);"
   role="status"
   aria-label="Navigation helper"
 >
   <div class="flex items-center gap-3">
-    <span class="text-[#5F5F6D] font-light text-xl leading-[30px] tracking-[-0.18px] whitespace-nowrap select-none">{helperPrefix}</span>
-    <span class="w-[24px] h-[24px] shrink-0 flex items-center justify-center">{@html helperIcon}</span>
-    <span class="text-[#5F5F6D] font-light text-xl leading-[30px] tracking-[-0.18px] whitespace-nowrap select-none">
+    <span class="text-[#5F5F6D] font-light tracking-[-0.18px] whitespace-nowrap select-none"
+      style="font-size: var(--atlas-helper-font-size); line-height: var(--atlas-helper-line-height);">{helperPrefix}</span>
+    <span class="w-[var(--atlas-helper-icon-size)] h-[var(--atlas-helper-icon-size)] shrink-0 flex items-center justify-center">{@html helperIcon}</span>
+    <span class="text-[#5F5F6D] font-light tracking-[-0.18px] whitespace-nowrap select-none"
+      style="font-size: var(--atlas-helper-font-size); line-height: var(--atlas-helper-line-height);">
       {helperText}
     </span>
   </div>
@@ -81,7 +64,7 @@
 <style>
   /* Helper bar icons match the muted text color (#5F5F6D is the default --stroke-0) */
   span :global(svg) {
-    width: 24px;
-    height: 24px;
+    width: var(--atlas-helper-icon-size);
+    height: var(--atlas-helper-icon-size);
   }
 </style>

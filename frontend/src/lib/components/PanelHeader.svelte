@@ -3,42 +3,86 @@
 
   interface Props {
     title: string
-    onClose: () => void
-    actionType?: 'close' | 'collapse-down' | 'collapse-up'
+    collapsed?: boolean
+    onToggleCollapsed?: () => void
+    onClose?: () => void
+    leadingActionIcon?: string
+    leadingActionLabel?: string
+    onLeadingAction?: () => void
   }
 
-  let { title, onClose, actionType = 'close' }: Props = $props()
+  let {
+    title,
+    collapsed = false,
+    onToggleCollapsed,
+    onClose,
+    leadingActionIcon,
+    leadingActionLabel = '',
+    onLeadingAction,
+  }: Props = $props()
 
-  const actionIcon = $derived.by(() => {
-    switch (actionType) {
-      case 'collapse-down': return Icons.chevronDown
-      case 'collapse-up': return Icons.chevronDown
-      default: return Icons.close
-    }
-  })
-
-  const actionLabel = $derived.by(() => {
-    switch (actionType) {
-      case 'collapse-down': return `Collapse ${title} panel`
-      case 'collapse-up': return `Expand ${title} panel`
-      default: return `Close ${title} panel`
-    }
-  })
+  const collapseLabel = $derived(
+    collapsed ? `Expand ${title} panel` : `Collapse ${title} panel`
+  )
+  const closeLabel = $derived(`Close ${title} panel`)
 </script>
 
-<div class="flex items-center justify-between pl-[15px] py-[5px] shrink-0">
-  <span class="text-[20px] font-medium text-black tracking-[-0.18px] leading-[30px] select-none">
+<div
+  class="min-h-[var(--atlas-panel-header-height)] flex items-center gap-2 shrink-0"
+>
+  {#if onLeadingAction && leadingActionIcon}
+    <button
+      class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] shrink-0
+        flex items-center justify-center rounded-lg cursor-pointer
+        text-[#5F5F6D] hover:bg-black/5 transition-colors
+        focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+      onclick={onLeadingAction}
+      aria-label={leadingActionLabel}
+    >
+      <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center">
+        {@html leadingActionIcon}
+      </span>
+    </button>
+  {/if}
+
+  <span
+    class="flex-1 min-w-0 text-[var(--atlas-panel-header-title-size)] font-medium text-black
+      tracking-[-0.18px] leading-[var(--atlas-panel-header-line-height)] truncate select-none"
+  >
     {title}
   </span>
-  <button
-    class="w-[40px] h-[41px] flex items-center justify-center rounded-lg cursor-pointer
-      text-[#5F5F6D] hover:bg-black/5 transition-colors
-      focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
-    onclick={onClose}
-    aria-label={actionLabel}
-  >
-    <span
-      class="w-[24px] h-[24px] inline-flex items-center justify-center {actionType === 'collapse-up' ? 'rotate-180' : ''}"
-    >{@html actionIcon}</span>
-  </button>
+
+  <div class="flex items-center gap-1 shrink-0">
+    {#if onToggleCollapsed}
+      <button
+        class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] flex items-center justify-center rounded-lg cursor-pointer
+          text-[#5F5F6D] hover:bg-black/5 transition-colors
+          focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        onclick={onToggleCollapsed}
+        aria-label={collapseLabel}
+        aria-expanded={!collapsed}
+      >
+        <span
+          class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center transition-transform duration-200"
+          class:rotate-180={!collapsed}
+        >
+          {@html Icons.chevronDown}
+        </span>
+      </button>
+    {/if}
+
+    {#if onClose}
+      <button
+        class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] flex items-center justify-center rounded-lg cursor-pointer
+          text-[#5F5F6D] hover:bg-black/5 transition-colors
+          focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        onclick={onClose}
+        aria-label={closeLabel}
+      >
+        <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center">
+          {@html Icons.close}
+        </span>
+      </button>
+    {/if}
+  </div>
 </div>

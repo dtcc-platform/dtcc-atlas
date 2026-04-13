@@ -48,3 +48,34 @@ class TestMainEndpoints:
         resp = app_client.get("/api/v1/datasets/list")
         data = resp.json()
         assert isinstance(data["datasets"], list)
+
+    def test_list_datasets_preserves_dtcc_sim_grouping(self, app_client):
+        class FakeSimDataset:
+            def show_options(self):
+                return {"properties": {"format": {"enum": ["geojson"]}}}
+
+        class FakeCoreDataset:
+            def show_options(self):
+                return {"properties": {"format": {"enum": ["geojson"]}}}
+
+        FakeSimDataset.__module__ = "dtcc_sim.datasets.mock"
+        FakeCoreDataset.__module__ = "dtcc_core.datasets.mock"
+
+        with (
+            patch("server.main.available_dataset_names", ["sim_data", "core_data"]),
+            patch(
+                "server.main.available_datasets",
+                {
+                    "sim_data": FakeSimDataset(),
+                    "core_data": FakeCoreDataset(),
+                },
+            ),
+        ):
+            resp = app_client.get("/api/v1/datasets/list")
+
+        assert resp.status_code == 200
+        datasets = {item["name"]: item for item in resp.json()["datasets"]}
+
+        assert datasets["sim_data"]["source_group"] == "dtcc-sim"
+        assert datasets["sim_data"]["source_label"] == "DTCC Sim"
+        assert datasets["core_data"]["source_group"] == "dtcc-core"

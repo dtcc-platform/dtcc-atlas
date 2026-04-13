@@ -127,7 +127,7 @@
 
 <div
   bind:this={containerEl}
-  class="relative flex items-center h-[40px] rounded-[100px] transition-all duration-300 ease-in-out
+  class="relative flex items-center h-[var(--atlas-topbar-inner-height)] rounded-[999px] transition-all duration-300 ease-in-out
     bg-white/50 border border-white/20"
   role="group"
   aria-label="Session controls"
@@ -137,46 +137,48 @@
   {#if state === 'editing'}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- onkeydown on container so Escape is caught even when focus is on buttons, not just the input -->
-    <div class="flex items-center gap-2 pt-[10px] pr-[12px] pb-[10px] pl-[19px]" onkeydown={handleKeydown}>
+    <div class="flex items-center gap-2" style="padding: clamp(8px, 1.11vh, 10px) clamp(10px, 0.83vw, 12px) clamp(8px, 1.11vh, 10px) clamp(14px, 1.32vw, 19px);" onkeydown={handleKeydown}>
       <input
         bind:this={inputEl}
         bind:value={editValue}
-        class="w-[90px] bg-transparent border-b border-dtcc-orange/50 text-dtcc-orange font-semibold text-[16px] leading-[24px] outline-none"
+        class="bg-transparent border-b border-dtcc-orange/50 text-dtcc-orange font-semibold outline-none"
+        style="width: var(--atlas-session-input-width); font-size: var(--atlas-session-font-size); line-height: var(--atlas-session-line-height);"
       />
       <button
-        class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
         style="--stroke-0: #E35A1D"
         onclick={handlePenClick}
         title="Confirm edit"
       >{@html Icons.pen}</button>
       <button
-        class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+        class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
         style="--stroke-0: #E35A1D"
         onclick={cancelEdit}
         title="Cancel edit"
       >{@html Icons.close}</button>
     </div>
   {:else}
-    <div class="flex items-center gap-2 pt-[10px] pr-[12px] pb-[10px] pl-[19px]">
-      <span class="text-dtcc-orange font-semibold text-[16px] leading-[24px] whitespace-nowrap select-none">
+    <div class="flex items-center gap-2" style="padding: clamp(8px, 1.11vh, 10px) clamp(10px, 0.83vw, 12px) clamp(8px, 1.11vh, 10px) clamp(14px, 1.32vw, 19px);">
+      <span class="text-dtcc-orange font-semibold whitespace-nowrap select-none"
+        style="font-size: var(--atlas-session-font-size); line-height: var(--atlas-session-line-height);">
         {copied ? 'Copied!' : sessionCode}
       </span>
       {#if state === 'expanded'}
         <div class="flex items-center gap-2 ml-1">
           <button
-            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
             style="--stroke-0: #E35A1D"
             onclick={handlePenClick}
             title="Edit session code"
           >{@html Icons.pen}</button>
           <button
-            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
             style="--stroke-0: #E35A1D"
             onclick={handleCopy}
             title="Copy session code"
           >{@html Icons.copy}</button>
           <button
-            class="w-[24px] h-[24px] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+            class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] shrink-0 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
             style="--stroke-0: #E35A1D"
             onclick={handleShare}
             title="Share session link"
@@ -197,7 +199,8 @@
       <input
         readonly
         value={shareUrl}
-        class="text-[13px] text-dtcc-dark bg-transparent outline-none w-[260px] select-all font-medium"
+        class="text-[13px] text-dtcc-dark bg-transparent outline-none select-all font-medium"
+        style="width: var(--atlas-session-share-width);"
         onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
       />
       <button
@@ -214,7 +217,7 @@
   /* Session icons fill their 24px wrapper proportionally (Figma 150-1660: 34x35 NavItem wrappers).
      At 22px with stroke-width:2, visual weight matches sidebar icons scaled to capsule context. */
   button :global(svg) {
-    width: 22px;
-    height: 22px;
+    width: var(--atlas-session-icon-size);
+    height: var(--atlas-session-icon-size);
   }
 </style>

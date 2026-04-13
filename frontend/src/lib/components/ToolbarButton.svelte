@@ -24,7 +24,7 @@
 
 <div class="group relative">
   <button
-    class="relative w-[53px] h-[55px] flex items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+    class="relative w-[var(--atlas-nav-item-width)] h-[var(--atlas-nav-item-height)] flex items-center justify-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
       {active ? 'bg-dtcc-orange/10' : 'hover:bg-black/5'}
       {disabled ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}"
     style={active ? '--stroke-0: #E35A1D' : ''}
@@ -51,7 +51,7 @@
   /* Sized to fill the 53x55 NavItem wrapper proportionally (Figma 86-1936: 50x50 icon area).
      At 34px, stroke-width:2 SVGs render with ~1.8-2px visual strokes, matching the hamburger. */
   button :global(svg) {
-    width: 34px;
-    height: 34px;
+    width: var(--atlas-nav-icon-size);
+    height: var(--atlas-nav-icon-size);
   }
 </style>

@@ -2,16 +2,16 @@
   import FloatingPanel from './FloatingPanel.svelte'
   import LayerTag from './LayerTag.svelte'
   import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer } from '../stores/layers'
-  import { activePanel } from '../stores/ui'
+  import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
 
   // TODO: Add layer button -- not yet implemented.
   // A mechanism for the user to add new layers to the layers panel is needed.
   // Awaiting design decision on button placement and layer creation flow.
   // Revisit in a future pass.
 
-  let panelEl: HTMLElement
   let dragIndex: number | null = $state(null)
   let dropIndex: number | null = $state(null)
+  const panelId = 'layers:main'
 
   function handleClose() {
     activePanel.set(null)
@@ -50,42 +50,24 @@
     dragIndex = null
     dropIndex = null
   }
-
-  // Responsive scaling: same mechanism as Toolbar.svelte sidebar scaling.
-  // Panel scales proportionally to match the sidebar when viewport is too short.
-  // Margins also scale so the panel tracks the sidebar position correctly.
-  $effect(() => {
-    if (!panelEl) return
-    function updateScale() {
-      const topOffset = 77
-      const bottomMargin = 16
-      const available = window.innerHeight - topOffset - bottomMargin
-      const scale = Math.min(1, available / 633)
-      const margin = 16 * scale
-      const scaledTopOffset = margin + 49 * scale + 12 * scale
-      // left offset: margin(16) + toolbar width(75) + gap(16) = 107 at scale=1
-      const scaledLeftOffset = margin + 75 * scale + 16 * scale
-      panelEl.style.transform = `scale(${scale})`
-      panelEl.style.transformOrigin = 'top left'
-      panelEl.style.top = `${scaledTopOffset}px`
-      panelEl.style.left = `${scaledLeftOffset}px`
-    }
-    updateScale()
-    window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  })
 </script>
 
 <!-- Layers panel: floating, docked right of sidebar -->
 <div
-  bind:this={panelEl}
-  class="absolute z-30
+  class="fixed z-30
     max-sm:inset-0
-    sm:w-[360px]
+    sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
     animate-panel-in"
-  style="top: 77px; left: 107px; max-height: calc(100vh - 160px);"
+  style="top: var(--atlas-layout-top); left: calc(var(--atlas-edge-gap) + var(--atlas-sidebar-width) + var(--atlas-panel-gap));"
 >
-  <FloatingPanel title="Layers" onClose={handleClose}>
+  <FloatingPanel
+    title="Layers"
+    panelId={panelId}
+    collapsed={Boolean($collapsedPanels[panelId])}
+    onToggleCollapsed={() => togglePanelCollapsed(panelId)}
+    onClose={handleClose}
+    class={Boolean($collapsedPanels[panelId]) ? 'h-[var(--atlas-panel-collapsed-height)] self-start' : 'h-full'}
+  >
     {#if $layers.length === 0}
       <div class="flex-1 flex items-center justify-center h-full">
         <p class="text-sm text-dtcc-muted select-none">No layers yet</p>

@@ -4,10 +4,9 @@
   import { bbox } from '../stores/map'
   import { formValidator } from '../forms/form-validator'
   import { jobService } from '../services/job-service'
-  import { Icons } from '../ui/icons'
   import { FormFieldType } from '../types/form-fields'
   import type { FormField } from '../types/form-fields'
-  import type { FormValues, FieldValidationError } from '../types/form-state'
+  import type { FormValues } from '../types/form-state'
   import { SubmissionState } from '../types/form-state'
 
   let values: FormValues = $state({})
@@ -128,7 +127,6 @@
     }
   }
 
-  const title = $derived($selectedDataset?.title || $selectedDataset?.name || 'Configure Dataset')
   const selectedDatasetBounds = $derived(toBoundsArray($selectedDataset?.bounds))
   const selectedBBoxArray = $derived($bbox ? [$bbox.minX, $bbox.minY, $bbox.maxX, $bbox.maxY] : null)
   const hasCoverageForSelection = $derived(
@@ -138,18 +136,7 @@
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
 
-<div class="p-5">
-  <!-- Header with back button -->
-  <div class="flex items-center gap-3 mb-5">
-    <button
-      class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors cursor-pointer text-dtcc-muted focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
-      onclick={goBack}
-    >
-      <span class="w-4 h-4 block">{@html Icons.arrowLeft}</span>
-    </button>
-    <h3 class="text-[16px] font-semibold text-dtcc-navy truncate">{title}</h3>
-  </div>
-
+<div>
   {#if submissionState === SubmissionState.SUCCESS}
     <!-- Success state -->
     <div class="flex flex-col items-center py-8 gap-4">
