@@ -135,6 +135,8 @@ def process_dataset_job(
     dataset_name: str,
     params: Dict[str, Any],
     on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
+    cached_discoveries: Optional[Dict[str, Any]] = None,
+    on_remote_info: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """
     Process a dataset generation job.
@@ -167,6 +169,15 @@ def process_dataset_job(
         pass
 
     available_datasets = datasets.list()
+    if dataset_name not in available_datasets and cached_discoveries:
+        try:
+            from dtcc_core.datasets.remote import register_remote_descriptors_from_cache
+        except ImportError:
+            register_remote_descriptors_from_cache = None
+
+        if register_remote_descriptors_from_cache is not None:
+            register_remote_descriptors_from_cache(cached_discoveries)
+            available_datasets = datasets.list()
     emit_progress = _make_progress_emitter(on_progress)
 
     # Check if it's a dtcc-core dataset
@@ -176,6 +187,7 @@ def process_dataset_job(
             params,
             available_datasets,
             on_progress=emit_progress,
+            on_remote_info=on_remote_info,
         )
 
     # Check if it's a published vector dataset
@@ -198,12 +210,25 @@ def _process_core_dataset(
     params: Dict[str, Any],
     available_datasets: Dict,
     on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
+    on_remote_info: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """Process a dtcc-core dataset."""
     dataset = available_datasets[dataset_name]
     from dtcc_core.common.progress import ProgressTracker, set_progress_callback
 
     try:
+        if hasattr(dataset, "source_service"):
+            request_params = dict(params)
+            supported_formats = getattr(dataset, "supported_formats", [])
+            if ("format" not in request_params or request_params["format"] is None) and supported_formats:
+                request_params["format"] = supported_formats[0]
+            validated = dataset.validate(request_params)
+            return dataset.build(
+                validated,
+                progress_callback=on_progress,
+                remote_info_callback=on_remote_info,
+            )
+
         # Validate and generate dataset
         _ = dataset.ArgsModel(**params)
         if on_progress:
@@ -255,6 +280,10 @@ def _process_core_dataset(
         "cityjson": "application/json",
         "json": "application/json",
         "geojson": "application/geo+json",
+        "xdmf": "application/x-hdf5",
+        "pb": "application/x-protobuf",
+        "vtk": "application/x-vtk",
+        "tar.gz": "application/gzip",
         # "gpkg": "application/geopackage+sqlite3",
         "gpkg": "application/octet-stream"
     }

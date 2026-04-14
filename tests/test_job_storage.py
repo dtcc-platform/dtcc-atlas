@@ -38,10 +38,23 @@ class TestJobStorage:
     def test_get_unknown_returns_none(self, storage):
         assert storage.get_result("nonexistent") is None
 
+    def test_get_tar_gz_result_by_job_id(self, storage):
+        data = b"archive-bytes"
+        storage.save_result("job-archive", data, "tar.gz")
+        result = storage.get_result("job-archive")
+        assert result is not None
+        assert result[0] == data
+        assert result[1].endswith(".tar.gz")
+
     def test_delete_works(self, storage):
         storage.save_result("job-5", b"data", "bin")
         assert storage.delete_result("job-5") is True
         assert storage.get_result("job-5") is None
+
+    def test_delete_tar_gz_result_by_job_id(self, storage):
+        storage.save_result("job-archive", b"data", "tar.gz")
+        assert storage.delete_result("job-archive") is True
+        assert storage.get_result("job-archive") is None
 
     def test_delete_unknown_returns_false(self, storage):
         assert storage.delete_result("nonexistent") is False
