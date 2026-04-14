@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12,<=3.13"
 dependencies = [
     "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@develop",
-    "dtcc-sim@git+https://github.com/dtcc-platform/dtcc-sim.git@develop",
     "fastapi>=0.125.0",
     "python-multipart>=0.0.20",
     "uvicorn>=0.38.0",
@@ -31,4 +30,3 @@ include = ["server"]
 
 [tool.uv.sources]
 dtcc-core = { git = "https://github.com/dtcc-platform/dtcc-core.git", rev = "develop" }
-
