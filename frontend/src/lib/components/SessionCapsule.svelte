@@ -137,7 +137,7 @@
   {#if state === 'editing'}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- onkeydown on container so Escape is caught even when focus is on buttons, not just the input -->
-    <div class="flex items-center gap-2" style="padding: clamp(8px, 1.11vh, 10px) clamp(10px, 0.83vw, 12px) clamp(8px, 1.11vh, 10px) clamp(14px, 1.32vw, 19px);" onkeydown={handleKeydown}>
+    <div class="flex items-center gap-2" style="padding: clamp(6px, 0.89vh, 8px) clamp(10px, 0.76vw, 12px) clamp(6px, 0.89vh, 8px) clamp(12px, 1.04vw, 16px);" onkeydown={handleKeydown}>
       <input
         bind:this={inputEl}
         bind:value={editValue}
@@ -158,7 +158,7 @@
       >{@html Icons.close}</button>
     </div>
   {:else}
-    <div class="flex items-center gap-2" style="padding: clamp(8px, 1.11vh, 10px) clamp(10px, 0.83vw, 12px) clamp(8px, 1.11vh, 10px) clamp(14px, 1.32vw, 19px);">
+    <div class="flex items-center gap-2" style="padding: clamp(6px, 0.89vh, 8px) clamp(10px, 0.76vw, 12px) clamp(6px, 0.89vh, 8px) clamp(12px, 1.04vw, 16px);">
       <span class="text-dtcc-orange font-semibold whitespace-nowrap select-none"
         style="font-size: var(--atlas-session-font-size); line-height: var(--atlas-session-line-height);">
         {copied ? 'Copied!' : sessionCode}
@@ -199,12 +199,12 @@
       <input
         readonly
         value={shareUrl}
-        class="text-[13px] text-dtcc-dark bg-transparent outline-none select-all font-medium"
+        class="text-[var(--atlas-body-text-size)] text-dtcc-dark bg-transparent outline-none select-all font-medium"
         style="width: var(--atlas-session-share-width);"
         onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
       />
       <button
-        class="shrink-0 text-[12px] font-semibold cursor-pointer
+        class="shrink-0 text-[var(--atlas-caption-text-size)] font-semibold cursor-pointer
           {shareCopied ? 'text-green-600' : 'text-dtcc-orange hover:text-dtcc-orange-dark'}
           transition-colors"
         onclick={copyShareUrl}

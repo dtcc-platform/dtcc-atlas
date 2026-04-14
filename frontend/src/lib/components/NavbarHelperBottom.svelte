@@ -45,12 +45,12 @@
     border border-white/20
     shadow-[0_0_30px_rgba(255,255,255,0.15)]
     rounded-[999px]
-    px-[clamp(14px,1.39vw,20px)]"
+    px-[var(--atlas-bottom-bar-padding-x)]"
   style="bottom: var(--atlas-edge-gap); transform: translateX(-50%);"
   role="status"
   aria-label="Navigation helper"
 >
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-[clamp(8px,0.83vw,12px)]">
     <span class="text-[#5F5F6D] font-light tracking-[-0.18px] whitespace-nowrap select-none"
       style="font-size: var(--atlas-helper-font-size); line-height: var(--atlas-helper-line-height);">{helperPrefix}</span>
     <span class="w-[var(--atlas-helper-icon-size)] h-[var(--atlas-helper-icon-size)] shrink-0 flex items-center justify-center">{@html helperIcon}</span>

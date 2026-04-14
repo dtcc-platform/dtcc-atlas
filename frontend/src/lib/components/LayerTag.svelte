@@ -43,48 +43,51 @@
     <div class="h-[2px] bg-dtcc-orange rounded-full mx-4 -mt-1 mb-1"></div>
   {/if}
 
-  <div class="flex items-center gap-[10px] py-[5px]">
+  <div class="flex items-center gap-[var(--atlas-layer-tag-gap)] py-[clamp(4px,0.49vh,6px)]">
     <!-- Capsule -->
-    <div class="flex-1 flex items-center gap-[10px] bg-white/50 rounded-[25px] h-[52px] px-[10px] py-[5px] overflow-hidden">
+    <div class="flex-1 flex items-center gap-[var(--atlas-layer-tag-gap)] bg-white/50 rounded-[var(--atlas-layer-tag-radius)] h-[var(--atlas-layer-tag-height)] px-[clamp(8px,0.69vw,10px)] py-[clamp(4px,0.49vh,6px)] overflow-hidden">
       <!-- Eye icon - visibility toggle -->
       <button
-        class="w-[40px] h-[41px] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
+        class="w-[var(--atlas-layer-tag-button-size)] h-[var(--atlas-layer-tag-button-size)] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
           hover:bg-black/5 transition-colors
           focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={onToggleVisibility}
         aria-label={layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`}
       >
-        <span class="w-[24px] h-[17px]">{@html layer.visible ? Icons.eyeOpen : Icons.eyeClosed}</span>
+        <span class="w-[clamp(20px,1.67vw,24px)] h-[clamp(14px,1.18vw,17px)]">{@html layer.visible ? Icons.eyeOpen : Icons.eyeClosed}</span>
       </button>
 
       <!-- Zoom to extent -->
       {#if layer.bounds}
         <button
-          class="w-[40px] h-[41px] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
+          class="w-[var(--atlas-layer-tag-button-size)] h-[var(--atlas-layer-tag-button-size)] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
             hover:bg-black/5 transition-colors
             focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={onZoomToLayer}
           aria-label="Zoom to {layer.name}"
         >
-          <span class="w-[20px] h-[20px]">{@html Icons.zoomExtent}</span>
+          <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)]">{@html Icons.zoomExtent}</span>
         </button>
       {/if}
 
       <!-- Layer name -->
-      <span class="flex-1 text-[20px] font-light text-black tracking-[-0.18px] leading-[30px] truncate select-none">
+      <span
+        class="flex-1 font-light text-black tracking-[-0.18px] truncate select-none"
+        style="font-size: var(--atlas-layer-tag-title-size); line-height: var(--atlas-layer-tag-title-line-height);"
+      >
         {layer.name}
       </span>
 
       <!-- Expand/collapse chevron -->
       <button
-        class="w-[40px] h-[41px] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
+        class="w-[var(--atlas-layer-tag-button-size)] h-[var(--atlas-layer-tag-button-size)] shrink-0 flex items-center justify-center rounded-lg cursor-pointer
           text-[#5F5F6D] hover:bg-black/5 transition-colors
           focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={onToggleExpanded}
         aria-label={layer.expanded ? `Collapse ${layer.name} settings` : `Expand ${layer.name} settings`}
         aria-expanded={layer.expanded}
       >
-        <span class="w-[20px] h-[20px] transition-transform duration-200 inline-flex" class:rotate-180={layer.expanded}>
+        <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] transition-transform duration-200 inline-flex" class:rotate-180={layer.expanded}>
           {@html Icons.chevronDown}
         </span>
       </button>
@@ -92,7 +95,7 @@
 
     <!-- Drag handle - outside capsule -->
     <div
-      class="w-[40px] h-[41px] shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing rounded-lg
+      class="w-[var(--atlas-layer-tag-button-size)] h-[var(--atlas-layer-tag-button-size)] shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing rounded-lg
         hover:bg-black/5 transition-colors"
       draggable="true"
       ondragstart={onDragStart}
@@ -101,17 +104,17 @@
       tabindex="0"
       aria-label="Reorder {layer.name} layer"
     >
-      <span class="w-[22px] h-[16px]">{@html Icons.dragHandle}</span>
+      <span class="w-[clamp(18px,1.53vw,22px)] h-[clamp(13px,1.11vw,16px)]">{@html Icons.dragHandle}</span>
     </div>
   </div>
 
   <!-- Expanded area -->
   {#if layer.expanded}
-    <div class="ml-[10px] mr-[50px] mb-[5px] rounded-[15px] bg-white/30 transition-all duration-200 px-4 py-3">
-      <label class="flex flex-col text-sm text-[#5F5F6D]">
+    <div class="ml-[clamp(8px,0.69vw,10px)] mr-[calc(var(--atlas-layer-tag-button-size)+var(--atlas-layer-tag-gap))] mb-[clamp(4px,0.49vh,6px)] rounded-[clamp(12px,1.04vw,16px)] bg-white/30 transition-all duration-200 px-[clamp(12px,0.97vw,14px)] py-[clamp(10px,0.97vh,12px)]">
+      <label class="flex flex-col text-[var(--atlas-body-text-size)] text-[#5F5F6D]">
         <span class="flex items-center justify-between">
           <span class="select-none">Opacity</span>
-          <span class="text-xs font-mono tabular-nums">{Math.round(layer.opacity * 100)}%</span>
+          <span class="text-[var(--atlas-caption-text-size)] font-mono tabular-nums">{Math.round(layer.opacity * 100)}%</span>
         </span>
         <input
           type="range"

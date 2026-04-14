@@ -199,14 +199,14 @@
   >
     <!-- Chat header -->
     <div
-      class="flex items-center justify-between px-5 pt-4 pb-2"
+      class="flex items-center justify-between px-[var(--atlas-panel-padding)] pt-[clamp(10px,0.97vh,14px)] pb-[clamp(6px,0.69vh,8px)]"
     >
       <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-dtcc-dark">Lurkie</span>
+        <span class="text-[var(--atlas-body-text-size)] font-semibold text-dtcc-dark">Lurkie</span>
       </div>
       {#if $chatLoading}
         <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
-          <span class="text-[10px] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
+          <span class="text-[var(--atlas-caption-text-size)] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
           <div class="h-1 w-full rounded-full bg-black/5 overflow-hidden">
             <div class="h-full w-1/3 rounded-full animate-lurkie-progress" style="background: #c44d18;"></div>
           </div>
@@ -231,11 +231,11 @@
     </div>
 
     <!-- Messages area -->
-    <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-5 py-2 space-y-3 scrollbar-subtle" role="log" aria-live="polite">
+    <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-[var(--atlas-panel-padding)] py-[clamp(6px,0.69vh,10px)] space-y-[clamp(10px,1.11vh,12px)] scrollbar-subtle" role="log" aria-live="polite">
       {#each $chatMessages as msg, i}
         {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
         <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-          <div class="max-w-[85%] rounded-xl px-3 py-2 text-sm
+          <div class="max-w-[85%] rounded-xl px-[var(--atlas-card-padding-x)] py-[clamp(8px,0.83vh,10px)] text-[var(--atlas-body-text-size)]
             {msg.role === 'user'
               ? 'opacity-50 text-dtcc-dark'
               : 'text-dtcc-dark'}">
@@ -257,7 +257,7 @@
       {/each}
 
       {#if $chatError}
-        <div class="text-xs text-red-600 bg-red-50 rounded px-3 py-2">{$chatError}</div>
+        <div class="text-[var(--atlas-caption-text-size)] text-red-600 bg-red-50 rounded px-3 py-2">{$chatError}</div>
       {/if}
     </div>
   </div>
@@ -287,7 +287,7 @@
     class="fixed z-30 w-[var(--atlas-panel-width)] h-auto flex items-end gap-2
       bg-white/50 backdrop-blur-xl border border-white/20
       shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
-      px-[clamp(12px,1.11vw,16px)] py-[clamp(5px,0.56vh,8px)]
+      px-[clamp(10px,0.83vw,12px)] py-[clamp(5px,0.56vh,7px)]
       animate-expand-in"
     style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap);"
   >
@@ -297,14 +297,14 @@
       onkeydown={handleKeydown}
       placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
       rows="1"
-      class="flex-1 resize-none bg-transparent text-sm text-dtcc-dark
+      class="flex-1 resize-none bg-transparent text-[var(--atlas-body-text-size)] text-dtcc-dark
         placeholder:opacity-50 placeholder:text-dtcc-muted
         focus:outline-none py-2 leading-snug lurkie-textarea"
     ></textarea>
     <button
       onclick={handleSend}
       disabled={$chatLoading}
-      class="w-9 h-9 shrink-0 flex items-center justify-center rounded-full
+      class="w-[var(--atlas-chat-send-size)] h-[var(--atlas-chat-send-size)] shrink-0 flex items-center justify-center rounded-full
         transition-all duration-150 active:scale-95 mb-[2px]
         {inputText.trim()
           ? 'bg-dtcc-orange text-white cursor-pointer'

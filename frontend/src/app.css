@@ -56,47 +56,69 @@
 }
 
 :root {
-  --atlas-edge-gap: clamp(10px, 1.11vw, 16px);
-  --atlas-panel-gap: clamp(8px, 0.83vw, 12px);
+  /* Recalibrated around a 1440x900 DPR-1 reference viewport. */
+  --atlas-edge-gap: clamp(8px, 0.83vw, 14px);
+  --atlas-panel-gap: clamp(6px, 0.69vw, 10px);
 
-  --atlas-topbar-height: clamp(40px, 5.44vh, 49px);
-  --atlas-topbar-inner-height: clamp(32px, 4.44vh, 40px);
-  --atlas-topbar-title-size: clamp(14px, 1.11vw, 16px);
-  --atlas-topbar-title-line-height: clamp(20px, 1.67vw, 24px);
-  --atlas-topbar-button-width: clamp(44px, 3.68vw, 53px);
-  --atlas-topbar-padding-left: clamp(10px, 0.9vw, 13px);
+  --atlas-topbar-height: clamp(38px, 4.67vh, 46px);
+  --atlas-topbar-inner-height: clamp(30px, 3.78vh, 36px);
+  --atlas-topbar-title-size: clamp(13px, 0.97vw, 15px);
+  --atlas-topbar-title-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-topbar-button-width: clamp(40px, 3.33vw, 48px);
+  --atlas-topbar-padding-left: clamp(10px, 0.76vw, 12px);
   --atlas-topbar-padding-right: clamp(2px, 0.28vw, 4px);
-  --atlas-status-dot-size: clamp(8px, 0.69vw, 10px);
+  --atlas-status-dot-size: clamp(7px, 0.56vw, 9px);
+  --atlas-topbar-menu-icon-width: clamp(24px, 1.81vw, 28px);
+  --atlas-topbar-menu-icon-height: clamp(18px, 1.39vw, 20px);
 
-  --atlas-sidebar-width: clamp(60px, 5.21vw, 75px);
-  --atlas-toolbar-natural-height: clamp(440px, 70.33vh, 633px);
-  --atlas-toolbar-padding-x: clamp(8px, 0.76vw, 11px);
-  --atlas-toolbar-padding-y: clamp(14px, 2.22vh, 20px);
-  --atlas-nav-item-width: clamp(44px, 5.9vmin, 53px);
-  --atlas-nav-item-height: clamp(46px, 6.1vmin, 55px);
-  --atlas-nav-icon-size: clamp(28px, 3.8vmin, 34px);
+  --atlas-sidebar-width: clamp(56px, 4.72vw, 68px);
+  --atlas-toolbar-natural-height: clamp(420px, 65vh, 590px);
+  --atlas-toolbar-padding-x: clamp(7px, 0.63vw, 10px);
+  --atlas-toolbar-padding-y: clamp(12px, 1.67vh, 16px);
+  --atlas-nav-item-width: clamp(40px, 4.44vmin, 48px);
+  --atlas-nav-item-height: clamp(42px, 4.89vmin, 50px);
+  --atlas-nav-icon-size: clamp(24px, 3.11vmin, 30px);
 
-  --atlas-bottom-bar-height: clamp(40px, 5.44vh, 49px);
-  --atlas-helper-font-size: clamp(16px, 1.39vw, 20px);
-  --atlas-helper-line-height: clamp(24px, 2.08vw, 30px);
-  --atlas-helper-icon-size: clamp(18px, 1.67vw, 24px);
+  --atlas-bottom-bar-height: clamp(38px, 4.67vh, 46px);
+  --atlas-bottom-bar-padding-x: clamp(12px, 1.04vw, 16px);
+  --atlas-helper-font-size: clamp(13px, 1.04vw, 16px);
+  --atlas-helper-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-helper-icon-size: clamp(16px, 1.25vw, 19px);
 
-  --atlas-panel-width: clamp(280px, 20.83vw, 360px);
-  --atlas-panel-radius: clamp(18px, 1.74vw, 25px);
-  --atlas-panel-padding: clamp(14px, 1.11vw, 20px);
-  --atlas-panel-inner-gap: clamp(8px, 0.69vw, 10px);
-  --atlas-panel-header-height: clamp(44px, 4.89vh, 52px);
+  --atlas-panel-width: clamp(272px, 20vw, 330px);
+  --atlas-panel-radius: clamp(16px, 1.39vw, 22px);
+  --atlas-panel-padding: clamp(12px, 0.9vw, 16px);
+  --atlas-panel-inner-gap: clamp(6px, 0.49vw, 8px);
+  --atlas-panel-header-height: clamp(40px, 4.44vh, 48px);
   --atlas-panel-collapsed-height: calc(var(--atlas-panel-header-height) + (var(--atlas-panel-padding) * 2));
-  --atlas-panel-header-title-size: clamp(16px, 1.39vw, 20px);
-  --atlas-panel-header-line-height: clamp(24px, 2.08vw, 30px);
-  --atlas-panel-action-size: clamp(32px, 2.78vw, 40px);
-  --atlas-panel-action-icon-size: clamp(18px, 1.67vw, 24px);
+  --atlas-panel-header-title-size: clamp(15px, 1.11vw, 18px);
+  --atlas-panel-header-line-height: clamp(20px, 1.53vw, 24px);
+  --atlas-panel-action-size: clamp(30px, 2.5vw, 36px);
+  --atlas-panel-action-icon-size: clamp(16px, 1.39vw, 20px);
 
-  --atlas-session-font-size: clamp(14px, 1.11vw, 16px);
-  --atlas-session-line-height: clamp(20px, 1.67vw, 24px);
-  --atlas-session-icon-size: clamp(18px, 1.53vw, 22px);
-  --atlas-session-input-width: clamp(72px, 6.25vw, 90px);
-  --atlas-session-share-width: clamp(180px, 18vw, 260px);
+  --atlas-session-font-size: clamp(13px, 0.97vw, 15px);
+  --atlas-session-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-session-icon-size: clamp(16px, 1.25vw, 20px);
+  --atlas-session-input-width: clamp(68px, 5.56vw, 84px);
+  --atlas-session-share-width: clamp(160px, 14vw, 220px);
+
+  --atlas-tooltip-font-size: clamp(10px, 0.76vw, 11px);
+  --atlas-body-text-size: clamp(12px, 0.9vw, 14px);
+  --atlas-body-line-height: clamp(18px, 1.39vw, 20px);
+  --atlas-caption-text-size: clamp(10px, 0.76vw, 12px);
+  --atlas-caption-line-height: clamp(14px, 1.11vw, 17px);
+  --atlas-control-height: clamp(34px, 4vh, 40px);
+  --atlas-control-radius: clamp(10px, 0.76vw, 12px);
+  --atlas-control-padding-x: clamp(10px, 0.83vw, 12px);
+  --atlas-card-padding-x: clamp(10px, 0.83vw, 12px);
+  --atlas-card-padding-y: clamp(10px, 1.11vh, 12px);
+  --atlas-layer-tag-gap: clamp(8px, 0.69vw, 10px);
+  --atlas-layer-tag-height: clamp(44px, 4.89vh, 50px);
+  --atlas-layer-tag-radius: clamp(18px, 1.39vw, 24px);
+  --atlas-layer-tag-button-size: clamp(32px, 2.5vw, 38px);
+  --atlas-layer-tag-title-size: clamp(15px, 1.11vw, 18px);
+  --atlas-layer-tag-title-line-height: clamp(20px, 1.46vw, 24px);
+  --atlas-chat-send-size: clamp(32px, 2.5vw, 36px);
 
   --atlas-layout-top: calc(var(--atlas-edge-gap) + var(--atlas-topbar-height) + var(--atlas-panel-gap));
   --atlas-layout-bottom-reserve: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap));

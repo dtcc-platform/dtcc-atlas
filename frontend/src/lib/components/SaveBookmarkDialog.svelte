@@ -23,6 +23,11 @@
   }
 
   function trapFocus(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      open = false
+      onClose?.()
+      return
+    }
     if (e.key !== 'Tab') return
     const dialog = e.currentTarget as HTMLElement
     const focusable = dialog.querySelectorAll<HTMLElement>(
@@ -45,24 +50,25 @@
   <!-- svelte-ignore a11y_consider_explicit_label -->
   <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" aria-label="Close dialog" onclick={() => { open = false; onClose?.() }}></button>
   <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-    w-[360px] bg-white rounded-xl shadow-2xl p-5"
+    w-[min(92vw,360px)] bg-white rounded-[var(--atlas-panel-radius)] shadow-2xl p-[var(--atlas-panel-padding)]"
     role="dialog"
     aria-modal="true"
+    tabindex="-1"
     onkeydown={trapFocus}>
-    <h3 class="text-[16px] font-semibold text-dtcc-navy mb-1">Save Bookmark</h3>
-    <p class="text-[12px] text-dtcc-muted mb-4">Area: {$bboxArea.toFixed(2)} km²</p>
+    <h3 class="text-[var(--atlas-panel-header-title-size)] font-semibold text-dtcc-navy mb-1">Save Bookmark</h3>
+    <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted mb-4">Area: {$bboxArea.toFixed(2)} km²</p>
     <input
       bind:this={inputEl}
       bind:value={name}
       placeholder="Bookmark name..."
-      class="w-full h-9 px-3 rounded-lg border border-dtcc-border-light text-[13px] mb-4
+      class="w-full h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] mb-4
         focus:outline-none focus:ring-2 focus:ring-dtcc-orange/30 focus:border-dtcc-orange"
       onkeydown={(e) => e.key === 'Enter' && handleSave()}
     />
     <div class="flex gap-2 justify-end">
-      <button class="px-4 h-9 rounded-lg text-[13px] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => { open = false; onClose?.() }}>Cancel</button>
+      <button class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => { open = false; onClose?.() }}>Cancel</button>
       <button
-        class="px-4 h-9 rounded-lg bg-dtcc-orange text-white text-[13px] font-semibold hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] bg-dtcc-orange text-white text-[var(--atlas-body-text-size)] font-semibold hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={handleSave}
       >Save</button>
     </div>

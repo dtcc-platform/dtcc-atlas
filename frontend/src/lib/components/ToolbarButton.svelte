@@ -41,7 +41,7 @@
   </button>
   <div class="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3
     opacity-0 group-hover:opacity-100 transition-opacity delay-300
-    px-2.5 py-1 rounded-md bg-dtcc-navy text-white text-[11px] font-medium whitespace-nowrap shadow-lg
+    px-2.5 py-1 rounded-md bg-dtcc-navy text-white font-medium whitespace-nowrap shadow-lg
     max-sm:hidden">
     {label}
   </div>
@@ -53,5 +53,9 @@
   button :global(svg) {
     width: var(--atlas-nav-icon-size);
     height: var(--atlas-nav-icon-size);
+  }
+
+  .group > div:last-child {
+    font-size: var(--atlas-tooltip-font-size);
   }
 </style>

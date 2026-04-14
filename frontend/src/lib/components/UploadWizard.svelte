@@ -341,48 +341,47 @@
   }
 </script>
 
-<div class="p-5">
+<div class="p-[var(--atlas-panel-padding)]">
   {#if step === 'select'}
     <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-dtcc-muted">
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         Add a GeoJSON file to visualize and analyze.
       </p>
 
       <div
-        class="rounded-lg border-2 border-dashed p-4 transition-colors
+        class="rounded-[var(--atlas-control-radius)] border-2 border-dashed p-4 transition-colors
           {isDragOver ? 'border-dtcc-orange bg-dtcc-orange/5' : 'border-dtcc-border bg-dtcc-bg'}"
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
         ondrop={handleDrop}
-        role="region"
-        tabindex="0"
+        role="group"
         aria-label="File drop zone"
       >
         <label class="block mb-3">
-          <span class="block text-[12px] text-dtcc-muted mb-1">Upload name</span>
+          <span class="block text-[var(--atlas-caption-text-size)] text-dtcc-muted mb-1">Upload name</span>
           <input
-            class="h-8 w-full px-2 rounded border border-dtcc-border-light text-[12px] bg-white"
+            class="h-[var(--atlas-control-height)] w-full px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] bg-white"
             bind:value={uploadBatchName}
             placeholder="Upload 2026-02-26 14:30"
           />
         </label>
         <div class="flex gap-2">
-          <label class="px-3 py-2 rounded-lg bg-white border border-dtcc-border-light text-[12px] cursor-pointer hover:bg-black/5">
+          <label class="px-3 py-2 rounded-[var(--atlas-control-radius)] bg-white border border-dtcc-border-light text-[var(--atlas-caption-text-size)] cursor-pointer hover:bg-black/5">
             Add files
             <input type="file" multiple accept=".geojson" class="hidden" onchange={onFilesSelected} />
           </label>
         </div>
         {#if isDragOver}
-          <p class="mt-3 text-[12px] text-dtcc-orange font-medium">Drop files here...</p>
+          <p class="mt-3 text-[var(--atlas-caption-text-size)] text-dtcc-orange font-medium">Drop files here...</p>
         {:else}
-          <p class="mt-3 text-[12px] text-dtcc-muted">
+          <p class="mt-3 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
             {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
           </p>
         {/if}
       </div>
 
       <button
-        class="h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+        class="h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {loading || !selectedFiles.length
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
@@ -393,17 +392,17 @@
       </button>
 
       {#if loading}
-        <div class="rounded-lg border border-dtcc-border-light bg-dtcc-bg p-3">
-          <div class="flex items-center justify-between text-[11px] text-dtcc-muted mb-1">
+        <div class="rounded-[var(--atlas-control-radius)] border border-dtcc-border-light bg-dtcc-bg p-3">
+          <div class="flex items-center justify-between text-[var(--atlas-caption-text-size)] text-dtcc-muted mb-1">
             <span>{scanProgress.phase === 'uploading' ? 'Upload progress' : 'Server scan'}</span>
             <span>{scanProgress.percent.toFixed(1)}%</span>
           </div>
           <div class="h-2 bg-white border border-dtcc-border-light rounded overflow-hidden">
             <div class="h-full bg-dtcc-orange transition-all duration-200" style={`width: ${scanProgress.percent}%`}></div>
           </div>
-          <p class="mt-2 text-[12px] text-dtcc-muted">{scanProgress.message || 'Working...'}</p>
+          <p class="mt-2 text-[var(--atlas-caption-text-size)] text-dtcc-muted">{scanProgress.message || 'Working...'}</p>
           {#if scanProgress.bytesTotal > 0}
-            <p class="mt-1 text-[11px] text-dtcc-muted">
+            <p class="mt-1 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
               {formatBytes(scanProgress.bytesSent)} / {formatBytes(scanProgress.bytesTotal)}
             </p>
           {/if}
@@ -412,17 +411,17 @@
     </div>
   {:else if step === 'review'}
     <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-dtcc-muted">
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
       {#if aiAvailable === false}
-        <div class="h-9 w-full rounded-lg text-[12px] font-medium flex items-center justify-center
+        <div class="h-[var(--atlas-control-height)] w-full rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] font-medium flex items-center justify-center
           bg-gray-100 border border-gray-200 text-gray-400">
           Enrich with AI — requires dtcc-agent
         </div>
       {:else}
         <button
-          class="h-9 w-full rounded-lg text-[12px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+          class="h-[var(--atlas-control-height)] w-full rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
             {qualityChecking
               ? 'bg-amber-100 text-amber-700 cursor-wait'
               : aiEnriched
@@ -435,14 +434,14 @@
         </button>
       {/if}
       {#if qualityError}
-        <div class="text-[12px] text-red-600">{qualityError}</div>
+        <div class="text-[var(--atlas-caption-text-size)] text-red-600">{qualityError}</div>
       {/if}
-      <div class="max-h-[420px] overflow-y-auto border border-dtcc-border-light rounded-lg">
+      <div class="max-h-[min(420px,55vh)] overflow-y-auto border border-dtcc-border-light rounded-[var(--atlas-control-radius)]">
         {#each candidates as candidate}
           <div class="p-3 border-b border-dtcc-border-light last:border-b-0">
             <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="text-[13px] font-medium text-dtcc-navy">{candidate.title}</div>
-              <label class="text-[12px] text-dtcc-muted flex items-center gap-1">
+              <div class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">{candidate.title}</div>
+              <label class="text-[var(--atlas-caption-text-size)] text-dtcc-muted flex items-center gap-1">
                 <input
                   type="checkbox"
                   checked={edits[candidate.id]?.keep ?? true}
@@ -454,13 +453,13 @@
 
             <div class="grid grid-cols-1 gap-2">
               <input
-                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)]"
                 value={edits[candidate.id]?.dataset_name ?? candidate.name}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], dataset_name: (e.target as HTMLInputElement).value } }}
                 placeholder="Dataset name"
               />
               <select
-                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px] bg-white"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] bg-white"
                 value={edits[candidate.id]?.role ?? candidate.role}
                 onchange={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], role: (e.target as HTMLSelectElement).value } }}
               >
@@ -472,24 +471,24 @@
                 <option value="unknown">Unknown</option>
               </select>
               <input
-                class="h-8 px-2 rounded border border-dtcc-border-light text-[12px]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)]"
                 value={edits[candidate.id]?.crs ?? ''}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], crs: (e.target as HTMLInputElement).value } }}
                 placeholder="CRS override (optional)"
               />
             </div>
 
-            <div class="mt-2 text-[11px] text-dtcc-muted">
+            <div class="mt-2 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
               Type: {candidate.inferred_type} • Confidence: {candidate.confidence}
             </div>
             {#if candidate.warnings?.length}
-              <div class="mt-1 text-[11px] text-orange-600">
+              <div class="mt-1 text-[var(--atlas-caption-text-size)] text-orange-600">
                 {candidate.warnings.join(' | ')}
               </div>
             {/if}
             {#if qualityVerdicts[candidate.name]}
               {@const v = qualityVerdicts[candidate.name]}
-              <div class="mt-2 p-2 rounded text-[11px]
+              <div class="mt-2 p-2 rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)]
                 {v.verdict === 'pass' ? 'bg-green-50 text-green-700' :
                  v.verdict === 'warn' ? 'bg-amber-50 text-amber-700' :
                  'bg-red-50 text-red-700'}">
@@ -507,7 +506,7 @@
             {/if}
             {#if aiVerdicts[candidate.name]}
               {@const ai = aiVerdicts[candidate.name]}
-              <div class="mt-1 p-2 rounded text-[11px] bg-blue-50 text-blue-700 border border-blue-100">
+              <div class="mt-1 p-2 rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] bg-blue-50 text-blue-700 border border-blue-100">
                 <div class="font-medium mb-1">AI Insights</div>
                 {#if ai.summary}
                   <div>{ai.summary}</div>
@@ -527,13 +526,13 @@
 
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-dtcc-border-light text-[12px] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] px-3 rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Start over
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={ingest}
         >
           Ingest selected
@@ -543,26 +542,26 @@
   {:else if step === 'ingesting'}
     <div class="py-8 text-center">
       <div class="w-8 h-8 mx-auto border-2 border-dtcc-orange border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-3 text-[13px] text-dtcc-navy">Ingesting datasets...</p>
-      <p class="text-[12px] text-dtcc-muted">Normalizing files and registering catalog entries</p>
+      <p class="mt-3 text-[var(--atlas-body-text-size)] text-dtcc-navy">Ingesting datasets...</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">Normalizing files and registering catalog entries</p>
     </div>
   {:else if step === 'complete'}
     <div class="flex flex-col gap-3">
-      <div class="p-3 rounded-lg bg-green-50 text-green-700 text-[12px]">
+      <div class="p-3 rounded-[var(--atlas-control-radius)] bg-green-50 text-green-700 text-[var(--atlas-caption-text-size)]">
         Ingestion completed.
       </div>
-      <p class="text-[12px] text-dtcc-muted">
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         {ingestResult?.ingested_count ?? 0} ingested, {ingestResult?.failed_count ?? 0} failed.
       </p>
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-dtcc-border-light text-[12px] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] px-3 rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Upload more
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={() => activePanel.set('datasets')}
         >
           Open datasets
@@ -572,6 +571,6 @@
   {/if}
 
   {#if errorMessage}
-    <div class="mt-3 text-[12px] text-red-600">{errorMessage}</div>
+    <div class="mt-3 text-[var(--atlas-caption-text-size)] text-red-600">{errorMessage}</div>
   {/if}
 </div>

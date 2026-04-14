@@ -69,7 +69,7 @@
       aria-label="Toggle navigation menu"
       aria-expanded={sideNavOpen}
     >
-      <span class="w-[30px] h-[22px]">{@html Icons.hamburger}</span>
+      <span class="w-[var(--atlas-topbar-menu-icon-width)] h-[var(--atlas-topbar-menu-icon-height)]">{@html Icons.hamburger}</span>
     </button>
   </div>
 
@@ -110,9 +110,9 @@
 {#if tooltipVisible}
   <div
     class="fixed pointer-events-none z-[60]
-      px-2.5 py-1 rounded-md bg-dtcc-navy text-white text-[11px] font-medium whitespace-nowrap shadow-lg
+      px-2.5 py-1 rounded-md bg-dtcc-navy text-white font-medium whitespace-nowrap shadow-lg
       transition-opacity delay-300"
-    style="top: calc(var(--atlas-edge-gap) + var(--atlas-topbar-height) + 6px); left: {tooltipX}px; transform: translateX(-50%);"
+    style="top: calc(var(--atlas-edge-gap) + var(--atlas-topbar-height) + 6px); left: {tooltipX}px; transform: translateX(-50%); font-size: var(--atlas-tooltip-font-size);"
   >
     {connected ? 'Server: Ready' : 'Server: Disconnected'}
   </div>
@@ -121,7 +121,7 @@
 <style>
   /* Render hamburger icon SVG at its natural size */
   button span :global(svg) {
-    width: clamp(24px, 2.08vw, 30px);
-    height: clamp(18px, 1.53vw, 22px);
+    width: var(--atlas-topbar-menu-icon-width);
+    height: var(--atlas-topbar-menu-icon-height);
   }
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Icons } from '../ui/icons'
   import { selectedDataset, formConfig } from '../stores/datasets'
   import { activePanel } from '../stores/ui'
   import { bbox } from '../stores/map'
@@ -136,17 +137,17 @@
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
 
-<div>
+<div class="min-h-full">
   {#if submissionState === SubmissionState.SUCCESS}
     <!-- Success state -->
     <div class="flex flex-col items-center py-8 gap-4">
       <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600">
         <span class="w-6 h-6 block">{@html Icons.check}</span>
       </div>
-      <p class="text-[14px] font-medium text-dtcc-navy">{submissionMessage}</p>
-      <p class="text-[12px] text-dtcc-muted">Your job is being processed</p>
+      <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">{submissionMessage}</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">Your job is being processed</p>
       <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg bg-dtcc-navy text-white hover:bg-dtcc-navy-hover transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        class="mt-2 px-4 py-2 text-[var(--atlas-body-text-size)] rounded-lg bg-dtcc-navy text-white hover:bg-dtcc-navy-hover transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={goBack}
       >
         Back to datasets
@@ -158,10 +159,10 @@
       <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500">
         <span class="w-6 h-6 block">{@html Icons.close}</span>
       </div>
-      <p class="text-[14px] font-medium text-dtcc-navy">Submission failed</p>
-      <p class="text-[12px] text-red-500 text-center px-4">{submissionMessage}</p>
+      <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">Submission failed</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-red-500 text-center px-4">{submissionMessage}</p>
       <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg border border-dtcc-border-light hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        class="mt-2 px-4 py-2 text-[var(--atlas-body-text-size)] rounded-lg border border-dtcc-border-light hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={() => { submissionState = SubmissionState.IDLE; submissionMessage = ''; }}
       >
         Try again
@@ -169,10 +170,10 @@
     </div>
   {:else}
     <!-- Form fields -->
-    <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+    <form class="flex flex-col gap-[clamp(12px,1.11vh,16px)] pb-1" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
       {#each visibleFields as field (field.name)}
         <div class="flex flex-col gap-1.5">
-          <label for={field.name} class="text-[13px] font-medium text-dtcc-navy">
+          <label for={field.name} class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">
             {field.label}
             {#if field.required}
               <span class="text-orange-500">*</span>
@@ -180,14 +181,14 @@
           </label>
 
           {#if field.description}
-            <p class="text-[11px] text-dtcc-muted -mt-0.5">{field.description}</p>
+            <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-dtcc-muted -mt-0.5">{field.description}</p>
           {/if}
 
           {#if field.type === FormFieldType.TEXT}
             <input
               id={field.name}
               type="text"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
                 {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder ?? ''}
               value={values[field.name] ?? ''}
@@ -197,7 +198,7 @@
             <input
               id={field.name}
               type="number"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
                 {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.min !== undefined ? `Min: ${field.min}` : ''}
               step={field.step ?? (field.type === FormFieldType.INTEGER ? 1 : 'any')}
@@ -218,12 +219,12 @@
                 checked={values[field.name] === true}
                 onchange={(e) => updateValue(field.name, (e.target as HTMLInputElement).checked)}
               />
-              <span class="text-[13px] text-dtcc-muted">{field.description || field.label}</span>
+              <span class="text-[var(--atlas-body-text-size)] text-dtcc-muted">{field.description || field.label}</span>
             </label>
           {:else if field.type === FormFieldType.SELECT}
             <select
               id={field.name}
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors cursor-pointer appearance-none bg-white
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors cursor-pointer appearance-none bg-white
                 {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               value={values[field.name] ?? ''}
               onchange={(e) => updateValue(field.name, (e.target as HTMLSelectElement).value)}
@@ -237,7 +238,7 @@
             <input
               id={field.name}
               type="text"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
                 {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder}
               value={values[field.name] ?? ''}
@@ -246,17 +247,17 @@
           {/if}
 
           {#if getFieldError(field.name)}
-            <p class="text-[11px] text-red-500">{getFieldError(field.name)}</p>
+            <p class="text-[var(--atlas-caption-text-size)] text-red-500">{getFieldError(field.name)}</p>
           {/if}
         </div>
       {/each}
 
       {#if !$bbox}
-        <p class="text-[12px] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
+        <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
           Draw a bounding box on the map before submitting.
         </p>
       {:else if !hasCoverageForSelection}
-        <p class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+        <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
           Selected area does not intersect this dataset's known coverage.
         </p>
       {/if}
@@ -264,7 +265,7 @@
       <button
         type="submit"
         disabled={isSubmitting || !$bbox || !hasCoverageForSelection}
-        class="mt-2 h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+        class="mt-2 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {isSubmitting || !$bbox || !hasCoverageForSelection
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"

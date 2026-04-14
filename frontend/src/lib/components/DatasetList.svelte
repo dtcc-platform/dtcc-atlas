@@ -120,18 +120,28 @@
           onClose={index === 0 ? handleClose : undefined}
           class={Boolean($collapsedPanels[panelId]) ? 'absolute top-0 left-0 right-0 h-[var(--atlas-panel-collapsed-height)]' : 'absolute inset-0'}
         >
-          <div class="flex flex-col gap-1">
+          <div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
             {#each cat.datasets as dataset (dataset.name)}
               <button
-                class="w-full flex items-start justify-between px-3 py-3 rounded-xl text-left
+                class="w-full flex items-start justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] text-left
                   bg-white/30 hover:bg-white/50 transition-colors group cursor-pointer
                   focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
                 onclick={() => selectDataset(dataset)}
               >
                 <div class="min-w-0">
-                  <div class="text-[13px] font-medium text-dtcc-navy truncate">{dataset.title || dataset.name}</div>
+                  <div
+                    class="font-medium text-dtcc-navy truncate"
+                    style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
+                  >
+                    {dataset.title || dataset.name}
+                  </div>
                   <div class="mt-0.5">
-                    <span class="text-[11px] text-dtcc-muted truncate">{datasetSubtitle(dataset)}</span>
+                    <span
+                      class="text-dtcc-muted truncate"
+                      style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-caption-line-height);"
+                    >
+                      {datasetSubtitle(dataset)}
+                    </span>
                   </div>
                 </div>
                 <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>

@@ -401,24 +401,24 @@
       <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default" aria-label="Close dialog" onclick={cancelSessionChange}></button>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-        w-[400px] bg-white rounded-xl shadow-2xl p-5"
+        w-[min(92vw,400px)] bg-white rounded-[var(--atlas-panel-radius)] shadow-2xl p-[var(--atlas-panel-padding)]"
         role="dialog" aria-modal="true" tabindex="-1"
         onkeydown={(e) => { if (e.key === 'Escape') cancelSessionChange() }}>
-        <h3 class="text-[16px] font-semibold text-dtcc-navy mb-3">Change Session</h3>
-        <p class="text-[13px] text-dtcc-muted mb-5">
+        <h3 class="text-[var(--atlas-panel-header-title-size)] font-semibold text-dtcc-navy mb-3">Change Session</h3>
+        <p class="text-[var(--atlas-body-text-size)] text-dtcc-muted mb-5">
           Session will change from <span class="font-mono font-medium text-dtcc-navy">{sessionChangeCurrent}</span> to <span class="font-mono font-medium text-dtcc-navy">{sessionChangeNext}</span>. Would you like to proceed?
         </p>
         <div class="flex gap-2 justify-end">
           <button
-            class="px-4 h-9 rounded-lg text-[13px] text-dtcc-muted hover:bg-black/5 cursor-pointer"
+            class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer"
             onclick={cancelSessionChange}
           >Cancel</button>
           <button
-            class="px-4 h-9 rounded-lg border border-dtcc-border-light text-[13px] text-dtcc-navy font-medium hover:bg-black/5 cursor-pointer"
+            class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] text-dtcc-navy font-medium hover:bg-black/5 cursor-pointer"
             onclick={() => confirmSessionChange(false)}
           >Switch</button>
           <button
-            class="px-4 h-9 rounded-lg bg-dtcc-orange text-white text-[13px] font-semibold hover:bg-dtcc-orange-dark cursor-pointer"
+            class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] bg-dtcc-orange text-white text-[var(--atlas-body-text-size)] font-semibold hover:bg-dtcc-orange-dark cursor-pointer"
             onclick={() => confirmSessionChange(true)}
           >Save &amp; Switch</button>
         </div>
@@ -430,14 +430,14 @@
       <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default" aria-label="Close error" onclick={dismissSessionError}></button>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
-        w-[360px] bg-white rounded-xl shadow-2xl p-5"
+        w-[min(92vw,360px)] bg-white rounded-[var(--atlas-panel-radius)] shadow-2xl p-[var(--atlas-panel-padding)]"
         role="alertdialog" aria-modal="true" tabindex="-1"
         onkeydown={(e) => { if (e.key === 'Escape') dismissSessionError() }}>
-        <h3 class="text-[16px] font-semibold text-red-600 mb-3">Invalid Session</h3>
-        <p class="text-[13px] text-dtcc-muted mb-5">{sessionChangeError}</p>
+        <h3 class="text-[var(--atlas-panel-header-title-size)] font-semibold text-red-600 mb-3">Invalid Session</h3>
+        <p class="text-[var(--atlas-body-text-size)] text-dtcc-muted mb-5">{sessionChangeError}</p>
         <div class="flex justify-end">
           <button
-            class="px-4 h-9 rounded-lg bg-dtcc-navy text-white text-[13px] font-semibold hover:bg-dtcc-navy/90 cursor-pointer"
+            class="px-4 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] bg-dtcc-navy text-white text-[var(--atlas-body-text-size)] font-semibold hover:bg-dtcc-navy/90 cursor-pointer"
             onclick={dismissSessionError}
           >OK</button>
         </div>

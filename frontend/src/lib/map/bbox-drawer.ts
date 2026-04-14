@@ -56,6 +56,11 @@ export class BBoxDrawer {
     }
   }
 
+  private mapStyleSupportsTextLabels(): boolean {
+    const style = this.map.getStyle();
+    return typeof style?.glyphs === 'string' && style.glyphs.length > 0;
+  }
+
   private setupLayers(): void {
     // Add GeoJSON source for the bbox
     if (!this.map.getSource(this.BBOX_SOURCE)) {
@@ -113,8 +118,8 @@ export class BBoxDrawer {
         },
       });
 
-      // Add label source/layer (may fail if map style has no glyphs configured)
-      try {
+      // Only add label layers when the active style provides glyphs.
+      if (this.mapStyleSupportsTextLabels()) {
         this.map.addSource(this.BBOX_LABEL_SOURCE, {
           type: 'geojson',
           data: { type: 'FeatureCollection', features: [] },
@@ -137,7 +142,7 @@ export class BBoxDrawer {
             'text-halo-width': 2,
           },
         });
-      } catch {
+      } else {
         console.warn('Label layer not added (map style may lack glyphs)');
       }
     }

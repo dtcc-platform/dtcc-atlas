@@ -15,6 +15,8 @@
   let inputEl: HTMLInputElement | undefined = $state(undefined)
   let debounceTimer: ReturnType<typeof setTimeout>
   let selectedIndex = $state(-1)
+  const searchDialogId = 'atlas-search-dialog'
+  const searchResultsId = 'atlas-search-results'
 
   $effect(() => {
     if ($searchOpen && inputEl) {
@@ -36,16 +38,19 @@
 
   function selectResult(r: NominatimResult) {
     onSelect?.(r)
+    closeSearch()
+  }
+
+  function closeSearch() {
     searchOpen.set(false)
     query = ''
     results = []
+    selectedIndex = -1
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
-      searchOpen.set(false)
-      query = ''
-      results = []
+      closeSearch()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
       selectedIndex = Math.min(selectedIndex + 1, results.length - 1)
@@ -59,6 +64,10 @@
   }
 
   function trapFocus(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      closeSearch()
+      return
+    }
     if (e.key !== 'Tab') return
     const dialog = e.currentTarget as HTMLElement
     const focusable = dialog.querySelectorAll<HTMLElement>(
@@ -75,14 +84,26 @@
       first.focus()
     }
   }
+
+  function resultId(index: number): string {
+    return `atlas-search-result-${index}`
+  }
 </script>
 
 {#if $searchOpen}
   <!-- svelte-ignore a11y_consider_explicit_label -->
-  <button class="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm cursor-default focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" aria-label="Close search" onclick={() => searchOpen.set(false)}></button>
-  <div class="fixed top-[20%] left-1/2 -translate-x-1/2 z-50 w-[480px]" onkeydown={trapFocus}>
-    <div class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[25px] overflow-hidden">
-      <div class="flex items-center gap-3 px-4 h-12 border-b border-black/5">
+  <button class="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm cursor-default focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" aria-label="Close search" onclick={closeSearch}></button>
+  <div
+    id={searchDialogId}
+    class="fixed top-[20%] left-1/2 -translate-x-1/2 z-50 w-[min(92vw,480px)]"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Search locations"
+    tabindex="-1"
+    onkeydown={trapFocus}
+  >
+    <div class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)] overflow-hidden">
+      <div class="flex items-center gap-3 px-[var(--atlas-panel-padding)] h-[var(--atlas-panel-header-height)] border-b border-black/5">
         <span class="w-5 h-5 text-dtcc-muted shrink-0">{@html Icons.search}</span>
         <input
           bind:this={inputEl}
@@ -90,32 +111,37 @@
           oninput={handleInput}
           onkeydown={handleKeydown}
           placeholder="Search locations in Sweden..."
-          class="flex-1 text-[14px] outline-none bg-transparent"
+          class="flex-1 text-[var(--atlas-body-text-size)] outline-none bg-transparent"
           role="combobox"
+          aria-controls={searchResultsId}
           aria-expanded={results.length > 0}
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          aria-activedescendant={selectedIndex >= 0 ? resultId(selectedIndex) : undefined}
         />
         {#if query}
-          <button class="p-1 rounded hover:bg-black/5 cursor-pointer w-5 h-5 shrink-0 focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => { query = ''; results = [] }}>
+          <button class="p-1 rounded hover:bg-black/5 cursor-pointer w-5 h-5 shrink-0 focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => { query = ''; results = []; selectedIndex = -1 }}>
             {@html Icons.close}
           </button>
         {/if}
       </div>
       {#if results.length > 0}
-        <div class="max-h-[300px] overflow-y-auto" role="listbox">
+        <div id={searchResultsId} class="max-h-[min(300px,45vh)] overflow-y-auto" role="listbox">
           {#each results as result, idx}
             <button
-              class="w-full flex items-center gap-3 px-4 py-3 hover:bg-black/5 text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+              id={resultId(idx)}
+              class="w-full flex items-center gap-3 px-[var(--atlas-panel-padding)] py-[var(--atlas-card-padding-y)] hover:bg-black/5 text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
                 {idx === selectedIndex ? 'bg-black/5' : ''}"
               role="option"
               aria-selected={idx === selectedIndex}
               onclick={() => selectResult(result)}
             >
-              <span class="text-[13px] text-dtcc-navy">{result.display_name}</span>
+              <span class="text-[var(--atlas-body-text-size)] leading-[var(--atlas-body-line-height)] text-dtcc-navy">{result.display_name}</span>
             </button>
           {/each}
         </div>
       {:else if query.length >= 2 && !loading}
-        <div class="px-4 py-6 text-center text-[13px] text-dtcc-muted">No results found</div>
+        <div class="px-[var(--atlas-panel-padding)] py-6 text-center text-[var(--atlas-body-text-size)] text-dtcc-muted">No results found</div>
       {/if}
     </div>
   </div>

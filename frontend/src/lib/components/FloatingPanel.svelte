@@ -48,7 +48,7 @@
   />
 
   {#if !collapsed}
-    <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-subtle {bodyClass}">
+    <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain scrollbar-subtle {bodyClass}">
       {@render children()}
     </div>
   {/if}
