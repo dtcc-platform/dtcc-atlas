@@ -65,8 +65,32 @@ Notes:
 
 ### 4) Optional: Connect a local `dtcc-agent` mini-service
 
-If `dtcc-agent` is running locally on port `8050`, point Atlas at it before
-starting the backend:
+If `dtcc-agent` is running locally on port `8050`, Atlas can proxy Lurkie chat
+to it. `dtcc-agent` needs Claude auth inside its Docker container.
+
+On macOS, do not mount `~/.claude` for auth. Generate a Claude Code OAuth token
+on the host, then export only the token value before recreating the container:
+
+```bash
+cd /path/to/dtcc-agent
+
+claude setup-token
+printf '%s\n' 'sk-ant-oat01-PASTE-TOKEN-HERE' > token
+chmod 600 token
+
+export CLAUDE_CODE_OAUTH_TOKEN="$(tr -d '\r\n' < token)"
+python verify_auth.py --require-oauth
+
+docker compose up -d --build --force-recreate
+docker compose exec -T dtcc-agent python verify_auth.py --require-oauth
+curl http://localhost:8050/health
+```
+
+Do not use `export CLAUDE_CODE_OAUTH_TOKEN="$(claude setup-token)"`; that
+command is interactive and can capture the whole login screen into the
+environment variable.
+
+Then point Atlas at the service before starting the backend:
 
 ```bash
 cd /path/to/dtcc-atlas
