@@ -94,7 +94,7 @@ fi
 
 # Start FastAPI server in development mode with auto-reload
 echo "Starting FastAPI server on port 8000..."
-"$UVICORN_CMD" server.main:app --reload --host 0.0.0.0 --port 8000 &
+"$UVICORN_CMD" server.main:app --reload --host 0.0.0.0 --port 8000 --loop asyncio &
 FASTAPI_PID=$!
 echo "FastAPI server started (PID: $FASTAPI_PID)"
 
