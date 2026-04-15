@@ -78,17 +78,31 @@ def _refresh_available_datasets() -> None:
     """Refresh the in-process dataset snapshot, including remote descriptors."""
     global available_datasets, available_dataset_names
 
+    before_remote = set(datasets.list().keys())
+
     try:
         from dtcc_core.datasets import register_remote_service
     except ImportError:
         register_remote_service = None
 
-    if register_remote_service is not None:
+    if config.REMOTE_SERVICES and register_remote_service is None:
+        print(
+            "Warning: DTCC_REMOTE_SERVICES configured, but this dtcc-core version "
+            "does not support remote dataset services"
+        )
+    elif register_remote_service is not None:
         for url in config.REMOTE_SERVICES:
-            register_remote_service(url)
+            print(f"Registering remote dataset service: {url}")
+            try:
+                register_remote_service(url)
+            except Exception as exc:
+                print(f"Warning: failed to register remote dataset service {url}: {exc}")
 
     available_datasets = datasets.list()
     available_dataset_names = list(available_datasets.keys())
+    added_remote = sorted(set(available_dataset_names) - before_remote)
+    if added_remote:
+        print(f"Registered remote datasets: {', '.join(added_remote)}")
 
 
 _refresh_available_datasets()

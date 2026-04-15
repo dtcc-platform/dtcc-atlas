@@ -1,6 +1,7 @@
 """Tests for server.agent.service -- Agent SDK lifecycle management."""
 
 import os
+import sys
 from unittest.mock import patch
 
 import pytest
@@ -17,11 +18,27 @@ def test_get_mcp_config_with_conda():
     assert "fenicsx-env" in config["dtcc-agent"]["args"]
 
 
+def test_get_mcp_config_uses_configured_conda_env(monkeypatch):
+    monkeypatch.setenv("DTCC_AGENT_CONDA_ENV", "dtcc-agent-env")
+    service = AgentService()
+    with patch("shutil.which", return_value="/usr/bin/conda"):
+        config = service.get_mcp_config()
+    assert "dtcc-agent-env" in config["dtcc-agent"]["args"]
+
+
 def test_get_mcp_config_without_conda():
     service = AgentService()
     with patch("shutil.which", return_value=None):
         config = service.get_mcp_config()
-    assert config["dtcc-agent"]["command"] == "python"
+    assert config["dtcc-agent"]["command"] == sys.executable
+    assert config["dtcc-agent"]["args"] == ["-m", "dtcc_agent"]
+
+
+def test_get_mcp_config_uses_configured_python(monkeypatch):
+    monkeypatch.setenv("DTCC_AGENT_PYTHON", "/opt/dtcc/bin/python")
+    service = AgentService()
+    config = service.get_mcp_config()
+    assert config["dtcc-agent"]["command"] == "/opt/dtcc/bin/python"
     assert config["dtcc-agent"]["args"] == ["-m", "dtcc_agent"]
 
 

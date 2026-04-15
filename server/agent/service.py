@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import sys
 
 MAX_MESSAGE_LENGTH = 10_000
 
@@ -31,21 +32,32 @@ class AgentService:
 
     def get_mcp_config(self) -> dict:
         """Return MCP server configuration for dtcc-agent."""
+        agent_python = os.getenv("DTCC_AGENT_PYTHON")
+        if agent_python:
+            return {
+                "dtcc-agent": {
+                    "type": "stdio",
+                    "command": agent_python,
+                    "args": ["-m", "dtcc_agent"],
+                }
+            }
+
         conda = shutil.which("conda")
         if conda is None:
             return {
                 "dtcc-agent": {
                     "type": "stdio",
-                    "command": "python",
+                    "command": sys.executable,
                     "args": ["-m", "dtcc_agent"],
                 }
             }
+        conda_env = os.getenv("DTCC_AGENT_CONDA_ENV", "fenicsx-env")
         return {
             "dtcc-agent": {
                 "type": "stdio",
                 "command": conda,
                 "args": [
-                    "run", "--no-capture-output", "-n", "fenicsx-env",
+                    "run", "--no-capture-output", "-n", conda_env,
                     "python", "-m", "dtcc_agent",
                 ],
             }
@@ -63,4 +75,3 @@ class AgentService:
         if len(stripped) > MAX_MESSAGE_LENGTH:
             return f"Message too long ({len(stripped)} chars). Please keep it under 10,000."
         return None
-

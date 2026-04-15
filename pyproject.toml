@@ -8,8 +8,9 @@ dependencies = [
     "dtcc-core@git+https://github.com/dtcc-platform/dtcc-core.git@develop",
     "fastapi>=0.125.0",
     "python-multipart>=0.0.20",
-    "uvicorn>=0.38.0",
+    "uvicorn[standard]>=0.38.0",
     "claude-agent-sdk>=0.1.0",
+    "websockets>=16.0",
 ]
 
 

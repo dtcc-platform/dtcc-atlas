@@ -50,3 +50,7 @@ SHARED_RESULTS_DIR = Path(
     os.getenv("SHARED_RESULTS_DIR", BASE_DIR / "data" / "shared-results")
 )
 REMOTE_DISCOVERY_INTERVAL = int(os.getenv("REMOTE_DISCOVERY_INTERVAL", "60"))
+
+# Optional external Lurkie/dtcc-agent service. When set, Atlas proxies chat
+# WebSocket traffic to this service instead of launching dtcc-agent in-process.
+AGENT_SERVICE_URL = os.getenv("DTCC_AGENT_SERVICE_URL", "").rstrip("/")

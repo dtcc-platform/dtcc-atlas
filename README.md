@@ -8,9 +8,10 @@ Interactive web app for browsing/downloading DTCC datasets.
 - A Python environment (`venv`, `conda`, `uv`, etc.) with:
   - `dtcc-core`
   - `fastapi`
-  - `uvicorn`
+  - `uvicorn[standard]`
 - Node.js + npm
 - Optional: a running `dtcc-sim` mini-service (for simulation-related datasets)
+- Optional: a running `dtcc-agent` mini-service (for Lurkie chat)
 
 ### 1) Activate your Python environment
 
@@ -62,12 +63,27 @@ Notes:
   comes up later.
 - Without `DTCC_REMOTE_SERVICES`, Atlas still works with `dtcc-core` datasets.
 
+### 4) Optional: Connect a local `dtcc-agent` mini-service
+
+If `dtcc-agent` is running locally on port `8050`, point Atlas at it before
+starting the backend:
+
+```bash
+cd /path/to/dtcc-atlas
+export DTCC_AGENT_SERVICE_URL=http://localhost:8050
+./start_dev.sh
+```
+
+When `DTCC_AGENT_SERVICE_URL` is set, Atlas proxies `/api/v1/agent/chat` to
+the external service instead of launching `dtcc-agent` in-process. Without it,
+Atlas keeps the existing local fallback.
+
 ## One-Time Python Package Setup (if needed)
 
 Install missing backend packages into your active environment:
 
 ```bash
-pip install "fastapi>=0.125.0" "uvicorn>=0.38.0"
+pip install "fastapi>=0.125.0" "uvicorn[standard]>=0.38.0" "python-multipart>=0.0.20" "websockets>=16.0"
 ```
 
 ## Production Mode

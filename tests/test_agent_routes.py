@@ -38,6 +38,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from server.agent import create_agent_router
+from server.agent.routes import _agent_service_ws_url, _rewrite_remote_payload
 
 
 def _make_client():
@@ -135,3 +136,24 @@ def test_websocket_message_happy_path():
 
         done = ws.receive_json()
         assert done["type"] == "done"
+
+
+def test_agent_service_ws_url_from_http():
+    assert _agent_service_ws_url("http://localhost:8050") == "ws://localhost:8050/chat"
+
+
+def test_agent_service_ws_url_preserves_path():
+    assert (
+        _agent_service_ws_url("https://example.com/lurkie")
+        == "wss://example.com/lurkie/chat"
+    )
+
+
+def test_rewrite_remote_payload_for_atlas_frontend():
+    payload = {"type": "tool_call", "status": "done", "name": "render_object"}
+    _rewrite_remote_payload(payload)
+    assert payload["status"] == "complete"
+
+    image = {"type": "image", "url": "/renders/example.png"}
+    _rewrite_remote_payload(image)
+    assert image["url"] == "/api/v1/agent/renders/example.png"

@@ -23,9 +23,11 @@ class ChatService {
   private reconnectDelay = 1000
   private isConnecting = false
   private initialized = false
+  private shouldReconnect = true
 
   connect(): void {
     if (this.ws || this.isConnecting) return
+    this.shouldReconnect = true
     this.isConnecting = true
     this.reconnectAttempts = 0
 
@@ -73,7 +75,7 @@ class ChatService {
     }
   }
 
-  private handleMessage(data: { type: string; content?: string; name?: string; status?: string; session_id?: string }): void {
+  private handleMessage(data: { type: string; content?: string; name?: string; status?: string; session_id?: string; fatal?: boolean }): void {
     switch (data.type) {
       case 'session':
         break
@@ -95,6 +97,10 @@ class ChatService {
       case 'error':
         chatLoading.set(false)
         chatError.set(data.content || 'Unknown error')
+        if (data.fatal) {
+          this.shouldReconnect = false
+          this.ws?.close()
+        }
         break
       case 'done':
         chatLoading.set(false)
@@ -133,6 +139,7 @@ class ChatService {
   }
 
   private handleReconnect(): void {
+    if (!this.shouldReconnect) return
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++
       const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
@@ -141,6 +148,7 @@ class ChatService {
   }
 
   disconnect(): void {
+    this.shouldReconnect = false
     this.reconnectAttempts = this.maxReconnectAttempts
     if (this.ws) {
       this.ws.close()
