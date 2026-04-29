@@ -4,7 +4,7 @@
   import { Icons } from '../ui/icons'
   import { fetchDatasetList } from '../api/dataset-api'
   import { datasets } from '../stores/datasets'
-  import { drawingActive, activePanel, searchOpen, is3D, unseenBookmarks, unseenDatasets, unseenLayers, unseenDownloads, unseenSimulations, aoiNotificationShown, sideNavOpen, layersOpen } from '../stores/ui'
+  import { drawingActive, activePanel, searchOpen, is3D, unseenBookmarks, unseenDatasets, unseenLayers, unseenDownloads, unseenSimulations, aoiNotificationShown, sideNavOpen } from '../stores/ui'
   import { activeJobCount } from '../stores/jobs'
   import { bbox } from '../stores/map'
 
@@ -117,11 +117,11 @@
   <ToolbarButton
     icon={Icons.layers}
     label="Layers"
-    active={$layersOpen}
+    active={$activePanel === 'layers'}
     badge={$unseenLayers}
     onclick={() => {
       unseenLayers.set(0)
-      layersOpen.update(v => !v)
+      activePanel.update(v => v === 'layers' ? null : 'layers')
     }}
   />
   <ToolbarButton

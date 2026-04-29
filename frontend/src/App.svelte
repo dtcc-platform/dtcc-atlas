@@ -4,6 +4,9 @@
   // REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert
   // import Header from './lib/components/Header.svelte'
   import TopBar from './lib/components/TopBar.svelte'
+  import SideNavPanel from './lib/components/SideNavPanel.svelte'
+  import ToolbarExpanded from './lib/components/ToolbarExpanded.svelte'
+  import ToolbarV3 from './lib/components/ToolbarV3.svelte'
   import MapView from './lib/components/MapView.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
   import NavbarHelperBottom from './lib/components/NavbarHelperBottom.svelte'
@@ -20,7 +23,8 @@
   import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
   import LurkieChat from './lib/components/LurkieChat.svelte'
   import LayersPanel from './lib/components/LayersPanel.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers } from './lib/stores/ui'
+  import SimulationsPanel from './lib/components/SimulationsPanel.svelte'
+  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers, unseenSimulations, aoiNotificationShown, sideNavOpen, toolbarVersion, layersOpen } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
@@ -209,6 +213,16 @@
     }
   }
 
+  function handleSaveAOI() {
+    const currentBbox = get(bbox)
+    if (currentBbox) {
+      const timestamp = new Date().toLocaleString()
+      bookmarkMgr.saveBookmark(`Area ${timestamp}`, currentBbox)
+      unseenBookmarks.update(n => n + 1)
+      aoiNotificationShown.set(false)
+    }
+  }
+
   function handleBookmarkLoad(bookmark: SavedBookmark) {
     mapView?.loadBbox(bookmark.bbox)
     mapView?.fitBounds(bookmark.bbox)
@@ -227,6 +241,8 @@
   function handleClear() {
     mapView?.clearBbox()
     drawingActive.set(false)
+    saveDialogOpen = false
+    aoiNotificationShown.set(false)
   }
 
   function handleIngested(bounds: BoundingBox, label: string) {
@@ -285,6 +301,14 @@
   function dismissSessionError() {
     sessionChangeError = ''
   }
+
+  // Show save reminder bar and AOI notification badge when bbox is drawn
+  $effect(() => {
+    if ($bbox) {
+      saveDialogOpen = true
+      aoiNotificationShown.set(true)
+    }
+  })
 </script>
 
 <svelte:window onkeydown={(e) => {
@@ -295,6 +319,7 @@
   if (e.key === 'Escape') {
     // Don't close panels if a session dialog is open -- those handle Escape themselves
     if (sessionChangeOpen || sessionChangeError) return
+    saveDialogOpen = false
     closeAllPanels()
     drawingActive.set(false)
   }
@@ -304,14 +329,31 @@
   <!-- REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert -->
   <!-- <Header onSessionDialog={() => sessionDialogOpen = true} /> -->
   <TopBar onEditSession={handleEditSession} />
+  <SideNavPanel />
+
+  <!-- Backdrop — closes side nav when clicked outside -->
+  {#if $sideNavOpen}
+    <button
+      class="fixed inset-0 z-[44] bg-black/0 cursor-default"
+      aria-label="Close navigation"
+      onclick={() => sideNavOpen.set(false)}
+    ></button>
+  {/if}
+
   <div class="absolute inset-0 overflow-hidden">
     <MapView bind:this={mapView} />
-    <Toolbar
-      onClear={handleClear}
-      onToggle3D={handleToggle3D}
-    />
+    {#if $toolbarVersion === 'expanded'}
+      <ToolbarExpanded onClear={handleClear} onToggle3D={handleToggle3D} />
+    {:else if $toolbarVersion === 'v3'}
+      <ToolbarV3 onClear={handleClear} onToggle3D={handleToggle3D} />
+    {:else}
+      <Toolbar onClear={handleClear} onToggle3D={handleToggle3D} />
+    {/if}
     {#if $activePanel === 'datasets'}
       <DatasetList />
+    {/if}
+    {#if $activePanel === 'simulations'}
+      <SimulationsPanel />
     {/if}
     <SidePanel>
       {#if $activePanel === 'dataset-form'}
@@ -322,7 +364,7 @@
             <span class="text-xs text-dtcc-dark">Save current area as bookmark?</span>
             <button
               class="px-3 py-1 bg-dtcc-orange text-white text-xs font-semibold rounded hover:bg-dtcc-orange-dark transition-colors"
-              onclick={() => { saveDialogOpen = true }}
+              onclick={handleSaveAOI}
             >Save</button>
           </div>
         {/if}
@@ -382,14 +424,14 @@
         {/if}
       {/if}
     </SidePanel>
-    {#if $activePanel === 'layers'}
+    {#if $layersOpen}
       <LayersPanel />
     {/if}
-    <NavbarHelperBottom />
+    <NavbarHelperBottom hidden={saveDialogOpen} />
     <LurkieChat />
     <EmptyState />
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
-    <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveBookmark} />
+    <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveAOI} />
     <SessionDialog bind:open={sessionDialogOpen} />
     <CoordinateInputDialog bind:open={coordDialogOpen} onApply={(b) => mapView?.loadBbox(b)} />
     <!-- JobTray removed: job progress is now shown inside the Downloads panel (spec 8.2).

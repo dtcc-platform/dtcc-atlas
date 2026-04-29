@@ -2,7 +2,7 @@
   import FloatingPanel from './FloatingPanel.svelte'
   import LayerTag from './LayerTag.svelte'
   import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer } from '../stores/layers'
-  import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
+  import { activePanel, collapsedPanels, togglePanelCollapsed, toolbarHovered, layersOpen } from '../stores/ui'
 
   // TODO: Add layer button -- not yet implemented.
   // A mechanism for the user to add new layers to the layers panel is needed.
@@ -14,7 +14,7 @@
   const panelId = 'layers:main'
 
   function handleClose() {
-    activePanel.set(null)
+    layersOpen.set(false)
   }
 
   function handleDragStart(index: number) {
@@ -56,9 +56,9 @@
 <div
   class="fixed z-30
     max-sm:inset-0
-    sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
+    sm:w-[var(--atlas-panel-width)]
     animate-panel-in"
-  style="top: var(--atlas-layout-top); left: calc(var(--atlas-edge-gap) + var(--atlas-sidebar-width) + var(--atlas-panel-gap));"
+  style="top: var(--atlas-layout-top); left: calc(var(--atlas-edge-gap) + {$toolbarHovered ? '200px' : 'var(--atlas-sidebar-width)'} + var(--atlas-panel-gap)); height: var(--atlas-toolbar-natural-height); transition: left 200ms ease-out;"
 >
   <FloatingPanel
     title="Layers"

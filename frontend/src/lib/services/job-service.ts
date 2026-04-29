@@ -308,6 +308,21 @@ class JobService {
   }
 
   /**
+   * Three-state server status for the TopBar status dot.
+   * ready       — SSE open and receiving events
+   * idle        — SSE connecting / reconnecting (was connected, temporarily lost)
+   * disconnected — no source and not connecting (max retries reached or never started)
+   */
+  getStatus(): 'ready' | 'idle' | 'disconnected' {
+    if (this.eventSource) {
+      if (this.eventSource.readyState === EventSource.OPEN) return 'ready'
+      if (this.eventSource.readyState === EventSource.CONNECTING) return 'idle'
+    }
+    if (this.isConnecting) return 'idle'
+    return 'disconnected'
+  }
+
+  /**
    * Report polling fallback state for concise diagnostics.
    */
   setFallbackPollingState(active: boolean, intervalMs?: number): void {

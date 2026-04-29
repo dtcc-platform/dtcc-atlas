@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte'
+  import { slide } from 'svelte/transition'
   import { Marked } from 'marked'
   import DOMPurify from 'dompurify'
   import { Icons } from '../ui/icons'
@@ -56,6 +57,7 @@
   // Chat states: 'collapsed' (icon only), 'expanded' (input bar), 'active' (chat + input)
   type ChatState = 'collapsed' | 'expanded' | 'active'
   let chatState = $state<ChatState>('collapsed')
+  let chatPanelCollapsed = $state(false)
   let inputText = $state('')
   let messagesContainer: HTMLDivElement | undefined = $state(undefined)
   let inputEl: HTMLTextAreaElement | undefined = $state(undefined)
@@ -201,8 +203,8 @@
     <div
       class="flex items-center justify-between px-[var(--atlas-panel-padding)] pt-[clamp(10px,0.97vh,14px)] pb-[clamp(6px,0.69vh,8px)]"
     >
-      <div class="flex items-center gap-2">
-        <span class="text-[var(--atlas-body-text-size)] font-semibold text-dtcc-dark">Lurkie</span>
+      <div class="flex items-center gap-2 flex-1 min-w-0">
+        <span class="text-[var(--atlas-body-text-size)] font-semibold text-dtcc-dark truncate">Lurkie</span>
       </div>
       {#if $chatLoading}
         <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
@@ -212,26 +214,46 @@
           </div>
         </div>
       {/if}
-      <div class="flex gap-1">
+      <div class="flex gap-1 shrink-0">
         <button
-          class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
+          class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] flex items-center justify-center rounded-lg cursor-pointer
+            text-[#5F5F6D] hover:bg-black/5 transition-colors
+            focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          onclick={() => { chatPanelCollapsed = !chatPanelCollapsed }}
+          aria-label={chatPanelCollapsed ? 'Expand chat panel' : 'Collapse chat panel'}
+          aria-expanded={!chatPanelCollapsed}
+        >
+          <span
+            class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center transition-transform duration-200"
+            class:rotate-180={chatPanelCollapsed}
+          >
+            {@html Icons.chevronDown}
+          </span>
+        </button>
+        <button
+          class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] flex items-center justify-center rounded-lg cursor-pointer
+            text-[#5F5F6D] hover:bg-black/5 transition-colors
+            focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           title="New chat"
           onclick={handleNewChat}
         >
-          <span class="w-4 h-4 block">{@html `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>`}</span>
+          <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center">{@html `<svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>`}</span>
         </button>
         <button
-          class="p-1.5 rounded-md hover:bg-black/5 text-dtcc-muted transition-colors"
+          class="w-[var(--atlas-panel-action-size)] h-[var(--atlas-panel-action-size)] flex items-center justify-center rounded-lg cursor-pointer
+            text-[#5F5F6D] hover:bg-black/5 transition-colors
+            focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           title="Close"
           onclick={collapse}
         >
-          <span class="w-4 h-4 block">{@html Icons.close}</span>
+          <span class="w-[var(--atlas-panel-action-icon-size)] h-[var(--atlas-panel-action-icon-size)] inline-flex items-center justify-center">{@html Icons.close}</span>
         </button>
       </div>
     </div>
 
     <!-- Messages area -->
-    <div bind:this={messagesContainer} class="flex-1 overflow-y-auto px-[var(--atlas-panel-padding)] py-[clamp(6px,0.69vh,10px)] space-y-[clamp(10px,1.11vh,12px)] scrollbar-subtle" role="log" aria-live="polite">
+    {#if !chatPanelCollapsed}
+      <div bind:this={messagesContainer} transition:slide={{ duration: 200 }} class="flex-1 overflow-y-auto px-[var(--atlas-panel-padding)] py-[clamp(6px,0.69vh,10px)] space-y-[clamp(10px,1.11vh,12px)] scrollbar-subtle" role="log" aria-live="polite">
       {#each $chatMessages as msg, i}
         {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
         <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
@@ -259,7 +281,8 @@
       {#if $chatError}
         <div class="text-[var(--atlas-caption-text-size)] text-red-600 bg-red-50 rounded px-3 py-2">{$chatError}</div>
       {/if}
-    </div>
+      </div>
+    {/if}
   </div>
 {/if}
 

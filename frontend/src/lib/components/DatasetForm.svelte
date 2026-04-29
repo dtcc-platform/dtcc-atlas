@@ -137,7 +137,7 @@
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
 
-<div class="min-h-full">
+<div>
   {#if submissionState === SubmissionState.SUCCESS}
     <!-- Success state -->
     <div class="flex flex-col items-center py-8 gap-4">

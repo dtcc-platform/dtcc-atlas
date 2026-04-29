@@ -16,10 +16,9 @@
   let animatingOut = $state(false)
   let hideTimer: ReturnType<typeof setTimeout> | null = null
 
-  // Layers panel uses its own floating panel docked to the sidebar.
-  // Datasets panel uses its own multi-panel stack (DatasetList.svelte).
+  // Layers, datasets, and simulations each use their own dedicated components.
   const nextPanel = $derived.by(() => {
-    if ($activePanel === null || $activePanel === 'layers' || $activePanel === 'datasets') {
+    if ($activePanel === null || $activePanel === 'layers' || $activePanel === 'datasets' || $activePanel === 'simulations') {
       return null
     }
     return $activePanel
@@ -90,10 +89,10 @@
   <div
     class="fixed z-30
       max-sm:inset-0
-      sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
+      sm:w-[var(--atlas-panel-width)]
       overflow-visible
       {animatingOut ? 'animate-panel-out' : 'animate-panel-in'}"
-    style="top: var(--atlas-layout-top); right: var(--atlas-edge-gap);"
+    style="top: var(--atlas-layout-top); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height);"
   >
     <FloatingPanel
       title={panelTitle}
@@ -104,7 +103,7 @@
       leadingActionIcon={leadingActionIcon}
       leadingActionLabel={leadingActionLabel}
       onLeadingAction={currentPanel === 'dataset-form' ? goBack : undefined}
-      class={collapsed ? 'h-[var(--atlas-panel-collapsed-height)] self-start' : 'h-full'}
+      class={collapsed ? 'self-start' : 'h-full'}
     >
       {@render children()}
     </FloatingPanel>

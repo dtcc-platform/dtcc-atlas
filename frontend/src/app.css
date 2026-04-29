@@ -67,11 +67,11 @@
   --atlas-topbar-button-width: clamp(40px, 3.33vw, 48px);
   --atlas-topbar-padding-left: clamp(10px, 0.76vw, 12px);
   --atlas-topbar-padding-right: clamp(2px, 0.28vw, 4px);
-  --atlas-status-dot-size: clamp(7px, 0.56vw, 9px);
-  --atlas-topbar-menu-icon-width: clamp(24px, 1.81vw, 28px);
-  --atlas-topbar-menu-icon-height: clamp(18px, 1.39vw, 20px);
+  --atlas-status-dot-size: calc(var(--atlas-topbar-height) * 0.19);
+  --atlas-topbar-menu-icon-width: clamp(16px, 1.25vw, 20px);
+  --atlas-topbar-menu-icon-height: clamp(11px, 0.83vw, 14px);
 
-  --atlas-sidebar-width: clamp(56px, 4.72vw, 68px);
+  --atlas-sidebar-width: calc(var(--atlas-topbar-height) * (65 / 53));
   --atlas-toolbar-natural-height: clamp(420px, 65vh, 590px);
   --atlas-toolbar-padding-x: clamp(7px, 0.63vw, 10px);
   --atlas-toolbar-padding-y: clamp(12px, 1.67vh, 16px);
@@ -99,8 +99,11 @@
   --atlas-session-font-size: clamp(13px, 0.97vw, 15px);
   --atlas-session-line-height: clamp(18px, 1.39vw, 22px);
   --atlas-session-icon-size: clamp(16px, 1.25vw, 20px);
+  /* ~47% of capsule height — matches Figma icon-to-capsule proportion */
+  --atlas-session-icon-size-lg: calc(var(--atlas-topbar-height) * 0.47);
   --atlas-session-input-width: clamp(68px, 5.56vw, 84px);
   --atlas-session-share-width: clamp(160px, 14vw, 220px);
+  --atlas-feedback-timeout-ms: 1500;
 
   --atlas-tooltip-font-size: clamp(10px, 0.76vw, 11px);
   --atlas-body-text-size: clamp(12px, 0.9vw, 14px);

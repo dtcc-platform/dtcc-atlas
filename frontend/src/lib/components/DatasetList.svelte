@@ -6,7 +6,7 @@
   import FloatingPanel from './FloatingPanel.svelte'
   import type { DatasetInfo } from '../types'
 
-  type CategoryKey = 'dtcc-core' | 'dtcc-sim' | 'user-uploaded'
+  type CategoryKey = 'dtcc-core' | 'user-uploaded'
 
   interface Category {
     key: CategoryKey
@@ -16,7 +16,6 @@
 
   const CATEGORY_META: { key: CategoryKey; label: string }[] = [
     { key: 'dtcc-core', label: 'DTCC Core' },
-    { key: 'dtcc-sim', label: 'DTCC Sim' },
     { key: 'user-uploaded', label: 'User Uploads' },
   ]
 
@@ -30,9 +29,14 @@
   }
 
   // Group datasets into categories, only include non-empty ones
+  // Filter out dtcc-sim datasets (they appear in Simulations panel instead)
   const activeCategories = $derived.by(() => {
     const map = new Map<CategoryKey, DatasetInfo[]>()
     for (const d of $datasets) {
+      const source = (d.source_group || d.source || '').toLowerCase()
+      // Skip dtcc-sim datasets — they're shown in the Simulations panel
+      if (source === 'dtcc-sim') continue
+
       const key = sourceGroupKey(d)
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(d)
@@ -69,8 +73,6 @@
 
   function datasetSubtitle(dataset: DatasetInfo): string {
     const bits: string[] = []
-    const source = dataset.source_label || dataset.source
-    if (source) bits.push(source)
     if (dataset.version !== undefined) bits.push(`v${dataset.version}`)
     if (dataset.supported_formats && dataset.supported_formats.length > 0) {
       bits.push(`formats: ${dataset.supported_formats.join(', ')}`)
@@ -87,10 +89,10 @@
 <div
   class="fixed z-30
     max-sm:inset-0
-    sm:w-[var(--atlas-panel-width)] sm:h-[var(--atlas-docked-panel-height)]
+    sm:w-[var(--atlas-panel-width)]
     grid gap-[var(--atlas-panel-gap)]
     animate-panel-in"
-  style={`top: var(--atlas-layout-top); right: var(--atlas-edge-gap); grid-template-rows: repeat(${stackRows}, minmax(0, 1fr));`}
+  style={`top: var(--atlas-layout-top); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height); grid-template-rows: repeat(${stackRows}, minmax(0, 1fr));`}
 >
   {#if showEmpty}
     <div class="relative min-h-0">
@@ -111,19 +113,20 @@
     <!-- One panel per non-empty dataset category -->
     {#each activeCategories as cat, index (cat.key)}
       {@const panelId = panelIdForCategory(cat.key)}
+      {@const isColl = Boolean($collapsedPanels[panelId])}
       <div class="relative min-h-0">
         <FloatingPanel
           title={cat.label}
           panelId={panelId}
-          collapsed={Boolean($collapsedPanels[panelId])}
+          collapsed={isColl}
           onToggleCollapsed={() => togglePanelCollapsed(panelId)}
           onClose={index === 0 ? handleClose : undefined}
-          class={Boolean($collapsedPanels[panelId]) ? 'absolute top-0 left-0 right-0 h-[var(--atlas-panel-collapsed-height)]' : 'absolute inset-0'}
+          class={isColl ? 'absolute top-0 left-0 right-0 self-start' : 'absolute inset-0'}
         >
           <div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
             {#each cat.datasets as dataset (dataset.name)}
               <button
-                class="w-full flex items-start justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] text-left
+                class="w-full flex items-start justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] border border-black/5 text-left
                   bg-white/30 hover:bg-white/50 transition-colors group cursor-pointer
                   focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
                 onclick={() => selectDataset(dataset)}
