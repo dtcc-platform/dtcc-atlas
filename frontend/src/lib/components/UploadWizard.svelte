@@ -341,7 +341,7 @@
   }
 </script>
 
-<div class="p-[var(--atlas-panel-padding)]">
+<div>
   {#if step === 'select'}
     <div class="flex flex-col gap-3">
       <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
@@ -381,7 +381,7 @@
       </div>
 
       <button
-        class="h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+        class="h-[var(--atlas-control-height)] rounded-full text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {loading || !selectedFiles.length
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
@@ -410,18 +410,18 @@
       {/if}
     </div>
   {:else if step === 'review'}
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-2">
       <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
       {#if aiAvailable === false}
-        <div class="h-[var(--atlas-control-height)] w-full rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] font-medium flex items-center justify-center
+        <div class="h-[var(--atlas-control-height)] w-full rounded-full text-[var(--atlas-caption-text-size)] font-medium flex items-center justify-center
           bg-gray-100 border border-gray-200 text-gray-400">
           Enrich with AI — requires dtcc-agent
         </div>
       {:else}
         <button
-          class="h-[var(--atlas-control-height)] w-full rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+          class="h-[var(--atlas-control-height)] w-full rounded-full text-[var(--atlas-caption-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
             {qualityChecking
               ? 'bg-amber-100 text-amber-700 cursor-wait'
               : aiEnriched
@@ -436,11 +436,11 @@
       {#if qualityError}
         <div class="text-[var(--atlas-caption-text-size)] text-red-600">{qualityError}</div>
       {/if}
-      <div class="max-h-[min(420px,55vh)] overflow-y-auto border border-dtcc-border-light rounded-[var(--atlas-control-radius)]">
+      <div class="max-h-[min(260px,35vh)] overflow-y-auto border border-dtcc-border-light rounded-[var(--atlas-control-radius)] scrollbar-subtle">
         {#each candidates as candidate}
-          <div class="p-3 border-b border-dtcc-border-light last:border-b-0">
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">{candidate.title}</div>
+          <div class="p-2 border-b border-dtcc-border-light last:border-b-0">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="text-[var(--atlas-caption-text-size)] font-medium text-dtcc-navy">{candidate.title}</div>
               <label class="text-[var(--atlas-caption-text-size)] text-dtcc-muted flex items-center gap-1">
                 <input
                   type="checkbox"
@@ -451,15 +451,15 @@
               </label>
             </div>
 
-            <div class="grid grid-cols-1 gap-2">
+            <div class="grid grid-cols-1 gap-1.5">
               <input
-                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)]"
                 value={edits[candidate.id]?.dataset_name ?? candidate.name}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], dataset_name: (e.target as HTMLInputElement).value } }}
                 placeholder="Dataset name"
               />
               <select
-                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] bg-white"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] bg-white"
                 value={edits[candidate.id]?.role ?? candidate.role}
                 onchange={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], role: (e.target as HTMLSelectElement).value } }}
               >
@@ -471,7 +471,7 @@
                 <option value="unknown">Unknown</option>
               </select>
               <input
-                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)]"
                 value={edits[candidate.id]?.crs ?? ''}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], crs: (e.target as HTMLInputElement).value } }}
                 placeholder="CRS override (optional)"
@@ -526,13 +526,13 @@
 
       <div class="flex gap-2">
         <button
-          class="h-[var(--atlas-control-height)] px-3 rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] px-3 rounded-full border border-black/15 text-[var(--atlas-caption-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Start over
         </button>
         <button
-          class="h-[var(--atlas-control-height)] flex-1 rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-full text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={ingest}
         >
           Ingest selected
@@ -555,13 +555,13 @@
       </p>
       <div class="flex gap-2">
         <button
-          class="h-[var(--atlas-control-height)] px-3 rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] px-3 rounded-full border border-black/15 text-[var(--atlas-caption-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Upload more
         </button>
         <button
-          class="h-[var(--atlas-control-height)] flex-1 rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-full text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={() => activePanel.set('datasets')}
         >
           Open datasets

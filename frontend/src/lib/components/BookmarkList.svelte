@@ -26,7 +26,7 @@
   }
 </script>
 
-<div class="p-5">
+<div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
   {#if $bookmarks.length === 0}
     <div class="text-center py-8 flex flex-col items-center gap-2">
       <span class="w-8 h-8 text-dtcc-muted/30">{@html Icons.bookmark}</span>
@@ -34,21 +34,27 @@
       <p class="text-[12px] text-dtcc-muted/60">Draw an area and save it</p>
     </div>
   {:else}
-    <div class="flex flex-col gap-1">
-      {#each $bookmarks as bookmark}
-        <div class="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-black/5 group">
-          <button class="flex-1 text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" onclick={() => onLoad?.(bookmark)}>
-            <div class="text-[13px] text-dtcc-navy font-medium">{bookmark.name}</div>
-            <div class="text-[11px] text-dtcc-muted">{formatArea(bookmark)} km² · {relativeTime(bookmark.createdAt)}</div>
-          </button>
-          <button
-            class="p-1 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
-            onclick={() => onDelete?.(bookmark.id)}
-          >
-            {@html Icons.trash}
-          </button>
-        </div>
-      {/each}
-    </div>
+    {#each $bookmarks as bookmark}
+      <div class="flex items-start justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] border border-black/5 bg-white/30 hover:bg-white/50 transition-colors group">
+        <button class="flex-1 text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none min-w-0" onclick={() => onLoad?.(bookmark)}>
+          <div
+            class="font-medium text-dtcc-navy truncate"
+            style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
+          >{bookmark.name}</div>
+          <div class="mt-0.5">
+            <span
+              class="text-dtcc-muted"
+              style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-caption-line-height);"
+            >{formatArea(bookmark)} km² · {relativeTime(bookmark.createdAt)}</span>
+          </div>
+        </button>
+        <button
+          class="p-1 rounded shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none mt-0.5"
+          onclick={() => onDelete?.(bookmark.id)}
+        >
+          {@html Icons.trash}
+        </button>
+      </div>
+    {/each}
   {/if}
 </div>

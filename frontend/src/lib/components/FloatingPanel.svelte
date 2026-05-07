@@ -33,8 +33,7 @@
 </script>
 
 <div
-  class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)]
-    flex flex-col overflow-hidden min-h-0 transition-[height] duration-200 {className}"
+  class="glass-panel flex flex-col overflow-hidden min-h-0 transition-[height] duration-200 {className}"
   style="border-radius: var(--atlas-panel-radius); padding: var(--atlas-panel-padding); gap: var(--atlas-panel-inner-gap);"
   data-panel-id={panelId || undefined}
 >
@@ -54,3 +53,16 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .glass-panel {
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow:
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  }
+</style>

@@ -63,6 +63,16 @@ export class LayerRenderer {
     }
   }
 
+  syncOrder(orderedMapLayerIds: string[]): void {
+    const valid = orderedMapLayerIds.filter(id => this.map.getLayer(id))
+    if (valid.length < 2) return
+    // valid[0] = top of UI panel = should render on top (last in MapLibre's internal stack)
+    this.map.moveLayer(valid[0])
+    for (let i = 1; i < valid.length; i++) {
+      this.map.moveLayer(valid[i], valid[i - 1])
+    }
+  }
+
   removeLayer(sourceId: string, mapLayerId: string): void {
     if (this.map.getLayer(mapLayerId)) {
       this.map.removeLayer(mapLayerId)

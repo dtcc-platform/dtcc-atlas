@@ -50,6 +50,8 @@
     if (nextPanel) {
       renderedPanel = nextPanel
       animatingOut = false
+      // Always open panels expanded — clear any stale collapsed state from a previous session
+      collapsedPanels.update(s => ({ ...s, [`side:${nextPanel}`]: false }))
       return
     }
 
@@ -88,25 +90,25 @@
 {#if currentPanel}
   <div
     class="fixed z-30
-      max-sm:inset-0
-      sm:w-[var(--atlas-panel-width)]
       overflow-visible
       {animatingOut ? 'animate-panel-out' : 'animate-panel-in'}"
-    style="top: var(--atlas-layout-top); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height);"
+    style="top: var(--atlas-layout-top); left: var(--atlas-topbar-right-left); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height);"
   >
-    <FloatingPanel
-      title={panelTitle}
-      panelId={panelId}
-      collapsed={collapsed}
-      onToggleCollapsed={() => panelId && togglePanelCollapsed(panelId)}
-      onClose={handleClose}
-      leadingActionIcon={leadingActionIcon}
-      leadingActionLabel={leadingActionLabel}
-      onLeadingAction={currentPanel === 'dataset-form' ? goBack : undefined}
-      class={collapsed ? 'self-start' : 'h-full'}
-    >
-      {@render children()}
-    </FloatingPanel>
+    <div style="height: {collapsed ? 'var(--atlas-panel-collapsed-height)' : '100%'}; transition: height 200ms ease-out; overflow: visible;">
+      <FloatingPanel
+        title={panelTitle}
+        panelId={panelId}
+        collapsed={collapsed}
+        onToggleCollapsed={() => panelId && togglePanelCollapsed(panelId)}
+        onClose={handleClose}
+        leadingActionIcon={leadingActionIcon}
+        leadingActionLabel={leadingActionLabel}
+        onLeadingAction={currentPanel === 'dataset-form' ? goBack : undefined}
+        class="h-full"
+      >
+        {@render children()}
+      </FloatingPanel>
+    </div>
   </div>
 {/if}
 

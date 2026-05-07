@@ -52,19 +52,18 @@
 </script>
 
 <div
-  class="fixed z-30
+  class="glass-toolbar fixed z-30
     top-[var(--atlas-layout-top)] left-[var(--atlas-edge-gap)]
     flex flex-col items-center h-[var(--atlas-docked-panel-height)] max-h-[var(--atlas-toolbar-natural-height)]
     px-[var(--atlas-toolbar-padding-x)] py-[var(--atlas-toolbar-padding-y)]
-    justify-between overflow-hidden
-    bg-white/50 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20"
+    justify-between"
   style="
     width: {hovered ? '200px' : 'var(--atlas-sidebar-width)'};
     border-radius: {borderRadius};
     transition: width 200ms ease-out, transform 300ms ease-out;
-    {$sideNavOpen ? 'transform: translateX(calc(171px + var(--atlas-panel-gap)))' : ''}
-  "
-  onmouseenter={onEnter}
+    {$sideNavOpen ? 'transform: translateX(calc(171px + var(--atlas-panel-gap)));' : ''}
+    position: fixed !important;
+  "  onmouseenter={onEnter}
   onmouseleave={onLeave}
   role="toolbar"
   tabindex="-1"
@@ -170,5 +169,41 @@
 {/snippet}
 
 <style>
+  .glass-toolbar {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow:
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+
+  /* Contour-aware specular highlight */
+  .glass-toolbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    /* Localized radial "shoulder pop" at top-left */
+    background: radial-gradient(
+      ellipse at 30px 0px, 
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%, 
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%, 
+      transparent 80%
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+
   span :global(svg) { width: 100%; height: 100%; }
 </style>

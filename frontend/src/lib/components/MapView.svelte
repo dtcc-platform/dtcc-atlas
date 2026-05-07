@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
+  import { get } from 'svelte/store'
   import { mapManager } from '../map/map-manager'
   import { BBoxDrawer } from '../map/bbox-drawer'
   import { LayerRenderer } from '../map/layer-renderer'
   import { registerProjections, transformCoordinates } from '../map/projections'
   import { bbox } from '../stores/map'
   import { datasets } from '../stores/datasets'
-  import { layers, addLayerWithSource, layerAddRequests, zoomToBoundsRequest } from '../stores/layers'
+  import { layers, addLayerWithSource, layerAddRequests, layerRemoveRequests, zoomToBoundsRequest } from '../stores/layers'
   import { computeBounds } from '../map/geojson-utils'
   import { activePanel, drawingActive } from '../stores/ui'
   import { fetchDatasetList } from '../api/dataset-api'
@@ -18,6 +19,7 @@
   let renderer: LayerRenderer | null = null
   let unsubscribeLayers: (() => void) | null = null
   let unsubscribeAddRequests: (() => void) | null = null
+  let unsubscribeRemoveRequests: (() => void) | null = null
   let unsubscribeZoom: (() => void) | null = null
 
   onMount(() => {
@@ -28,10 +30,12 @@
     drawer.onBBoxDrawn((drawnBbox: BoundingBox) => {
       bbox.set(drawnBbox)
 
-      // Auto-fetch datasets and open panel
+      // Auto-fetch datasets and open panel, but stay in bookmarks if it's already open
       fetchDatasetList().then((list) => {
         datasets.set(list)
-        activePanel.set('datasets')
+        if (get(activePanel) !== 'bookmarks') {
+          activePanel.set('datasets')
+        }
       })
     })
 
@@ -39,7 +43,7 @@
     const setupLayerHandling = () => {
       renderer = new LayerRenderer(map)
 
-      // Subscribe to layers store for visibility/opacity sync
+      // Subscribe to layers store for visibility/opacity/order sync
       unsubscribeLayers = layers.subscribe(($layers) => {
         if (!renderer) return
         for (const layer of $layers) {
@@ -47,6 +51,8 @@
           renderer.setVisibility(layer.mapLayerId, layer.visible)
           renderer.setOpacity(layer.mapLayerId, layer.style.type, layer.opacity)
         }
+        const orderedIds = $layers.filter(l => l.mapLayerId).map(l => l.mapLayerId!)
+        renderer.syncOrder(orderedIds)
       })
 
       // Subscribe to layer-add requests from upload wizard
@@ -71,6 +77,19 @@
           }
         }
         queueMicrotask(() => layerAddRequests.set([]))
+      })
+
+      // Subscribe to layer-remove requests
+      unsubscribeRemoveRequests = layerRemoveRequests.subscribe(($requests) => {
+        if (!renderer || $requests.length === 0) return
+        for (const req of $requests) {
+          try {
+            renderer.removeLayer(req.sourceId, req.mapLayerId)
+          } catch (err) {
+            console.warn(`Failed to remove layer "${req.mapLayerId}":`, err)
+          }
+        }
+        queueMicrotask(() => layerRemoveRequests.set([]))
       })
 
       // Subscribe to zoom-to-layer requests
@@ -105,6 +124,7 @@
   onDestroy(() => {
     unsubscribeLayers?.()
     unsubscribeAddRequests?.()
+    unsubscribeRemoveRequests?.()
     unsubscribeZoom?.()
     renderer = null
     drawer?.clearBoundingBox()
@@ -134,10 +154,22 @@
     mapManager.getMap()?.flyTo({ center: [lon, lat], zoom: 14 })
   }
 
+  function readCSSPx(varName: string): number {
+    const el = document.createElement('div')
+    el.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;height:var(${varName});width:0`
+    document.body.appendChild(el)
+    const px = el.getBoundingClientRect().height
+    document.body.removeChild(el)
+    return px
+  }
+
   export function fitBounds(b: BoundingBox) {
     const sw = transformCoordinates([b.minX, b.minY], 'EPSG:3006', 'EPSG:4326')
     const ne = transformCoordinates([b.maxX, b.maxY], 'EPSG:3006', 'EPSG:4326')
-    mapManager.getMap()?.fitBounds([sw, ne], { padding: 50, animate: true })
+    mapManager.getMap()?.fitBounds([sw, ne], {
+      padding: { top: readCSSPx('--atlas-edge-gap'), bottom: readCSSPx('--atlas-layout-bottom-reserve'), left: 50, right: 50 },
+      animate: true
+    })
   }
 
   export function getMapState() {

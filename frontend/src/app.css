@@ -115,17 +115,29 @@
   --atlas-control-padding-x: clamp(10px, 0.83vw, 12px);
   --atlas-card-padding-x: clamp(10px, 0.83vw, 12px);
   --atlas-card-padding-y: clamp(10px, 1.11vh, 12px);
-  --atlas-layer-tag-gap: clamp(8px, 0.69vw, 10px);
-  --atlas-layer-tag-height: clamp(44px, 4.89vh, 50px);
-  --atlas-layer-tag-radius: clamp(18px, 1.39vw, 24px);
-  --atlas-layer-tag-button-size: clamp(32px, 2.5vw, 38px);
-  --atlas-layer-tag-title-size: clamp(15px, 1.11vw, 18px);
-  --atlas-layer-tag-title-line-height: clamp(20px, 1.46vw, 24px);
+  --atlas-layer-tag-gap: clamp(4px, 0.42vw, 6px);
+  --atlas-layer-tag-height: clamp(32px, 3.56vh, 38px);
+  --atlas-layer-tag-button-size: clamp(24px, 1.94vw, 28px);
+  --atlas-layer-tag-icon-size: clamp(12px, 0.97vw, 15px);
+  --atlas-layer-tag-title-size: clamp(11px, 0.83vw, 13px);
+  --atlas-layer-tag-title-line-height: clamp(14px, 1.04vw, 17px);
   --atlas-chat-send-size: clamp(32px, 2.5vw, 36px);
+
+  --atlas-topbar-right-left: calc(100vw - var(--atlas-edge-gap) - var(--atlas-panel-width));
 
   --atlas-layout-top: calc(var(--atlas-edge-gap) + var(--atlas-topbar-height) + var(--atlas-panel-gap));
   --atlas-layout-bottom-reserve: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap));
   --atlas-docked-panel-height: calc(100dvh - var(--atlas-layout-top) - var(--atlas-layout-bottom-reserve));
+
+  /* Glassmorphism Design Tokens - Optimized May 2026 */
+  --glass-blur: 4px;
+  --glass-bg-opacity: 0.55;
+  --glass-border-opacity: 0.5;
+  --glass-edge-opacity: 0.25;
+  --glass-saturate: 1.1;
+  --glass-shadow-x: 0px;
+  --glass-shadow-y: 3px;
+  --glass-shadow-blur: 7px;
 }
 
 /* Base typography */

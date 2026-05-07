@@ -1,13 +1,16 @@
 <script lang="ts">
   import FloatingPanel from './FloatingPanel.svelte'
   import LayerTag from './LayerTag.svelte'
-  import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer } from '../stores/layers'
-  import { activePanel, collapsedPanels, togglePanelCollapsed, toolbarHovered, layersOpen } from '../stores/ui'
+  import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer, removeLayer } from '../stores/layers'
+  import { onMount } from 'svelte'
+  import { activePanel, collapsedPanels, togglePanelCollapsed, toolbarHovered, layersOpen, sideNavOpen } from '../stores/ui'
 
   // TODO: Add layer button -- not yet implemented.
   // A mechanism for the user to add new layers to the layers panel is needed.
   // Awaiting design decision on button placement and layer creation flow.
   // Revisit in a future pass.
+
+  onMount(() => collapsedPanels.update(s => ({ ...s, 'layers:main': false })))
 
   let dragIndex: number | null = $state(null)
   let dropIndex: number | null = $state(null)
@@ -58,32 +61,31 @@
     max-sm:inset-0
     sm:w-[var(--atlas-panel-width)]
     animate-panel-in"
-  style="top: var(--atlas-layout-top); left: calc(var(--atlas-edge-gap) + {$toolbarHovered ? '200px' : 'var(--atlas-sidebar-width)'} + var(--atlas-panel-gap)); height: var(--atlas-toolbar-natural-height); transition: left 200ms ease-out;"
+  style="top: var(--atlas-layout-top); left: calc(var(--atlas-edge-gap) + {$toolbarHovered ? '200px' : 'var(--atlas-sidebar-width)'} + var(--atlas-panel-gap)); height: var(--atlas-toolbar-natural-height); transition: left 200ms ease-out, transform 300ms ease-out; transform: translateX({$sideNavOpen ? 'calc(171px + var(--atlas-panel-gap))' : '0'});"
 >
+  <div style="height: {Boolean($collapsedPanels[panelId]) ? 'var(--atlas-panel-collapsed-height)' : '100%'}; transition: height 200ms ease-out; overflow: visible;">
   <FloatingPanel
     title="Layers"
     panelId={panelId}
     collapsed={Boolean($collapsedPanels[panelId])}
     onToggleCollapsed={() => togglePanelCollapsed(panelId)}
     onClose={handleClose}
-    class={Boolean($collapsedPanels[panelId]) ? 'h-[var(--atlas-panel-collapsed-height)] self-start' : 'h-full'}
+    class="h-full"
   >
     {#if $layers.length === 0}
       <div class="flex-1 flex items-center justify-center h-full">
         <p class="text-sm text-dtcc-muted select-none">No layers yet</p>
       </div>
     {:else}
-      <div class="flex flex-col gap-[7px]" role="list">
+      <div class="flex flex-col" role="list">
         {#each $layers as layer, index (layer.id)}
-          {#if index > 0}
-            <div class="h-px bg-white/20 mx-4"></div>
-          {/if}
           <LayerTag
             {layer}
             onToggleVisibility={() => toggleLayerVisibility(layer.id)}
             onToggleExpanded={() => toggleLayerExpanded(layer.id)}
             onOpacityChange={(opacity) => setLayerOpacity(layer.id, opacity)}
             onZoomToLayer={() => zoomToLayer(layer.id)}
+            onRemove={() => removeLayer(layer.id)}
             onDragStart={handleDragStart(index)}
             onDragOver={handleDragOver(index)}
             onDrop={handleDrop(index)}
@@ -95,6 +97,7 @@
       </div>
     {/if}
   </FloatingPanel>
+  </div>
 </div>
 
 <style>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Icons } from '../ui/icons'
   import { selectedDataset, formConfig } from '../stores/datasets'
-  import { activePanel } from '../stores/ui'
+  import { activePanel, unseenDownloads } from '../stores/ui'
   import { bbox } from '../stores/map'
   import { formValidator } from '../forms/form-validator'
   import { jobService } from '../services/job-service'
@@ -146,12 +146,18 @@
       </div>
       <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">{submissionMessage}</p>
       <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">Your job is being processed</p>
-      <button
-        class="mt-2 px-4 py-2 text-[var(--atlas-body-text-size)] rounded-lg bg-dtcc-navy text-white hover:bg-dtcc-navy-hover transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
-        onclick={goBack}
-      >
-        Back to datasets
-      </button>
+      <div class="flex gap-[clamp(6px,0.56vh,8px)] w-full mt-2">
+        <button
+          class="flex-1 py-1.5 rounded-full font-medium text-dtcc-muted bg-white/30 hover:bg-white/50 border border-black/15 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          style="font-size: var(--atlas-caption-text-size);"
+          onclick={goBack}
+        >Back to datasets</button>
+        <button
+          class="flex-1 py-1.5 rounded-full font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          style="font-size: var(--atlas-caption-text-size);"
+          onclick={() => { unseenDownloads.set(0); activePanel.set('downloads') }}
+        >View in Downloads</button>
+      </div>
     </div>
   {:else if submissionState === SubmissionState.ERROR}
     <!-- Error state -->
@@ -162,7 +168,7 @@
       <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">Submission failed</p>
       <p class="text-[var(--atlas-caption-text-size)] text-red-500 text-center px-4">{submissionMessage}</p>
       <button
-        class="mt-2 px-4 py-2 text-[var(--atlas-body-text-size)] rounded-lg border border-dtcc-border-light hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+        class="mt-2 px-4 py-1.5 text-[var(--atlas-body-text-size)] rounded-full border border-black/15 hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={() => { submissionState = SubmissionState.IDLE; submissionMessage = ''; }}
       >
         Try again
@@ -265,7 +271,7 @@
       <button
         type="submit"
         disabled={isSubmitting || !$bbox || !hasCoverageForSelection}
-        class="mt-2 h-[var(--atlas-control-height)] rounded-[var(--atlas-control-radius)] text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+        class="mt-2 h-[var(--atlas-control-height)] rounded-full text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {isSubmitting || !$bbox || !hasCoverageForSelection
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
             : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"

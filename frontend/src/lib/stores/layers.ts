@@ -90,6 +90,25 @@ export function requestAddGeoJsonLayer(request: LayerAddRequest) {
   layerAddRequests.update(rs => [...rs, request])
 }
 
+// -- Remove layer (map cleanup processed by MapView) --
+
+export interface LayerRemoveRequest {
+  sourceId: string
+  mapLayerId: string
+}
+
+export const layerRemoveRequests = writable<LayerRemoveRequest[]>([])
+
+export function removeLayer(id: string) {
+  const $layers = get(layers)
+  const layer = $layers.find(l => l.id === id)
+  if (!layer) return
+  layers.update(ls => ls.filter(l => l.id !== id))
+  if (layer.sourceId && layer.mapLayerId) {
+    layerRemoveRequests.update(rs => [...rs, { sourceId: layer.sourceId!, mapLayerId: layer.mapLayerId! }])
+  }
+}
+
 // -- Zoom to layer extent (processed by MapView) --
 
 export const zoomToBoundsRequest = writable<[number, number, number, number] | null>(null)

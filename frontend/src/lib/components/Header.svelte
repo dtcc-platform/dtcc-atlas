@@ -40,7 +40,7 @@
   }
 </script>
 
-<header class="min-h-[44px] sm:min-h-0 sm:h-9 bg-dtcc-navy text-white flex items-center justify-between px-4 z-50 gap-3">
+<header class="glass-header min-h-[44px] sm:min-h-0 sm:h-9 text-white flex items-center justify-between px-4 z-50 gap-3">
   <div class="flex items-center gap-2">
     <h1 class="text-[13px] font-semibold tracking-tight">DTCC Atlas</h1>
     <span class="text-[11px] text-white/40 font-mono">v0.2.0</span>
@@ -92,3 +92,25 @@
     </div>
   </div>
 </header>
+
+<style>
+  .glass-header {
+    position: relative;
+    background: rgba(23, 37, 65, 0.75);
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border-bottom: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.1));
+    box-shadow: 0 var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, var(--glass-edge-opacity, 0.15)), transparent);
+    pointer-events: none;
+  }
+</style>

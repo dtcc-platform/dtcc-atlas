@@ -56,10 +56,7 @@
   <button class="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm cursor-default focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none" aria-label="Close dialog" onclick={() => open = false}></button>
   <div class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
     w-[min(92vw,400px)] bg-white rounded-[var(--atlas-panel-radius)] shadow-2xl p-[var(--atlas-panel-padding)]"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    onkeydown={(e) => { if (e.key === 'Escape') open = false; trapFocus(e) }}>
+    role="dialog" aria-modal="true" tabindex="-1"    onkeydown={(e) => { if (e.key === 'Escape') open = false; trapFocus(e) }}>
 
     <h3 class="text-[var(--atlas-panel-header-title-size)] font-semibold text-dtcc-navy mb-4">Session</h3>
 

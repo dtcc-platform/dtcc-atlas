@@ -48,14 +48,11 @@
 <!-- Hidden on mobile where the Toolbar already serves as bottom nav -->
 {#if !hidden}
 <div
-  class="hidden sm:flex fixed left-1/2 z-30
+  class="glass-capsule hidden sm:flex fixed left-1/2 z-30
     h-[var(--atlas-bottom-bar-height)] items-center
-    bg-white/50 backdrop-blur-xl
-    border border-white/20
-    shadow-[0_0_30px_rgba(255,255,255,0.15)]
     rounded-[999px]
     px-[var(--atlas-bottom-bar-padding-x)]"
-  style="bottom: var(--atlas-edge-gap); transform: translateX(-50%);"
+  style="bottom: var(--atlas-edge-gap); transform: translateX(-50%); position: fixed !important;"
   role="status"
   aria-label="Navigation helper"
 >
@@ -72,6 +69,42 @@
 {/if}
 
 <style>
+  .glass-capsule {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow: 
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+
+  /* Contour-aware specular highlight */
+  .glass-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    /* Localized radial "shoulder pop" at top-left */
+    background: radial-gradient(
+      ellipse at 30px 0px, 
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%, 
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%, 
+      transparent 80%
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+
   /* Helper bar icons match the muted text color (#5F5F6D is the default --stroke-0) */
   span :global(svg) {
     width: var(--atlas-helper-icon-size);

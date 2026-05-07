@@ -24,11 +24,12 @@
   import LurkieChat from './lib/components/LurkieChat.svelte'
   import LayersPanel from './lib/components/LayersPanel.svelte'
   import SimulationsPanel from './lib/components/SimulationsPanel.svelte'
+  import StyleTest from './lib/components/StyleTest.svelte'
   import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers, unseenSimulations, aoiNotificationShown, sideNavOpen, toolbarVersion, layersOpen } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
-  import { jobs } from './lib/stores/jobs'
+  import { jobs, removeJob } from './lib/stores/jobs'
   import { addLayer } from './lib/stores/layers'
   import { sessionId, sessionLoading, getSessionIdFromUrl, navigateToSession } from './lib/stores/session'
   import { BookmarkManager } from './lib/bookmarks/bookmark-manager'
@@ -50,6 +51,7 @@
   let sessionChangeCurrent = $state('')
   let sessionChangeNext = $state('')
   let sessionChangeError = $state('')
+  let isStyleTest = $state(false)
 
   function onBookmarksChanged() {
     const allBookmarks = bookmarkMgr.getAllBookmarks()
@@ -94,6 +96,7 @@
   }
 
   onMount(async () => {
+    isStyleTest = window.location.pathname === '/styletest'
     // --- Session initialization ---
     const urlSessionId = getSessionIdFromUrl()
 
@@ -302,10 +305,11 @@
     sessionChangeError = ''
   }
 
-  // Show save reminder bar and AOI notification badge when bbox is drawn
+  // Show save reminder bar and AOI notification badge when bbox is drawn.
+  // Skip the bottom bar when bookmarks panel is already open — the in-panel card handles it.
   $effect(() => {
     if ($bbox) {
-      saveDialogOpen = true
+      if ($activePanel !== 'bookmarks') saveDialogOpen = true
       aoiNotificationShown.set(true)
     }
   })
@@ -324,6 +328,10 @@
     drawingActive.set(false)
   }
 }} />
+
+{#if isStyleTest}
+  <StyleTest />
+{/if}
 
 <div class="h-screen w-screen relative">
   <!-- REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert -->
@@ -359,16 +367,26 @@
       {#if $activePanel === 'dataset-form'}
         <DatasetForm />
       {:else if $activePanel === 'bookmarks'}
-        {#if $bbox}
-          <div class="px-4 py-3 border-b border-dtcc-border-light bg-dtcc-orange/5 flex items-center justify-between">
-            <span class="text-xs text-dtcc-dark">Save current area as bookmark?</span>
-            <button
-              class="px-3 py-1 bg-dtcc-orange text-white text-xs font-semibold rounded hover:bg-dtcc-orange-dark transition-colors"
-              onclick={handleSaveAOI}
-            >Save</button>
-          </div>
-        {/if}
-        <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
+        <div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
+          {#if $bbox}
+            <div class="flex items-center justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] border border-dtcc-orange/20 bg-dtcc-orange/10">
+              <span class="text-dtcc-dark" style="font-size: var(--atlas-body-text-size);">Save current area as bookmark?</span>
+              <div class="flex gap-1.5 shrink-0">
+                <button
+                  class="px-3 py-1 rounded-full font-medium text-dtcc-muted bg-white/30 hover:bg-white/50 border border-black/15 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                  style="font-size: var(--atlas-caption-text-size);"
+                  onclick={() => { saveDialogOpen = false; aoiNotificationShown.set(false) }}
+                >Dismiss</button>
+                <button
+                  class="px-3 py-1 bg-dtcc-orange text-white font-semibold rounded-full hover:bg-dtcc-orange-dark transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                  style="font-size: var(--atlas-caption-text-size);"
+                  onclick={handleSaveAOI}
+                >Save</button>
+              </div>
+            </div>
+          {/if}
+          <BookmarkList onLoad={handleBookmarkLoad} onDelete={handleBookmarkDelete} />
+        </div>
       {:else if $activePanel === 'uploads'}
         <UploadWizard onIngested={handleIngested} />
       {:else if $activePanel === 'downloads'}
@@ -379,7 +397,7 @@
         {:else}
           <div class="flex flex-col gap-1">
             {#each $jobs as job (job.id)}
-              <div class="px-3 py-2.5 rounded-lg border border-black/5 bg-white/30">
+              <div class="px-3 py-2.5 rounded-lg border border-black/5 bg-white/30 group">
                 <div class="flex items-center gap-2 min-w-0">
                   {#if job.status === 'processing' || job.status === 'queued'}
                     <div class="w-3 h-3 border-2 border-dtcc-orange border-t-transparent rounded-full animate-spin shrink-0"></div>
@@ -389,7 +407,15 @@
                     <span class="w-3 h-3 text-red-500 shrink-0 text-center">&#10005;</span>
                   {/if}
                   <span class="truncate text-sm text-dtcc-dark flex-1">{job.dataset || job.id.slice(0, 8)}</span>
-                  <span class="text-xs text-dtcc-muted capitalize shrink-0">{job.status}</span>
+                  <span class="text-xs text-dtcc-muted capitalize shrink-0
+                    {job.status === 'failed' || job.status === 'complete' ? 'group-hover:hidden' : ''}">{job.status}</span>
+                  {#if job.status === 'failed' || job.status === 'complete'}
+                    <button
+                      class="hidden group-hover:flex w-4 h-4 shrink-0 items-center justify-center rounded-full hover:bg-red-50 hover:text-red-500 text-dtcc-muted transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                      onclick={() => removeJob(job.id)}
+                      aria-label="Remove {job.dataset || job.id}"
+                    >&#10005;</button>
+                  {/if}
                 </div>
                 {#if job.status === 'processing'}
                   <div class="mt-1.5 h-1 bg-black/5 rounded-full overflow-hidden">
@@ -403,11 +429,11 @@
                 {#if job.status === 'complete'}
                   <div class="flex items-center gap-2 mt-2">
                     <button
-                      class="flex-1 px-2 py-1 text-xs font-medium text-white bg-dtcc-orange rounded-md hover:bg-dtcc-orange-dark transition-colors cursor-pointer"
+                      class="flex-1 px-2 py-1 text-xs font-medium text-white bg-dtcc-orange rounded-full hover:bg-dtcc-orange-dark transition-colors cursor-pointer"
                       onclick={() => jobService.downloadResult(job.id, job.filename || 'download')}
                     >Download</button>
                     <button
-                      class="flex-1 px-2 py-1 text-xs font-medium text-dtcc-dark border border-black/10 rounded-md hover:bg-black/5 transition-colors cursor-pointer"
+                      class="flex-1 px-2 py-1 text-xs font-medium text-dtcc-dark border border-black/15 rounded-full hover:bg-black/5 transition-colors cursor-pointer"
                       onclick={() => {
                         addLayer(job.dataset || job.filename || 'Downloaded dataset')
                         unseenLayers.update(n => n + 1)

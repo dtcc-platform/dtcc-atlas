@@ -22,17 +22,16 @@
 </script>
 
 {#if open}
-  <div transition:slide={{ duration: 200 }} class="hidden sm:flex fixed left-1/2 z-30
+  <div transition:slide={{ duration: 200 }} class="glass-capsule hidden sm:flex fixed left-1/2 z-30
     h-[var(--atlas-bottom-bar-height)] items-center
-    bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)]
     rounded-[999px] px-[var(--atlas-bottom-bar-padding-x)] gap-2 whitespace-nowrap"
-    style="bottom: var(--atlas-edge-gap); transform: translateX(-50%);"
+    style="bottom: var(--atlas-edge-gap); transform: translateX(-50%); position: fixed !important;"
   >
     <span class="text-[#5F5F6D] font-light tracking-[-0.18px] select-none"
       style="font-size: var(--atlas-helper-font-size); line-height: var(--atlas-helper-line-height);">Save area as bookmark?</span>
     <div class="flex gap-1.5">
       <button
-        class="px-3 py-1 rounded-full text-xs font-medium text-dtcc-muted bg-white/30 hover:bg-white/50 transition-colors cursor-pointer
+        class="px-3 py-1 rounded-full text-xs font-medium text-dtcc-muted bg-white/30 hover:bg-white/50 border border-black/15 transition-colors cursor-pointer
           focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={handleDismiss}
       >
@@ -48,3 +47,41 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .glass-capsule {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow: 
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+
+  /* Contour-aware specular highlight */
+  .glass-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    /* Localized radial "shoulder pop" at top-left */
+    background: radial-gradient(
+      ellipse at 30px 0px, 
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%, 
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%, 
+      transparent 80%
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+</style>

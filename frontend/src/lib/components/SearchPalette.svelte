@@ -102,7 +102,7 @@
     tabindex="-1"
     onkeydown={trapFocus}
   >
-    <div class="bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)] overflow-hidden">
+    <div class="glass-panel rounded-[var(--atlas-panel-radius)] overflow-hidden">
       <div class="flex items-center gap-3 px-[var(--atlas-panel-padding)] h-[var(--atlas-panel-header-height)] border-b border-black/5">
         <span class="w-5 h-5 text-dtcc-muted shrink-0">{@html Icons.search}</span>
         <input
@@ -146,3 +146,16 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .glass-panel {
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow:
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  }
+</style>

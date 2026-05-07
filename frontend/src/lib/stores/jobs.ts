@@ -9,3 +9,7 @@ export const completedJobs = derived(jobs, ($jobs) =>
   $jobs.filter(j => j.status === 'complete' || j.status === 'failed')
 )
 export const jobTrayExpanded = writable(false)
+
+export function removeJob(id: string) {
+  jobs.update($j => $j.filter(j => j.id !== id))
+}

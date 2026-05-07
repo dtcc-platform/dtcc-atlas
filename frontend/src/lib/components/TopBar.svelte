@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { Icons } from '../ui/icons'
   import { sessionId } from '../stores/session'
   import { sideNavOpen } from '../stores/ui'
@@ -43,9 +44,30 @@
   })
 
   // Shared capsule visual classes (glass language from existing TopNavBar)
-  const capsuleClass = 'fixed z-40 h-[var(--atlas-topbar-height)] flex items-center bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[999px]'
+  const capsuleClass = 'glass-capsule fixed z-40 h-[var(--atlas-topbar-height)] flex items-center rounded-[999px]'
   // Visual-only variant — no fixed/z-index — used when capsule sits inside a positioned parent
-  const capsuleVisual = 'h-[var(--atlas-topbar-height)] flex items-center bg-white/50 backdrop-blur-xl border border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[999px]'
+  const capsuleVisual = 'glass-capsule h-[var(--atlas-topbar-height)] flex items-center rounded-[999px]'
+
+  // Measure the group div's actual left edge so right-docking panels can align to it.
+  // Uses onMount (not $effect) so groupEl is guaranteed to be set when the callback runs.
+  // Group uses min-width instead of width so it expands to fit both capsules without overflow.
+  let groupEl: HTMLDivElement
+
+  onMount(() => {
+    function update() {
+      document.documentElement.style.setProperty(
+        '--atlas-topbar-right-left',
+        groupEl.getBoundingClientRect().left + 'px'
+      )
+    }
+    // rAF defers until after the first paint so getBoundingClientRect is non-zero
+    requestAnimationFrame(update)
+    // ResizeObserver catches both viewport resizes and group size changes (e.g. session expand)
+    const ro = new ResizeObserver(update)
+    ro.observe(groupEl)
+    ro.observe(document.documentElement)
+    return () => ro.disconnect()
+  })
 </script>
 
 <!-- DTCC logo capsule — anchored top-left, expands to SideNav width on open -->
@@ -95,10 +117,12 @@
 
 <!-- Title + Session capsules — shifts right when nav opens -->
 <!-- flex-row-reverse anchors session to the right edge; DTCC Atlas fills remaining space leftward -->
+<!-- min-width (not width) lets the group expand to fit both capsules; left edge is measured for panel alignment -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
+  bind:this={groupEl}
   class="fixed z-40 flex flex-row-reverse items-center transition-all duration-300 ease-out"
-  style="top: var(--atlas-edge-gap); right: var(--atlas-edge-gap); gap: var(--atlas-panel-gap); width: var(--atlas-panel-width);"
+  style="top: var(--atlas-edge-gap); right: var(--atlas-edge-gap); gap: var(--atlas-panel-gap); min-width: var(--atlas-panel-width);"
 >
   <!-- Session capsule — first in HTML = rightmost in row-reverse; right edge = panel right edge -->
   {#if $sessionId}
@@ -159,6 +183,40 @@
 {/if}
 
 <style>
+  .glass-capsule {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow:
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+
+  .glass-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: radial-gradient(
+      ellipse at 30px 0px,
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%,
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%,
+      transparent 80%
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+
   button span :global(svg) {
     width: var(--atlas-nav-icon-size);
     height: var(--atlas-nav-icon-size);

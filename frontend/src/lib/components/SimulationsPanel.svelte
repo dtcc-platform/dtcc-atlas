@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { datasets } from '../stores/datasets'
   import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
   import { slide } from 'svelte/transition'
   import FloatingPanel from './FloatingPanel.svelte'
   import { Icons } from '../ui/icons'
   import type { DatasetInfo } from '../types'
+
+  onMount(() => collapsedPanels.update(s => ({ ...s, 'simulations': false })))
 
   // Filter datasets to show only dtcc-sim source
   const simulations = $derived.by(() => {
@@ -32,18 +35,17 @@
 
 <div
   class="fixed z-30
-    max-sm:inset-0
-    sm:w-[var(--atlas-panel-width)]
     animate-panel-in"
-  style="top: var(--atlas-layout-top); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height);"
+  style="top: var(--atlas-layout-top); left: var(--atlas-topbar-right-left); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height);"
 >
-  <div class="relative min-h-0 h-full">
+  <div style="height: {Boolean($collapsedPanels['simulations']) ? 'var(--atlas-panel-collapsed-height)' : '100%'}; transition: height 200ms ease-out; overflow: visible;">
     <FloatingPanel
       title="DTCC Sim"
       panelId="simulations"
       collapsed={Boolean($collapsedPanels['simulations'])}
       onToggleCollapsed={() => togglePanelCollapsed('simulations')}
       onClose={handleClose}
+      class="h-full"
     >
       {#if showEmpty}
         <div class="p-6 text-center text-dtcc-muted">

@@ -54,8 +54,11 @@
   sm:top-[var(--atlas-layout-top)] sm:left-[var(--atlas-edge-gap)]
   sm:flex-col sm:w-[var(--atlas-sidebar-width)] sm:h-[var(--atlas-docked-panel-height)] sm:max-h-[var(--atlas-toolbar-natural-height)] sm:rounded-[999px]
   sm:px-[var(--atlas-toolbar-padding-x)] sm:py-[var(--atlas-toolbar-padding-y)] sm:justify-between
-  flex items-center bg-white/50 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.15)] border border-white/20"
-  style={$sideNavOpen ? 'transform: translateX(calc(171px + var(--atlas-panel-gap)))' : ''}>
+  flex items-center glass-toolbar"
+  style="
+    {$sideNavOpen ? 'transform: translateX(calc(171px + var(--atlas-panel-gap)));' : ''}
+    position: fixed !important;
+  ">
   <!-- Actions group -->
   <ToolbarButton
     icon={Icons.draw}
@@ -161,3 +164,36 @@
     onclick={onToggle3D}
   />
 </div>
+
+<style>
+  .glass-toolbar {
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow:
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+
+  .glass-toolbar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: radial-gradient(
+      ellipse at 30px 0px,
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%,
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%,
+      transparent 80%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+</style>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { datasets, selectedDataset, formConfig } from '../stores/datasets'
-  import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
+  import { onMount, onDestroy } from 'svelte'
+  import { activePanel, collapsedPanels, togglePanelCollapsed, activeDatasetPanelIds } from '../stores/ui'
   import { fetchDatasetSchema } from '../api/dataset-api'
   import { schemaParser } from '../forms/schema-parser'
   import FloatingPanel from './FloatingPanel.svelte'
@@ -57,7 +58,29 @@
 
   // When no datasets at all, show a single empty panel
   const showEmpty = $derived($datasets.length === 0)
-  const stackRows = $derived(Math.max(activeCategories.length, 1))
+
+  // How many category panels are currently collapsed — drives height redistribution
+  const collapsedCount = $derived(
+    activeCategories.filter(cat => Boolean($collapsedPanels[panelIdForCategory(cat.key)])).length
+  )
+
+  // Compute the explicit height for each category wrapper so all panels
+  // reanimate simultaneously when one collapses/expands.
+  function wrapperHeight(isColl: boolean): string {
+    if (isColl) return 'var(--atlas-panel-collapsed-height)'
+    const n = activeCategories.length
+    const c = collapsedCount
+    const e = n - c
+    if (e === 0) return '0px'
+    if (n === 1 && c === 0) return '100%'
+    const subtractParts: string[] = []
+    if (n > 1) subtractParts.push(`${n - 1} * var(--atlas-panel-gap)`)
+    if (c > 0) subtractParts.push(`${c} * var(--atlas-panel-collapsed-height)`)
+    const body = subtractParts.length
+      ? `100% - ${subtractParts.join(' - ')}`
+      : '100%'
+    return e === 1 ? `calc(${body})` : `calc((${body}) / ${e})`
+  }
 
   async function selectDataset(dataset: DatasetInfo) {
     selectedDataset.set(dataset)
@@ -77,32 +100,42 @@
     if (dataset.supported_formats && dataset.supported_formats.length > 0) {
       bits.push(`formats: ${dataset.supported_formats.join(', ')}`)
     }
-    return bits.join(' \u2022 ')
+    return bits.join(' • ')
   }
 
   function panelIdForCategory(key: string) {
     return `datasets:${key}`
   }
+
+  // Keep activeDatasetPanelIds in sync so LurkieChat can collapse them without duplicating logic
+  $effect(() => {
+    activeDatasetPanelIds.set(activeCategories.map(cat => panelIdForCategory(cat.key)))
+  })
+  onMount(() => collapsedPanels.update(s => {
+    const next = { ...s }
+    for (const key of Object.keys(next)) { if (key.startsWith('datasets:')) delete next[key] }
+    return next
+  }))
+  onDestroy(() => activeDatasetPanelIds.set([]))
 </script>
 
-<!-- Dataset panel stack: 1-3 floating panels stacked vertically -->
+<!-- Dataset panel stack: flex column so panels reflow when one collapses -->
 <div
-  class="fixed z-30
-    max-sm:inset-0
-    sm:w-[var(--atlas-panel-width)]
-    grid gap-[var(--atlas-panel-gap)]
-    animate-panel-in"
-  style={`top: var(--atlas-layout-top); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height); grid-template-rows: repeat(${stackRows}, minmax(0, 1fr));`}
+  class="fixed z-30 flex flex-col animate-panel-in"
+  style="top: var(--atlas-layout-top); left: var(--atlas-topbar-right-left); right: var(--atlas-edge-gap); height: var(--atlas-toolbar-natural-height); gap: var(--atlas-panel-gap);"
 >
   {#if showEmpty}
-    <div class="relative min-h-0">
+    <div
+      class="overflow-visible"
+      style="height: {Boolean($collapsedPanels['datasets:empty']) ? 'var(--atlas-panel-collapsed-height)' : '100%'}; transition: height 200ms ease-out;"
+    >
       <FloatingPanel
         title="Datasets"
         panelId="datasets:empty"
         collapsed={Boolean($collapsedPanels['datasets:empty'])}
         onToggleCollapsed={() => togglePanelCollapsed('datasets:empty')}
         onClose={handleClose}
-        class={Boolean($collapsedPanels['datasets:empty']) ? 'absolute top-0 left-0 right-0 h-[var(--atlas-panel-collapsed-height)]' : 'absolute inset-0'}
+        class="h-full"
       >
         <div class="flex items-center justify-center h-full text-center">
           <p class="text-sm text-dtcc-muted">No datasets found. Try uploading data, then reopen this panel.</p>
@@ -114,14 +147,17 @@
     {#each activeCategories as cat, index (cat.key)}
       {@const panelId = panelIdForCategory(cat.key)}
       {@const isColl = Boolean($collapsedPanels[panelId])}
-      <div class="relative min-h-0">
+      <div
+        class="overflow-visible"
+        style="height: {wrapperHeight(isColl)}; flex-shrink: 0; transition: height 200ms ease-out;"
+      >
         <FloatingPanel
           title={cat.label}
           panelId={panelId}
           collapsed={isColl}
           onToggleCollapsed={() => togglePanelCollapsed(panelId)}
           onClose={index === 0 ? handleClose : undefined}
-          class={isColl ? 'absolute top-0 left-0 right-0 self-start' : 'absolute inset-0'}
+          class="h-full"
         >
           <div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
             {#each cat.datasets as dataset (dataset.name)}

@@ -6,6 +6,7 @@
   import { Icons } from '../ui/icons'
   import { chatMessages, chatLoading, chatError, addUserMessage, clearChat, hasMessages } from '../stores/chat-store'
   import { chatService } from '../services/chat-service'
+  import { activePanel, collapsedPanels, togglePanelCollapsed, activeDatasetPanelIds } from '../stores/ui'
 
   const md = new Marked({ breaks: true })
   const renderMarkdown = (text: string) =>
@@ -54,6 +55,59 @@
     }
   })
 
+  // --- Right-panel awareness ---
+  // Only panels that physically dock to the RIGHT edge affect Lurkie's ceiling.
+  // LayersPanel (left of toolbar) and any future non-right-docking panels must NOT be included here.
+  const hasRightPanels = $derived($activePanel !== null)
+
+  // Panel IDs of all currently-visible right-docking panels
+  const rightPanelIds = $derived.by(() => {
+    const ids: string[] = []
+    if ($activePanel === 'datasets') ids.push(...$activeDatasetPanelIds)
+    else if ($activePanel === 'simulations') ids.push('simulations')
+    else if ($activePanel) ids.push(`side:${$activePanel}`)
+    return ids
+  })
+
+  // True when ALL visible right-docking panels are collapsed to header-only state
+  const allRightPanelsCollapsed = $derived(
+    rightPanelIds.length > 0 && rightPanelIds.every(id => Boolean($collapsedPanels[id]))
+  )
+
+  // The CSS subtraction term for the right-panel ceiling.
+  // When panels are collapsed, accounts for the actual visual footprint of all stacked headers
+  // (e.g. two collapsed DatasetList panels = 2×collapsed-height + 1×gap, not just 1×collapsed-height).
+  function rightPanelCeilingPart(): string {
+    if (!hasRightPanels) return ''
+    if (!allRightPanelsCollapsed) return ' - var(--atlas-toolbar-natural-height)'
+    // All panels collapsed — compute stacked header height
+    if ($activePanel === 'datasets' && $activeDatasetPanelIds.length > 1) {
+      const n = $activeDatasetPanelIds.length
+      return ` - calc(${n} * var(--atlas-panel-collapsed-height) + ${n - 1} * var(--atlas-panel-gap))`
+    }
+    return ' - var(--atlas-panel-collapsed-height)'
+  }
+
+  // CSS calc string for the chat panel's max-height, accounting for right-panel state.
+  // Uses CSS variables so the browser resolves clamp() values correctly.
+  // layout-bottom-reserve = edge-gap + bottom-bar-height + panel-gap (the full bottom stack)
+  function computeMaxHeightCSS(): string {
+    return `calc(100dvh - var(--atlas-layout-top)${rightPanelCeilingPart()} - var(--atlas-panel-gap) - var(--atlas-layout-bottom-reserve))`
+  }
+
+  // Reactive version used in the initial style attribute
+  const lurkieMaxHeight = $derived(computeMaxHeightCSS())
+
+  // Collapse all visible right-docking panels to their header-only state
+  function collapseRightPanels() {
+    for (const id of rightPanelIds) {
+      if (!$collapsedPanels[id]) togglePanelCollapsed(id)
+    }
+  }
+
+  // Track loading transitions to trigger auto-collapse only after Lurkie responds
+  let wasLoading = $state(false)
+
   // Chat states: 'collapsed' (icon only), 'expanded' (input bar), 'active' (chat + input)
   type ChatState = 'collapsed' | 'expanded' | 'active'
   let chatState = $state<ChatState>('collapsed')
@@ -68,17 +122,24 @@
   let inputBarEl: HTMLElement | undefined = $state(undefined)
   let chatPanelEl: HTMLElement | undefined = $state(undefined)
 
-  // Position the chat panel above the input bar.
+  // Position the chat panel above the input bar and enforce the correct max-height.
+  // Called on mount, on input bar resize, and when right-panel state changes.
   function applyChatPosition() {
     if (!chatPanelEl) return
     const inputBarHeight = inputBarEl?.getBoundingClientRect().height || 48
-    chatPanelEl.style.left = ''
+    chatPanelEl.style.left = 'var(--atlas-topbar-right-left)'
     chatPanelEl.style.top = ''
     chatPanelEl.style.bottom = `calc(var(--atlas-edge-gap) + ${inputBarHeight}px + var(--atlas-panel-gap))`
     chatPanelEl.style.right = 'var(--atlas-edge-gap)'
+    // Override max-height with actual measured bar height (accounts for growing textarea)
+    chatPanelEl.style.maxHeight = `calc(100dvh - var(--atlas-layout-top)${rightPanelCeilingPart()} - var(--atlas-panel-gap) - var(--atlas-edge-gap) - ${inputBarHeight}px - var(--atlas-panel-gap))`
   }
 
   $effect(() => {
+    // Re-apply position on mount AND whenever right-panel ceiling changes.
+    // Reading hasRightPanels/allRightPanelsCollapsed here makes the effect track them.
+    void hasRightPanels
+    void allRightPanelsCollapsed
     if (chatPanelEl) applyChatPosition()
   })
 
@@ -88,6 +149,24 @@
     const observer = new ResizeObserver(() => applyChatPosition())
     observer.observe(inputBarEl)
     return () => observer.disconnect()
+  })
+
+  // Auto-collapse right-docking panels when Lurkie's response fills the available space.
+  $effect(() => {
+    const loading = $chatLoading
+    if (loading) { wasLoading = true; return }
+    if (!wasLoading || !$hasMessages) return
+    wasLoading = false
+
+    // Runs after Lurkie responds; tick ensures the DOM reflects the new message
+    tick().then(() => {
+      if (!messagesContainer || !hasRightPanels || allRightPanelsCollapsed) return
+      // The messages div has overflow-y-auto — if it's scrolling, the panel is at max-height
+      // and content has overflowed the available space → collapse right panels to free room
+      if (messagesContainer.scrollHeight > messagesContainer.clientHeight + 4) {
+        collapseRightPanels()
+      }
+    })
   })
 
   // Auto-scroll messages to bottom
@@ -152,17 +231,6 @@
     inputText = ''
   }
 
-  // Click-outside detection checks all three independent elements.
-  function handleClickOutside(e: MouseEvent) {
-    if (chatState === 'collapsed') return
-    const target = e.target as Node
-    if (
-      triggerEl?.contains(target) ||
-      inputBarEl?.contains(target) ||
-      chatPanelEl?.contains(target)
-    ) return
-    collapse()
-  }
 
   function handleNewChat() {
     clearChat()
@@ -179,13 +247,11 @@
 
   onMount(() => {
     chatService.connect()
-    document.addEventListener('mousedown', handleClickOutside)
     window.addEventListener('resize', handleResize)
   })
 
   onDestroy(() => {
     chatService.disconnect()
-    document.removeEventListener('mousedown', handleClickOutside)
     window.removeEventListener('resize', handleResize)
   })
 </script>
@@ -194,21 +260,20 @@
 {#if chatState === 'active'}
   <div
     bind:this={chatPanelEl}
-    class="fixed z-30 w-[var(--atlas-panel-width)] bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
-      flex flex-col overflow-hidden animate-chat-in"
-    style="bottom: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap)); right: var(--atlas-edge-gap); max-height: calc(100dvh - var(--atlas-layout-top) - var(--atlas-edge-gap) - var(--atlas-bottom-bar-height) - (var(--atlas-panel-gap) * 2));"
+    class="glass-lurkie-panel fixed z-30
+      flex flex-col animate-chat-in"
+    style="bottom: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap)); left: var(--atlas-topbar-right-left); right: var(--atlas-edge-gap); max-height: {lurkieMaxHeight}; position: fixed !important;"
   >
     <!-- Chat header -->
     <div
       class="flex items-center justify-between px-[var(--atlas-panel-padding)] pt-[clamp(10px,0.97vh,14px)] pb-[clamp(6px,0.69vh,8px)]"
     >
-      <div class="flex items-center gap-2 flex-1 min-w-0">
-        <span class="text-[var(--atlas-body-text-size)] font-semibold text-dtcc-dark truncate">Lurkie</span>
+      <div class="shrink-0">
+        <span class="text-[var(--atlas-body-text-size)] font-semibold text-dtcc-dark">Lurkie</span>
       </div>
       {#if $chatLoading}
-        <div class="flex-1 mx-3 flex flex-col items-center gap-0.5">
-          <span class="text-[var(--atlas-caption-text-size)] font-medium tracking-wide transition-opacity duration-300" style="color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
+        <div class="flex-1 min-w-0 mx-3 flex flex-col items-start gap-0.5">
+          <span class="font-medium tracking-wide transition-opacity duration-300 truncate w-full text-left" style="font-size: 13px; color: #c44d18; opacity: {lurkieLabelFaded ? 0 : 1};">{lurkieLabel}</span>
           <div class="h-1 w-full rounded-full bg-black/5 overflow-hidden">
             <div class="h-full w-1/3 rounded-full animate-lurkie-progress" style="background: #c44d18;"></div>
           </div>
@@ -257,10 +322,10 @@
       {#each $chatMessages as msg, i}
         {@const isStreaming = $chatLoading && i === $chatMessages.length - 1 && msg.role === 'assistant'}
         <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
-          <div class="max-w-[85%] rounded-xl px-[var(--atlas-card-padding-x)] py-[clamp(8px,0.83vh,10px)] text-[var(--atlas-body-text-size)]
-            {msg.role === 'user'
-              ? 'opacity-50 text-dtcc-dark'
-              : 'text-dtcc-dark'}">
+          <div
+            class="max-w-[85%] rounded-xl px-[var(--atlas-card-padding-x)] py-[clamp(8px,0.83vh,10px)] font-light
+              {msg.role === 'user' ? 'opacity-50 text-dtcc-dark' : 'text-dtcc-dark'}"
+            style="font-size: var(--atlas-helper-font-size); line-height: var(--atlas-helper-line-height);">
             {#if isStreaming}
               <div class="whitespace-pre-wrap break-words">{msg.content}</div>
             {:else}
@@ -290,11 +355,9 @@
 {#if chatState === 'collapsed'}
   <button
     bind:this={triggerEl}
-    class="fixed z-30 w-[var(--atlas-sidebar-width)] h-[var(--atlas-bottom-bar-height)] flex items-center justify-center
-      bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
+    class="glass-lurkie-panel fixed z-30 w-[var(--atlas-sidebar-width)] h-[var(--atlas-bottom-bar-height)] flex items-center justify-center
       hover:bg-black/5 transition-all duration-200 ease-out cursor-pointer"
-    style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap);"
+    style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap); position: fixed !important;"
     style:--stroke-0={triggerFlash ? '#E35A1D' : undefined}
     onclick={handleTriggerClick}
     aria-label="Open Lurkie chat"
@@ -307,43 +370,112 @@
 {#if chatState !== 'collapsed'}
   <div
     bind:this={inputBarEl}
-    class="fixed z-30 w-[var(--atlas-panel-width)] h-auto flex items-end gap-2
-      bg-white/50 backdrop-blur-xl border border-white/20
-      shadow-[0_0_30px_rgba(255,255,255,0.15)] rounded-[var(--atlas-panel-radius)]
-      px-[clamp(10px,0.83vw,12px)] py-[clamp(5px,0.56vh,7px)]
+    class="glass-lurkie-capsule fixed z-30 h-[var(--atlas-bottom-bar-height)] flex items-center gap-2
+      pl-[clamp(10px,0.83vw,12px)] pr-[calc(var(--atlas-bottom-bar-height)*0.11)] py-0
       animate-expand-in"
-    style="bottom: var(--atlas-edge-gap); right: var(--atlas-edge-gap);"
+    style="bottom: var(--atlas-edge-gap); left: var(--atlas-topbar-right-left); right: var(--atlas-edge-gap); position: fixed !important;"
   >
     <textarea
       bind:this={inputEl}
       bind:value={inputText}
       onkeydown={handleKeydown}
-      placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie about data, tools, or workflows'}
+      placeholder={$hasMessages ? 'Reply...' : 'Ask Lurkie to explore data'}
       rows="1"
-      class="flex-1 resize-none bg-transparent text-[var(--atlas-body-text-size)] text-dtcc-dark
+      oninput={(e) => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }}
+      class="flex-1 resize-none bg-transparent text-dtcc-dark font-light
         placeholder:opacity-50 placeholder:text-dtcc-muted
-        focus:outline-none py-2 leading-snug lurkie-textarea"
+        focus:outline-none py-0 lurkie-textarea self-center"
+      style="font-size: clamp(12.5px, 0.92vw, 13.8px); line-height: 1.2;"
     ></textarea>
     <button
       onclick={handleSend}
       disabled={$chatLoading}
-      class="w-[var(--atlas-chat-send-size)] h-[var(--atlas-chat-send-size)] shrink-0 flex items-center justify-center rounded-full
-        transition-all duration-150 active:scale-95 mb-[2px]
+      class="w-[calc(var(--atlas-bottom-bar-height)*0.78)] h-[calc(var(--atlas-bottom-bar-height)*0.78)] shrink-0 flex items-center justify-center rounded-full
+        transition-all duration-150 active:scale-95
         {inputText.trim()
           ? 'bg-dtcc-orange text-white cursor-pointer'
           : 'bg-black/5 text-dtcc-muted cursor-default'}"
       aria-label="Send message"
     >
-      <span class="w-5 h-5 block">{@html Icons.sendArrow}</span>
+      <span class="w-[71.8%] h-[71.8%] block">{@html Icons.sendArrow}</span>
     </button>
   </div>
 {/if}
 
 <style>
+  .glass-lurkie-panel {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow: 
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    border-radius: var(--atlas-panel-radius);
+    overflow: hidden;
+  }
+
+  .glass-lurkie-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: radial-gradient(
+      ellipse at 30px 0px, 
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%, 
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%, 
+      transparent 80%
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  .glass-lurkie-capsule {
+    position: relative;
+    background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55));
+    backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1));
+    border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5));
+    box-shadow: 
+      var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .glass-lurkie-capsule::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    border-radius: inherit;
+    background: radial-gradient(
+      ellipse at 30px 0px, 
+      rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)) 0%, 
+      rgba(255, 255, 255, calc(var(--glass-edge-opacity, 0.25) * 0.4)) 40%, 
+      transparent 80%
+    );
+    -webkit-mask: 
+      linear-gradient(#fff 0 0) content-box, 
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 50;
+  }
+
   /* Auto-resize textarea using field-sizing (modern browsers) */
   .lurkie-textarea {
-    field-sizing: content;
-    min-height: 36px;
+    overflow: hidden;
     max-height: 26vh;
   }
 
@@ -358,8 +490,8 @@
 
   /* Input bar expand animation */
   @keyframes expand-in {
-    from { opacity: 0; width: var(--atlas-sidebar-width); }
-    to { opacity: 1; width: var(--atlas-panel-width); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   .animate-expand-in {
     animation: expand-in 200ms ease-out;
