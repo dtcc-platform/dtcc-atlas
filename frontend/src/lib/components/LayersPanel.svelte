@@ -1,6 +1,7 @@
 <script lang="ts">
   import FloatingPanel from './FloatingPanel.svelte'
   import LayerTag from './LayerTag.svelte'
+  import ScenarioBar from './ScenarioBar.svelte'
   import { layers, toggleLayerVisibility, toggleLayerExpanded, reorderLayers, setLayerOpacity, zoomToLayer, removeLayer } from '../stores/layers'
   import { onMount } from 'svelte'
   import { activePanel, collapsedPanels, togglePanelCollapsed, toolbarHovered, layersOpen, sideNavOpen } from '../stores/ui'
@@ -10,8 +11,6 @@
   // Awaiting design decision on button placement and layer creation flow.
   // Revisit in a future pass.
 
-  onMount(() => collapsedPanels.update(s => ({ ...s, 'layers:main': false })))
-
   let dragIndex: number | null = $state(null)
   let dropIndex: number | null = $state(null)
   const panelId = 'layers:main'
@@ -19,6 +18,10 @@
   function handleClose() {
     layersOpen.set(false)
   }
+
+  onMount(() => {
+    collapsedPanels.update(s => ({ ...s, 'layers:main': false }))
+  })
 
   function handleDragStart(index: number) {
     return (e: DragEvent) => {
@@ -72,6 +75,10 @@
     onClose={handleClose}
     class="h-full"
   >
+    <div class="sticky top-0 z-10" style="margin-bottom: var(--atlas-panel-inner-gap);">
+      <ScenarioBar />
+    </div>
+
     {#if $layers.length === 0}
       <div class="flex-1 flex items-center justify-center h-full">
         <p class="text-sm text-dtcc-muted select-none">No layers yet</p>

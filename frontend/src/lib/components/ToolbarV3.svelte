@@ -102,7 +102,7 @@
   icon: string; label: string; active?: boolean; disabled?: boolean; badge?: number; onclick?: () => void
 })}
   <button
-    class="flex items-center rounded-xl transition-colors duration-150
+    class="relative flex items-center rounded-xl transition-colors duration-150
       {active ? 'bg-dtcc-orange/10' : 'hover:bg-black/5'}
       {disabled ? 'opacity-30 pointer-events-none' : 'cursor-pointer'}"
     style="
@@ -125,6 +125,19 @@
       </span>
     </span>
 
+    <!-- Collapsed dot — anchored to top-right corner of the highlight box -->
+    {#if badge > 0}
+      <span
+        class="absolute rounded-full bg-dtcc-orange text-white font-semibold flex items-center justify-center"
+        style="
+          min-width: 14px; height: 14px; font-size: 8px; padding: 0 3px;
+          top: 2px; right: 2px;
+          opacity: {hovered ? '0' : '1'};
+          transition: opacity 150ms ease-out;
+        "
+      >{badge}</span>
+    {/if}
+
     <!-- Label — fades in when expanded -->
     <span
       class="flex-1 text-left font-medium whitespace-nowrap overflow-hidden"
@@ -140,12 +153,13 @@
       {label}
     </span>
 
-    <!-- Badge — fades in with label -->
+    <!-- Full badge — fades in with label when expanded -->
     {#if badge > 0}
       <span
         class="shrink-0 flex items-center justify-center rounded-full bg-dtcc-orange text-white font-semibold"
         style="
           min-width: 18px; height: 18px; font-size: 10px; padding: 0 4px;
+          margin-right: 8px;
           opacity: {hovered ? '1' : '0'};
           transition: opacity 150ms ease-out {hovered ? '80ms' : '0ms'};
         "

@@ -7,7 +7,7 @@
   import { registerProjections, transformCoordinates } from '../map/projections'
   import { bbox } from '../stores/map'
   import { datasets } from '../stores/datasets'
-  import { layers, addLayerWithSource, layerAddRequests, layerRemoveRequests, zoomToBoundsRequest } from '../stores/layers'
+  import { layers, allLayersForMap, addLayerWithSource, layerAddRequests, layerRemoveRequests, zoomToBoundsRequest } from '../stores/layers'
   import { computeBounds } from '../map/geojson-utils'
   import { activePanel, drawingActive } from '../stores/ui'
   import { fetchDatasetList } from '../api/dataset-api'
@@ -18,6 +18,7 @@
   let drawer: BBoxDrawer | null = null
   let renderer: LayerRenderer | null = null
   let unsubscribeLayers: (() => void) | null = null
+  let unsubscribeAllLayers: (() => void) | null = null
   let unsubscribeAddRequests: (() => void) | null = null
   let unsubscribeRemoveRequests: (() => void) | null = null
   let unsubscribeZoom: (() => void) | null = null
@@ -43,14 +44,20 @@
     const setupLayerHandling = () => {
       renderer = new LayerRenderer(map)
 
-      // Subscribe to layers store for visibility/opacity/order sync
-      unsubscribeLayers = layers.subscribe(($layers) => {
+      // Visibility/opacity sync — all versions, inactive ones forced to visible=false so
+      // switching versions correctly hides the outgoing version's layers on the map.
+      unsubscribeAllLayers = allLayersForMap.subscribe(($all) => {
         if (!renderer) return
-        for (const layer of $layers) {
+        for (const layer of $all) {
           if (!layer.mapLayerId || !layer.style) continue
           renderer.setVisibility(layer.mapLayerId, layer.visible)
           renderer.setOpacity(layer.mapLayerId, layer.style.type, layer.opacity)
         }
+      })
+
+      // Layer order sync — current version only so inactive versions don't disturb the stack.
+      unsubscribeLayers = layers.subscribe(($layers) => {
+        if (!renderer) return
         const orderedIds = $layers.filter(l => l.mapLayerId).map(l => l.mapLayerId!)
         renderer.syncOrder(orderedIds)
       })
@@ -123,6 +130,7 @@
 
   onDestroy(() => {
     unsubscribeLayers?.()
+    unsubscribeAllLayers?.()
     unsubscribeAddRequests?.()
     unsubscribeRemoveRequests?.()
     unsubscribeZoom?.()
@@ -163,11 +171,36 @@
     return px
   }
 
+  function readCSSWidth(varName: string): number {
+    const el = document.createElement('div')
+    el.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;width:var(${varName});height:0`
+    document.body.appendChild(el)
+    const px = el.getBoundingClientRect().width
+    document.body.removeChild(el)
+    return px
+  }
+
   export function fitBounds(b: BoundingBox) {
     const sw = transformCoordinates([b.minX, b.minY], 'EPSG:3006', 'EPSG:4326')
     const ne = transformCoordinates([b.maxX, b.maxY], 'EPSG:3006', 'EPSG:4326')
+
+    const edgeGap   = readCSSPx('--atlas-edge-gap')
+    const panelGap  = readCSSPx('--atlas-panel-gap')
+    const sidebarW  = readCSSWidth('--atlas-sidebar-width')
+    const panelW    = readCSSWidth('--atlas-panel-width')
+
+    // Left: edge gap + sidebar + gap + left panel (datasets/layers/etc) + gap
+    const paddingLeft  = edgeGap + sidebarW + panelGap + panelW + panelGap
+    // Right: edge gap + right panel (TopBar panel area) + gap
+    const paddingRight = edgeGap + panelW + panelGap
+
     mapManager.getMap()?.fitBounds([sw, ne], {
-      padding: { top: readCSSPx('--atlas-edge-gap'), bottom: readCSSPx('--atlas-layout-bottom-reserve'), left: 50, right: 50 },
+      padding: {
+        top:    readCSSPx('--atlas-edge-gap'),
+        bottom: readCSSPx('--atlas-layout-bottom-reserve'),
+        left:   paddingLeft,
+        right:  paddingRight,
+      },
       animate: true
     })
   }
