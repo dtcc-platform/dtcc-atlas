@@ -47,11 +47,30 @@ export const layers = derived(
 // All versions' layers with inactive versions forced to visible=false.
 // MapView subscribes to this for visibility/opacity sync so switching versions
 // correctly hides the outgoing version's map layers without removing them.
+//
+// Deduped by mapLayerId: duplicateVersion aliases the same map source/layer across
+// versions, so the same mapLayerId can appear in several versions. The current
+// version's entry always wins (applied last) regardless of version order, so its
+// visibility/opacity drives the shared map layer; inactive versions only force-hide
+// mapLayerIds the current version doesn't own.
 export const allLayersForMap = derived(
   [versions, currentVersionId],
-  ([$vs, $cvId]) => $vs.flatMap(v =>
-    v.layers.map(l => v.id === $cvId ? l : { ...l, visible: false })
-  )
+  ([$vs, $cvId]) => {
+    const byMapLayer = new Map<string, Layer>()
+    for (const v of $vs) {
+      if (v.id === $cvId) continue
+      for (const l of v.layers) {
+        if (l.mapLayerId && !byMapLayer.has(l.mapLayerId)) byMapLayer.set(l.mapLayerId, { ...l, visible: false })
+      }
+    }
+    const current = $vs.find(v => v.id === $cvId)
+    if (current) {
+      for (const l of current.layers) {
+        if (l.mapLayerId) byMapLayer.set(l.mapLayerId, l)
+      }
+    }
+    return Array.from(byMapLayer.values())
+  }
 )
 
 // -- Internal helper: mutate only the current version's layer list --
@@ -140,8 +159,14 @@ export function removeLayer(id: string) {
   const layer = get(versions).find(v => v.id === cvId)?.layers.find(l => l.id === id)
   if (!layer) return
   updateCurrentLayers(ls => ls.filter(l => l.id !== id))
+  // Only tear down the shared map source/layer if no remaining layer — in this or any
+  // other version — still references it. duplicateVersion aliases mapLayerId/sourceId,
+  // so a naive remove would pull the map layer out from under a duplicated version.
   if (layer.sourceId && layer.mapLayerId) {
-    layerRemoveRequests.update(rs => [...rs, { sourceId: layer.sourceId!, mapLayerId: layer.mapLayerId! }])
+    const stillReferenced = get(versions).some(v => v.layers.some(l => l.mapLayerId === layer.mapLayerId))
+    if (!stillReferenced) {
+      layerRemoveRequests.update(rs => [...rs, { sourceId: layer.sourceId!, mapLayerId: layer.mapLayerId! }])
+    }
   }
 }
 

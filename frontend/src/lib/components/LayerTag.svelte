@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { slide } from 'svelte/transition'
   import { Icons } from '../ui/icons'
   import type { Layer } from '../stores/layers'
@@ -38,6 +39,24 @@
   // "expanding oval" artifact that occurs when both run simultaneously.
   let isRectShape = $state(false)
   let showContent = $state(false)
+  let opacityRaf: number | null = null
+  let pendingOpacity: number | null = null
+
+  function handleOpacityInput(e: Event) {
+    pendingOpacity = Number((e.target as HTMLInputElement).value) / 100
+    if (opacityRaf !== null) return
+
+    opacityRaf = requestAnimationFrame(() => {
+      opacityRaf = null
+      const opacity = pendingOpacity
+      pendingOpacity = null
+      if (opacity !== null) onOpacityChange(opacity)
+    })
+  }
+
+  onDestroy(() => {
+    if (opacityRaf !== null) cancelAnimationFrame(opacityRaf)
+  })
 
   $effect(() => {
     if (layer.expanded) {
@@ -136,7 +155,7 @@
               min="0"
               max="100"
               value={layer.opacity * 100}
-              oninput={(e) => onOpacityChange(Number((e.target as HTMLInputElement).value) / 100)}
+              oninput={handleOpacityInput}
               class="w-full h-1 rounded-full appearance-none bg-black/10 accent-[#E35A1D] cursor-pointer"
             />
           </label>

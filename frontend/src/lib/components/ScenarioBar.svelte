@@ -287,6 +287,17 @@
             </button>
 
             <button
+              class="flex items-center justify-center rounded cursor-pointer text-[#5F5F6D] hover:bg-black/10 transition-colors focus-visible:outline-none"
+              style="width: var(--atlas-layer-tag-button-size); height: var(--atlas-layer-tag-button-size);"
+              onclick={(e) => handleDuplicate(version.id, e)}
+              aria-label="Duplicate {version.name}"
+            >
+              <span class="inline-flex" style="width: var(--atlas-layer-tag-icon-size); height: var(--atlas-layer-tag-icon-size);">
+                {@html Icons.copy}
+              </span>
+            </button>
+
+            <button
               class="flex items-center justify-center rounded cursor-pointer text-[#5F5F6D] hover:bg-red-50 hover:text-red-500 transition-colors focus-visible:outline-none"
               style="width: var(--atlas-layer-tag-button-size); height: var(--atlas-layer-tag-button-size);"
               onclick={(e) => handleDelete(version.id, e)}

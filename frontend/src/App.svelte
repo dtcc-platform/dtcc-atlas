@@ -5,10 +5,8 @@
   // import Header from './lib/components/Header.svelte'
   import TopBar from './lib/components/TopBar.svelte'
   import SideNavPanel from './lib/components/SideNavPanel.svelte'
-  import ToolbarExpanded from './lib/components/ToolbarExpanded.svelte'
   import ToolbarV3 from './lib/components/ToolbarV3.svelte'
   import MapView from './lib/components/MapView.svelte'
-  import Toolbar from './lib/components/Toolbar.svelte'
   import NavbarHelperBottom from './lib/components/NavbarHelperBottom.svelte'
   import SidePanel from './lib/components/SidePanel.svelte'
   import DatasetList from './lib/components/DatasetList.svelte'
@@ -24,8 +22,7 @@
   import LurkieChat from './lib/components/LurkieChat.svelte'
   import LayersPanel from './lib/components/LayersPanel.svelte'
   import SimulationsPanel from './lib/components/SimulationsPanel.svelte'
-  import StyleTest from './lib/components/StyleTest.svelte'
-  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers, unseenSimulations, aoiNotificationShown, sideNavOpen, toolbarVersion, layersOpen } from './lib/stores/ui'
+  import { activePanel, searchOpen, closeAllPanels, is3D, drawingActive, unseenBookmarks, unseenDownloads, unseenLayers, unseenSimulations, aoiNotificationShown, sideNavOpen, layersOpen } from './lib/stores/ui'
   import type { PanelView } from './lib/stores/ui'
   import { bbox } from './lib/stores/map'
   import { bookmarks } from './lib/stores/bookmarks'
@@ -51,7 +48,7 @@
   let sessionChangeCurrent = $state('')
   let sessionChangeNext = $state('')
   let sessionChangeError = $state('')
-  let isStyleTest = $state(false)
+  let lastPromptedBboxKey = $state<string | null>(null)
 
   function onBookmarksChanged() {
     const allBookmarks = bookmarkMgr.getAllBookmarks()
@@ -96,7 +93,6 @@
   }
 
   onMount(async () => {
-    isStyleTest = window.location.pathname === '/styletest'
     // --- Session initialization ---
     const urlSessionId = getSessionIdFromUrl()
 
@@ -308,7 +304,14 @@
   // Show save reminder bar and AOI notification badge when bbox is drawn.
   // Skip the bottom bar when bookmarks panel is already open — the in-panel card handles it.
   $effect(() => {
-    if ($bbox) {
+    if (!$bbox) {
+      lastPromptedBboxKey = null
+      return
+    }
+
+    const bboxKey = `${$bbox.minX},${$bbox.minY},${$bbox.maxX},${$bbox.maxY},${$bbox.crs}`
+    if (bboxKey !== lastPromptedBboxKey) {
+      lastPromptedBboxKey = bboxKey
       if ($activePanel !== 'bookmarks') saveDialogOpen = true
       aoiNotificationShown.set(true)
     }
@@ -329,10 +332,6 @@
   }
 }} />
 
-{#if isStyleTest}
-  <StyleTest />
-{/if}
-
 <div class="h-screen w-screen relative">
   <!-- REMOVED FROM TOPBAR v0.2.2 -- preserved for potential revert -->
   <!-- <Header onSessionDialog={() => sessionDialogOpen = true} /> -->
@@ -350,13 +349,7 @@
 
   <div class="absolute inset-0 overflow-hidden">
     <MapView bind:this={mapView} />
-    {#if $toolbarVersion === 'expanded'}
-      <ToolbarExpanded onClear={handleClear} onToggle3D={handleToggle3D} />
-    {:else if $toolbarVersion === 'v3'}
-      <ToolbarV3 onClear={handleClear} onToggle3D={handleToggle3D} />
-    {:else}
-      <Toolbar onClear={handleClear} onToggle3D={handleToggle3D} />
-    {/if}
+    <ToolbarV3 onClear={handleClear} onToggle3D={handleToggle3D} />
     {#if $activePanel === 'datasets'}
       <DatasetList />
     {/if}

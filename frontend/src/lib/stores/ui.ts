@@ -27,9 +27,6 @@ export const toolbarHovered = writable(false)
 // Layers panel — independent from activePanel so other panels don't close it
 export const layersOpen = writable(false)
 
-// Toolbar version — 'v1' = compact, 'expanded' = always expanded, 'v3' = hover-to-expand
-export const toolbarVersion = writable<'v1' | 'expanded' | 'v3'>('v3')
-
 // Which dataset category panel IDs are currently rendered (e.g. ['datasets:dtcc-core', 'datasets:user-uploaded'])
 // Updated by DatasetList so LurkieChat can collapse them without duplicating category logic.
 export const activeDatasetPanelIds = writable<string[]>([])

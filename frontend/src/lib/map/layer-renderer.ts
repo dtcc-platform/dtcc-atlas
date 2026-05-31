@@ -8,6 +8,7 @@ export interface LayerStyle {
 export class LayerRenderer {
   private map: maplibregl.Map
   private managedLayers: Set<string> = new Set()
+  private lastOrderKey = ''
 
   constructor(map: maplibregl.Map) {
     this.map = map
@@ -65,6 +66,9 @@ export class LayerRenderer {
 
   syncOrder(orderedMapLayerIds: string[]): void {
     const valid = orderedMapLayerIds.filter(id => this.map.getLayer(id))
+    const orderKey = valid.join('|')
+    if (orderKey === this.lastOrderKey) return
+    this.lastOrderKey = orderKey
     if (valid.length < 2) return
     // valid[0] = top of UI panel = should render on top (last in MapLibre's internal stack)
     this.map.moveLayer(valid[0])
