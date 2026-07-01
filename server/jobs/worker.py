@@ -13,38 +13,32 @@ _PROGRESS_MIN_INTERVAL = 0.2
 _PROGRESS_MIN_DELTA = 0.5
 
 
-def _patched_export_to_bytes(obj, format: str, as_text=False, **save_kwargs):
-    """
-    Patched version of DatasetDescriptor.export_to_bytes that ensures
-    the file is fully written before reading.
-    """
-    # Use delete=False so we control when the file is deleted
-    tmpfile = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
-    tmp_path = tmpfile.name
-    tmpfile.close()  # Close so obj.save() can write to it
-
-    try:
-        obj.save(tmp_path, **save_kwargs)
-
-        # Ensure all writes are flushed to disk
-        # Open the file, fsync, then read
-        with open(tmp_path, 'rb') as f:
-            fd = f.fileno()
-            os.fsync(fd)
-            data = f.read()
-
-        file_size = len(data)
-        print(f"[job worker] Save complete: {tmp_path} ({file_size} bytes, fsync done)")
-
-        if as_text:
-            return data.decode('utf-8')
-        return data
-    finally:
-        # Clean up temp file
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
+# NOTE: _patched_export_to_bytes is unused. The original
+# DatasetDescriptor.export_to_bytes is used instead.
+# The fsync it added is unnecessary (write and read happen in the same process),
+# and the monkey-patch was a source of bugs (missing/mismatched save_callable
+# parameter). Kept here for reference only.
+#
+# def _patched_export_to_bytes(obj, format: str, as_text=False, save_callable=None, **save_kwargs):
+#     tmpfile = tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False)
+#     tmp_path = tmpfile.name
+#     tmpfile.close()
+#     try:
+#         if save_callable is not None:
+#             save_callable(obj, tmp_path, **save_kwargs)
+#         else:
+#             obj.save(tmp_path, **save_kwargs)
+#         with open(tmp_path, 'rb') as f:
+#             os.fsync(f.fileno())
+#             data = f.read()
+#         if as_text:
+#             return data.decode('utf-8')
+#         return data
+#     finally:
+#         try:
+#             os.unlink(tmp_path)
+#         except OSError:
+#             pass
 
 
 def extract_error_message(error: Exception) -> str:
@@ -141,6 +135,8 @@ def process_dataset_job(
     dataset_name: str,
     params: Dict[str, Any],
     on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
+    cached_discoveries: Optional[Dict[str, Any]] = None,
+    on_remote_info: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """
     Process a dataset generation job.
@@ -164,8 +160,8 @@ def process_dataset_job(
     from dtcc_core import datasets
     from dtcc_core.datasets.dataset import DatasetDescriptor
 
-    # Monkey-patch export_to_bytes to ensure proper file sync
-    DatasetDescriptor.export_to_bytes = staticmethod(_patched_export_to_bytes)
+    # Monkey-patch removed: the original export_to_bytes works correctly and
+    # the patched version caused signature mismatches (see _patched_export_to_bytes above).
 
     try:
         import dtcc_lod2_roofer
@@ -173,6 +169,15 @@ def process_dataset_job(
         pass
 
     available_datasets = datasets.list()
+    if dataset_name not in available_datasets and cached_discoveries:
+        try:
+            from dtcc_core.datasets.remote import register_remote_descriptors_from_cache
+        except ImportError:
+            register_remote_descriptors_from_cache = None
+
+        if register_remote_descriptors_from_cache is not None:
+            register_remote_descriptors_from_cache(cached_discoveries)
+            available_datasets = datasets.list()
     emit_progress = _make_progress_emitter(on_progress)
 
     # Check if it's a dtcc-core dataset
@@ -182,6 +187,7 @@ def process_dataset_job(
             params,
             available_datasets,
             on_progress=emit_progress,
+            on_remote_info=on_remote_info,
         )
 
     # Check if it's a published vector dataset
@@ -195,13 +201,7 @@ def process_dataset_job(
             on_progress=emit_progress,
         )
 
-    # Check if it's an uploaded dataset
-    from server.upload.service import resolve_uploaded_job_result
-    uploaded_result = resolve_uploaded_job_result(dataset_name, params)
-    if uploaded_result is not None:
-        return uploaded_result
-
-    # Dataset not found in known sources
+    # Dataset not found in either source
     raise ValueError(f"Dataset '{dataset_name}' not found")
 
 
@@ -210,12 +210,25 @@ def _process_core_dataset(
     params: Dict[str, Any],
     available_datasets: Dict,
     on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
+    on_remote_info: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Tuple[bytes, str, str]:
     """Process a dtcc-core dataset."""
     dataset = available_datasets[dataset_name]
     from dtcc_core.common.progress import ProgressTracker, set_progress_callback
 
     try:
+        if hasattr(dataset, "source_service"):
+            request_params = dict(params)
+            supported_formats = getattr(dataset, "supported_formats", [])
+            if ("format" not in request_params or request_params["format"] is None) and supported_formats:
+                request_params["format"] = supported_formats[0]
+            validated = dataset.validate(request_params)
+            return dataset.build(
+                validated,
+                progress_callback=on_progress,
+                remote_info_callback=on_remote_info,
+            )
+
         # Validate and generate dataset
         _ = dataset.ArgsModel(**params)
         if on_progress:
@@ -237,17 +250,21 @@ def _process_core_dataset(
         else:
             data = dataset(**params)
     except Exception as e:
-        # Re-raise with cleaned error message
+        # Log full traceback for backend debugging
+        import traceback
+        print(f"[job worker] Dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
+        # Re-raise with cleaned error message for user
         clean_message = extract_error_message(e)
         raise RuntimeError(clean_message) from None
 
     # dtcc_core returns bytes when format is specified
     if data is None:
         raise RuntimeError("Dataset returned no data")
-    if not isinstance(data, bytes):
-        raise RuntimeError(f"Dataset returned unexpected type: {type(data).__name__}")
     if len(data) == 0:
         raise RuntimeError("Dataset returned empty data")
+    if not (isinstance(data, bytes) or isinstance(data, str)):
+        raise RuntimeError(f"Dataset returned unexpected type: {type(data).__name__}")
+    
 
     # Determine file format from parameters
     file_format = params.get("format", "bin")
@@ -262,6 +279,13 @@ def _process_core_dataset(
         "laz": "application/octet-stream",
         "cityjson": "application/json",
         "json": "application/json",
+        "geojson": "application/geo+json",
+        "xdmf": "application/x-hdf5",
+        "pb": "application/x-protobuf",
+        "vtk": "application/x-vtk",
+        "tar.gz": "application/gzip",
+        # "gpkg": "application/geopackage+sqlite3",
+        "gpkg": "application/octet-stream"
     }
     content_type = content_type_map.get(file_format, "application/octet-stream")
 
@@ -310,6 +334,8 @@ def _process_vector_dataset(
         with open(geojson_path, "r", encoding="utf-8") as f:
             geojson = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
+        import traceback
+        print(f"[job worker] Vector dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
         raise RuntimeError(f"Error reading dataset: {e}") from None
 
     if on_progress:

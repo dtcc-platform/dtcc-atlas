@@ -39,3 +39,18 @@ CATALOG_DB_PATH = Path(
 # Job manager settings
 JOB_MAX_WORKERS = int(os.getenv("JOB_MAX_WORKERS", "4"))
 JOB_TIMEOUT = float(os.getenv("JOB_TIMEOUT", "120.0"))
+
+# Remote dataset services
+REMOTE_SERVICES = [
+    url.strip()
+    for url in os.environ.get("DTCC_REMOTE_SERVICES", "").split(",")
+    if url.strip()
+]
+SHARED_RESULTS_DIR = Path(
+    os.getenv("SHARED_RESULTS_DIR", BASE_DIR / "data" / "shared-results")
+)
+REMOTE_DISCOVERY_INTERVAL = int(os.getenv("REMOTE_DISCOVERY_INTERVAL", "60"))
+
+# Optional external Lurkie/dtcc-agent service. When set, Atlas proxies chat
+# WebSocket traffic to this service instead of launching dtcc-agent in-process.
+AGENT_SERVICE_URL = os.getenv("DTCC_AGENT_SERVICE_URL", "").rstrip("/")

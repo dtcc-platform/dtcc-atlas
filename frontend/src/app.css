@@ -14,7 +14,8 @@
   --color-dtcc-eyebrow: #7a7a80;
 
   /* Semantic color aliases */
-  --color-dtcc-navy: #27252A;
+  --color-dtcc-navy: #1a1a2e;
+  --color-dtcc-navy-hover: #2d2d44;
   --color-dtcc-blue: #78C8BE;
   --color-dtcc-blue-dark: #5fb3a8;
   --color-dtcc-blue-darker: #4a9e94;
@@ -54,11 +55,113 @@
   --color-bg-overlay: rgba(255, 255, 255, 0.95);
 }
 
+:root {
+  /* Recalibrated around a 1440x900 DPR-1 reference viewport. */
+  --atlas-edge-gap: clamp(8px, 0.83vw, 14px);
+  --atlas-panel-gap: clamp(6px, 0.69vw, 10px);
+
+  --atlas-topbar-height: clamp(38px, 4.67vh, 46px);
+  --atlas-topbar-inner-height: clamp(30px, 3.78vh, 36px);
+  --atlas-topbar-title-size: clamp(13px, 0.97vw, 15px);
+  --atlas-topbar-title-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-topbar-button-width: clamp(40px, 3.33vw, 48px);
+  --atlas-topbar-padding-left: clamp(10px, 0.76vw, 12px);
+  --atlas-topbar-padding-right: clamp(2px, 0.28vw, 4px);
+  --atlas-status-dot-size: calc(var(--atlas-topbar-height) * 0.19);
+  --atlas-topbar-menu-icon-width: clamp(16px, 1.25vw, 20px);
+  --atlas-topbar-menu-icon-height: clamp(11px, 0.83vw, 14px);
+
+  --atlas-sidebar-width: calc(var(--atlas-topbar-height) * (65 / 53));
+  --atlas-toolbar-natural-height: clamp(420px, 65vh, 590px);
+  --atlas-toolbar-padding-x: clamp(7px, 0.63vw, 10px);
+  --atlas-toolbar-padding-y: clamp(12px, 1.67vh, 16px);
+  --atlas-nav-item-width: clamp(40px, 4.44vmin, 48px);
+  --atlas-nav-item-height: clamp(42px, 4.89vmin, 50px);
+  --atlas-nav-icon-size: clamp(24px, 3.11vmin, 30px);
+
+  --atlas-bottom-bar-height: clamp(38px, 4.67vh, 46px);
+  --atlas-bottom-bar-padding-x: clamp(12px, 1.04vw, 16px);
+  --atlas-helper-font-size: clamp(13px, 1.04vw, 16px);
+  --atlas-helper-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-helper-icon-size: clamp(16px, 1.25vw, 19px);
+
+  --atlas-panel-width: clamp(272px, 20vw, 330px);
+  --atlas-panel-radius: clamp(16px, 1.39vw, 22px);
+  --atlas-panel-padding: clamp(12px, 0.9vw, 16px);
+  --atlas-panel-inner-gap: clamp(6px, 0.49vw, 8px);
+  --atlas-panel-header-height: clamp(40px, 4.44vh, 48px);
+  --atlas-panel-collapsed-height: calc(var(--atlas-panel-header-height) + (var(--atlas-panel-padding) * 2));
+  --atlas-panel-header-title-size: clamp(15px, 1.11vw, 18px);
+  --atlas-panel-header-line-height: clamp(20px, 1.53vw, 24px);
+  --atlas-panel-action-size: clamp(30px, 2.5vw, 36px);
+  --atlas-panel-action-icon-size: clamp(16px, 1.39vw, 20px);
+
+  --atlas-session-font-size: clamp(13px, 0.97vw, 15px);
+  --atlas-session-line-height: clamp(18px, 1.39vw, 22px);
+  --atlas-session-icon-size: clamp(16px, 1.25vw, 20px);
+  /* ~47% of capsule height — matches Figma icon-to-capsule proportion */
+  --atlas-session-icon-size-lg: calc(var(--atlas-topbar-height) * 0.47);
+  --atlas-session-input-width: clamp(68px, 5.56vw, 84px);
+  --atlas-session-share-width: clamp(160px, 14vw, 220px);
+  --atlas-feedback-timeout-ms: 1500;
+
+  --atlas-tooltip-font-size: clamp(10px, 0.76vw, 11px);
+  --atlas-body-text-size: clamp(12px, 0.9vw, 14px);
+  --atlas-body-line-height: clamp(18px, 1.39vw, 20px);
+  --atlas-caption-text-size: clamp(10px, 0.76vw, 12px);
+  --atlas-caption-line-height: clamp(14px, 1.11vw, 17px);
+  --atlas-control-height: clamp(34px, 4vh, 40px);
+  --atlas-control-radius: clamp(10px, 0.76vw, 12px);
+  --atlas-control-padding-x: clamp(10px, 0.83vw, 12px);
+  --atlas-card-padding-x: clamp(10px, 0.83vw, 12px);
+  --atlas-card-padding-y: clamp(10px, 1.11vh, 12px);
+  --atlas-layer-tag-gap: clamp(4px, 0.42vw, 6px);
+  --atlas-layer-tag-height: clamp(32px, 3.56vh, 38px);
+  --atlas-layer-tag-button-size: clamp(24px, 1.94vw, 28px);
+  --atlas-layer-tag-icon-size: clamp(12px, 0.97vw, 15px);
+  --atlas-layer-tag-title-size: clamp(11px, 0.83vw, 13px);
+  --atlas-layer-tag-title-line-height: clamp(14px, 1.04vw, 17px);
+  --atlas-chat-send-size: clamp(32px, 2.5vw, 36px);
+
+  --atlas-topbar-right-left: calc(100vw - var(--atlas-edge-gap) - var(--atlas-panel-width));
+
+  --atlas-layout-top: calc(var(--atlas-edge-gap) + var(--atlas-topbar-height) + var(--atlas-panel-gap));
+  --atlas-layout-bottom-reserve: calc(var(--atlas-edge-gap) + var(--atlas-bottom-bar-height) + var(--atlas-panel-gap));
+  --atlas-docked-panel-height: calc(100dvh - var(--atlas-layout-top) - var(--atlas-layout-bottom-reserve));
+
+  /* Glassmorphism Design Tokens - Optimized May 2026 */
+  --glass-blur: 4px;
+  --glass-bg-opacity: 0.55;
+  --glass-border-opacity: 0.5;
+  --glass-edge-opacity: 0.25;
+  --glass-saturate: 1.1;
+  --glass-shadow-x: 0px;
+  --glass-shadow-y: 3px;
+  --glass-shadow-blur: 7px;
+}
+
 /* Base typography */
 body {
   font-family: var(--font-family-sans);
   color: var(--color-dtcc-dark);
   background: var(--color-dtcc-bg);
+}
+
+.scrollbar-subtle::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-subtle::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.scrollbar-subtle:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* Spinner animation */
@@ -112,4 +215,26 @@ body {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   font-size: 11px !important;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-top-color: #E35A1D;
+  }
+
+  .animate-progress-indeterminate {
+    animation: none;
+    width: 100%;
+  }
+
+  .animate-slide-in,
+  .animate-slide-out {
+    animation: none;
+  }
+
+  .animate-spin {
+    animation: none;
+  }
 }

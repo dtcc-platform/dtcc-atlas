@@ -5,11 +5,6 @@ try:
 except ImportError:
     pass
 
-try:
-    import dtcc_sim.datasets
-except ImportError:
-    pass
-
 import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, FileResponse
@@ -27,10 +22,14 @@ from server.admin import create_admin_router
 from server.upload import (
     create_upload_router,
     ensure_catalog_directories,
+    get_catalog,
     list_uploaded_datasets_for_api,
     uploaded_dataset_schema,
     process_uploaded_dataset_download,
 )
+from server.session import create_session_router
+from server.agent import create_agent_router
+from server import config
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
 import json
@@ -44,6 +43,7 @@ print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s t
 async def lifespan(app: fastapi.FastAPI):
     """Manage application lifecycle - startup and shutdown."""
     ensure_catalog_directories()
+    _refresh_available_datasets()
     yield
 
     # Cleanup on shutdown
@@ -61,7 +61,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-Session-Id"],
 )
 
 app.add_middleware(
@@ -70,8 +70,42 @@ app.add_middleware(
     skip_paths=("/api/v1/jobs/events",),
 )
 
-available_datasets = datasets.list()
-available_dataset_names = list(available_datasets.keys())
+available_datasets = {}
+available_dataset_names = []
+
+
+def _refresh_available_datasets() -> None:
+    """Refresh the in-process dataset snapshot, including remote descriptors."""
+    global available_datasets, available_dataset_names
+
+    before_remote = set(datasets.list().keys())
+
+    try:
+        from dtcc_core.datasets import register_remote_service
+    except ImportError:
+        register_remote_service = None
+
+    if config.REMOTE_SERVICES and register_remote_service is None:
+        print(
+            "Warning: DTCC_REMOTE_SERVICES configured, but this dtcc-core version "
+            "does not support remote dataset services"
+        )
+    elif register_remote_service is not None:
+        for url in config.REMOTE_SERVICES:
+            print(f"Registering remote dataset service: {url}")
+            try:
+                register_remote_service(url)
+            except Exception as exc:
+                print(f"Warning: failed to register remote dataset service {url}: {exc}")
+
+    available_datasets = datasets.list()
+    available_dataset_names = list(available_datasets.keys())
+    added_remote = sorted(set(available_dataset_names) - before_remote)
+    if added_remote:
+        print(f"Registered remote datasets: {', '.join(added_remote)}")
+
+
+_refresh_available_datasets()
 
 _FORMAT_TO_KIND = {
     "tif": "raster",
@@ -88,6 +122,7 @@ _FORMAT_TO_KIND = {
     "vtk": "mesh",
     "vtu": "mesh",
     "xdmf": "mesh",
+    "pb": "mesh",
     "inp": "mesh",
     "bdf": "mesh",
     "las": "point_cloud",
@@ -100,6 +135,13 @@ _FORMAT_TO_KIND = {
 
 
 def _source_group_for_dataset(dataset_obj: Any) -> tuple[str, str]:
+    if hasattr(dataset_obj, "source_service"):
+        service_name = str(dataset_obj.source_service)
+        if service_name.startswith("dtcc-"):
+            label = "DTCC " + service_name.removeprefix("dtcc-").replace("-", " ").title()
+        else:
+            label = service_name.replace("-", " ").title()
+        return (service_name, label)
     module_name = dataset_obj.__class__.__module__
     if module_name.startswith("dtcc_sim"):
         return ("dtcc-sim", "DTCC Sim")
@@ -319,27 +361,36 @@ def _download_core_dataset(request: DatasetDownloadRequest):
         # Validate parameters using the dataset's ArgsModel
         _ = dataset.ArgsModel(**params)
 
-        # Call the dataset with validated parameters as kwargs
-        data = dataset(**params)
+        if hasattr(dataset, "source_service"):
+            supported_formats = getattr(dataset, "supported_formats", [])
+            if ("format" not in params or params["format"] is None) and supported_formats:
+                params["format"] = supported_formats[0]
 
-        # Determine file extension from format parameter or use default
-        file_format = request.parameters.get("format", "bin")
+        result = dataset(**params)
+        if isinstance(result, tuple) and len(result) == 3:
+            data, file_format, content_type = result
+        else:
+            data = result
+            file_format = params.get("format", "bin")
+            content_type_map = {
+                "tif": "image/tiff",
+                "obj": "model/obj",
+                "stl": "model/stl",
+                "copc": "application/octet-stream",
+                "las": "application/octet-stream",
+                "laz": "application/octet-stream",
+                "cityjson": "application/json",
+                "json": "application/json",
+                "xdmf": "application/x-hdf5",
+                "pb": "application/x-protobuf",
+                "vtk": "application/x-vtk",
+                "tar.gz": "application/gzip",
+            }
+            content_type = content_type_map.get(file_format, "application/octet-stream")
+
         filename = request.filename
         if not filename:
             filename = request.dataset
-
-        # Determine content type based on format
-        content_type_map = {
-            "tif": "image/tiff",
-            "obj": "model/obj",
-            "stl": "model/stl",
-            "copc": "application/octet-stream",
-            "las": "application/octet-stream",
-            "laz": "application/octet-stream",
-            "cityjson": "application/json",
-            "json": "application/json",
-        }
-        content_type = content_type_map.get(file_format, "application/octet-stream")
 
         if file_format == "cityjson":
             file_format = "city.json"
@@ -357,6 +408,11 @@ def _download_core_dataset(request: DatasetDownloadRequest):
             status_code=422, detail=f"Invalid parameters: {e.errors()}"
         )
     except Exception as e:
+        if getattr(e, "status_code", None) == 422:
+            raise fastapi.HTTPException(
+                status_code=422,
+                detail=getattr(e, "detail", str(e)),
+            )
         raise fastapi.HTTPException(
             status_code=500, detail=f"Error generating dataset: {str(e)}"
         )
@@ -417,6 +473,16 @@ print("Admin router mounted at /api/v1/admin")
 upload_router = create_upload_router()
 app.include_router(upload_router, prefix="/api/v1")
 print("Upload router mounted at /api/v1/uploads")
+
+# Mount session router
+session_router = create_session_router(get_catalog())
+app.include_router(session_router, prefix="/api/v1")
+print("Session router mounted at /api/v1/sessions")
+
+# Mount agent chat router
+agent_router = create_agent_router(available_datasets=available_dataset_names, catalog=get_catalog())
+app.include_router(agent_router, prefix="/api/v1")
+print("Agent chat router mounted at /api/v1/agent")
 
 
 # Mount static files (must be last due to catch-all route)

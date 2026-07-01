@@ -49,9 +49,23 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-# Check if frontend node_modules exists
-if [ ! -d "frontend/node_modules" ]; then
-    echo "node_modules not found in frontend directory."
+# Prefer the project virtualenv when available.
+if [ -x ".venv/bin/uvicorn" ]; then
+    UVICORN_CMD=".venv/bin/uvicorn"
+else
+    UVICORN_CMD="$(command -v uvicorn || true)"
+fi
+
+if [ -z "$UVICORN_CMD" ]; then
+    echo "Error: uvicorn not found."
+    echo "Activate the project Python environment or install backend dependencies."
+    echo "Example: source .venv/bin/activate"
+    exit 1
+fi
+
+# Check if frontend dependencies are installed and complete
+if [ ! -d "frontend/node_modules" ] || [ ! -d "frontend/node_modules/@sveltejs/vite-plugin-svelte" ]; then
+    echo "Frontend dependencies not found or incomplete."
     echo "Installing dependencies..."
     cd frontend && npm install && cd ..
     echo ""
@@ -80,7 +94,7 @@ fi
 
 # Start FastAPI server in development mode with auto-reload
 echo "Starting FastAPI server on port 8000..."
-uvicorn server.main:app --reload --host 0.0.0.0 --port 8000 &
+"$UVICORN_CMD" server.main:app --reload --host 0.0.0.0 --port 8000 --loop asyncio &
 FASTAPI_PID=$!
 echo "FastAPI server started (PID: $FASTAPI_PID)"
 
@@ -96,4 +110,3 @@ echo ""
 
 # Wait for all background processes
 wait
-

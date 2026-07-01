@@ -1,6 +1,7 @@
 """Job manager for handling async dataset processing."""
 
 import asyncio
+import logging
 import multiprocessing
 import os
 import queue
@@ -13,6 +14,8 @@ from collections import deque
 from .models import Job, JobStatus
 from .storage import JobStorage
 from .worker import process_dataset_job
+
+logger = logging.getLogger(__name__)
 
 
 class JobManager:
@@ -57,6 +60,7 @@ class JobManager:
         # Track running processes for cancellation
         self._processes: Dict[str, multiprocessing.Process] = {}
         self._result_queues: Dict[str, multiprocessing.Queue] = {}
+        self._remote_task_info: Dict[str, Dict[str, Any]] = {}
 
         # Cleanup scheduler - runs every 10 minutes
         self._cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
@@ -71,6 +75,7 @@ class JobManager:
         dataset: str,
         params: Dict[str, Any],
         filename: Optional[str] = None,
+        session_id: Optional[str] = None,
     ) -> Job:
         """
         Submit a new job for processing.
@@ -79,6 +84,7 @@ class JobManager:
             dataset: Dataset name.
             params: Dataset parameters including bounds.
             filename: Optional custom filename.
+            session_id: Optional session ID to scope the job.
 
         Returns:
             The created Job instance.
@@ -87,6 +93,7 @@ class JobManager:
             dataset=dataset,
             params=params,
             filename=filename or dataset,
+            session_id=session_id,
         )
 
         with self._lock:
@@ -111,6 +118,8 @@ class JobManager:
         Returns:
             True if job was cancelled, False if not found or already complete.
         """
+        revoke_remote = False
+
         with self._lock:
             job = self._jobs.get(job_id)
             if not job:
@@ -130,6 +139,7 @@ class JobManager:
                     job.error = "Cancelled by user"
                     job.progress = None
                     job.completed_at = datetime.now()
+                    self._remote_task_info.pop(job_id, None)
                 except ValueError:
                     pass
 
@@ -148,12 +158,16 @@ class JobManager:
                     del self._processes[job_id]
                 if job_id in self._result_queues:
                     del self._result_queues[job_id]
+                revoke_remote = True
 
                 job.status = JobStatus.FAILED
                 job.error = "Cancelled by user"
                 job.progress = None
                 job.completed_at = datetime.now()
                 self._active_count -= 1
+
+        if revoke_remote:
+            self._revoke_remote_task(job_id)
 
         self._broadcast_event("job_failed", job.to_dict())
 
@@ -194,11 +208,13 @@ class JobManager:
     async def _execute_job(self, job: Job) -> None:
         """Execute a job in a separate process with timeout and cancellation support."""
         result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        cached_discoveries = self._get_cached_discoveries()
+        job_timeout = self._resolve_job_timeout(job.dataset)
 
         # Create and start the process
         process = multiprocessing.Process(
             target=_worker_wrapper,
-            args=(result_queue, job.dataset, job.params),
+            args=(result_queue, job.dataset, job.params, cached_discoveries),
             daemon=True,
         )
 
@@ -257,6 +273,11 @@ class JobManager:
                                 last_progress_percent = percent
                             continue
 
+                        if message_type == "remote_task_info":
+                            with self._lock:
+                                self._remote_task_info[job.id] = message.get("data", {})
+                            continue
+
                         if message_type == "result":
                             result = message.get("data")
                             done = True
@@ -278,7 +299,7 @@ class JobManager:
                 if done:
                     break
 
-                if time.monotonic() - started_at > self._job_timeout:
+                if time.monotonic() - started_at > job_timeout:
                     timed_out = True
                     break
 
@@ -299,6 +320,10 @@ class JobManager:
                                     with self._lock:
                                         if job.status == JobStatus.PROCESSING:
                                             job.progress = progress
+                                continue
+                            if message_type == "remote_task_info":
+                                with self._lock:
+                                    self._remote_task_info[job.id] = message.get("data", {})
                                 continue
                             if message_type == "result":
                                 result = message.get("data")
@@ -344,11 +369,13 @@ class JobManager:
                         cancelled = True
                     else:
                         job.status = JobStatus.FAILED
-                        job.error = f"Job timed out after {self._job_timeout} seconds"
+                        job.error = f"Job timed out after {job_timeout} seconds"
                         job.progress = None
                         job.completed_at = datetime.now()
                         self._active_count -= 1
 
+                self._revoke_remote_task(job.id)
+                self._remote_task_info.pop(job.id, None)
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
 
@@ -363,6 +390,7 @@ class JobManager:
                         job.completed_at = datetime.now()
                         self._active_count -= 1
 
+                self._remote_task_info.pop(job.id, None)
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
 
@@ -377,6 +405,7 @@ class JobManager:
                         job.completed_at = datetime.now()
                         self._active_count -= 1
 
+                self._remote_task_info.pop(job.id, None)
                 if not cancelled:
                     self._broadcast_event("job_failed", job.to_dict())
 
@@ -405,6 +434,7 @@ class JobManager:
                         job.completed_at = datetime.now()
                         self._active_count -= 1
 
+                self._remote_task_info.pop(job.id, None)
                 if not cancelled:
                     self._broadcast_event("job_complete", {
                         **job.to_dict(),
@@ -422,6 +452,7 @@ class JobManager:
                     job.progress = None
                     job.completed_at = datetime.now()
                     self._active_count -= 1
+                    self._remote_task_info.pop(job.id, None)
                     should_broadcast = True
 
             if should_broadcast:
@@ -454,6 +485,15 @@ class JobManager:
             jobs = list(self._jobs.values())
             jobs.sort(key=lambda j: j.created_at, reverse=True)
             return jobs[:limit]
+
+    def list_jobs_by_session(self, session_id: str) -> List[Job]:
+        """Return jobs for a given session, newest first."""
+        with self._lock:
+            return sorted(
+                [j for j in self._jobs.values() if j.session_id == session_id],
+                key=lambda j: j.created_at,
+                reverse=True,
+            )
 
     def get_queue_position(self, job_id: str) -> Optional[int]:
         """Get position in queue (1-indexed) or None if not queued."""
@@ -526,14 +566,78 @@ class JobManager:
 
         self._storage.cleanup_all()
 
+    def _revoke_remote_task(self, job_id: str) -> None:
+        """Cancel the upstream remote task for this atlas job, if any."""
+        remote_info = self._remote_task_info.pop(job_id, None)
+        if not remote_info:
+            return
 
-def _worker_wrapper(result_queue: multiprocessing.Queue, dataset: str, params: Dict[str, Any]) -> None:
+        cancel_url = remote_info.get("cancel_url")
+        if not cancel_url:
+            return
+
+        try:
+            import httpx
+
+            httpx.post(cancel_url, timeout=5)
+        except Exception as exc:
+            logger.warning("Failed to cancel remote task for job %s: %s", job_id, exc)
+
+    def _get_cached_discoveries(self) -> Dict[str, Any]:
+        """Fetch serializable remote discovery data for spawned workers."""
+        try:
+            from dtcc_core.datasets.remote import get_cached_discoveries
+        except ImportError:
+            return {}
+
+        try:
+            return get_cached_discoveries()
+        except Exception:
+            return {}
+
+    def _resolve_job_timeout(self, dataset_name: str) -> float:
+        """Return dataset-specific timeout_hint when available."""
+        try:
+            from dtcc_core import datasets as core_datasets
+        except ImportError:
+            return self._job_timeout
+
+        try:
+            dataset = core_datasets.list().get(dataset_name)
+        except Exception:
+            dataset = None
+
+        timeout_hint = getattr(dataset, "timeout_hint", None) if dataset else None
+        if timeout_hint is None:
+            return self._job_timeout
+
+        try:
+            return float(timeout_hint)
+        except (TypeError, ValueError):
+            return self._job_timeout
+
+
+def _worker_wrapper(
+    result_queue: multiprocessing.Queue,
+    dataset: str,
+    params: Dict[str, Any],
+    cached_discoveries: Optional[Dict[str, Any]] = None,
+) -> None:
     """Wrapper function that runs in a separate process and puts typed messages in queue."""
     def on_progress(state: Dict[str, Any]) -> None:
         result_queue.put({"type": "progress", "data": state})
 
+    def on_remote_info(info: Dict[str, Any]) -> None:
+        result_queue.put({"type": "remote_task_info", "data": info})
+
     try:
-        result = process_dataset_job(dataset, params, on_progress=on_progress)
+        result = process_dataset_job(
+            dataset,
+            params,
+            on_progress=on_progress,
+            cached_discoveries=cached_discoveries,
+            on_remote_info=on_remote_info,
+        )
         result_queue.put({"type": "result", "data": result})
     except Exception as e:
         result_queue.put({"type": "error", "error": str(e)})

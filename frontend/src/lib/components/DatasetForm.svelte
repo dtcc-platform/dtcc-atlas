@@ -1,13 +1,13 @@
 <script lang="ts">
+  import { Icons } from '../ui/icons'
   import { selectedDataset, formConfig } from '../stores/datasets'
-  import { activePanel } from '../stores/ui'
+  import { activePanel, unseenDownloads } from '../stores/ui'
   import { bbox } from '../stores/map'
   import { formValidator } from '../forms/form-validator'
   import { jobService } from '../services/job-service'
-  import { Icons } from '../ui/icons'
   import { FormFieldType } from '../types/form-fields'
   import type { FormField } from '../types/form-fields'
-  import type { FormValues, FieldValidationError } from '../types/form-state'
+  import type { FormValues } from '../types/form-state'
   import { SubmissionState } from '../types/form-state'
 
   let values: FormValues = $state({})
@@ -128,7 +128,6 @@
     }
   }
 
-  const title = $derived($selectedDataset?.title || $selectedDataset?.name || 'Configure Dataset')
   const selectedDatasetBounds = $derived(toBoundsArray($selectedDataset?.bounds))
   const selectedBBoxArray = $derived($bbox ? [$bbox.minX, $bbox.minY, $bbox.maxX, $bbox.maxY] : null)
   const hasCoverageForSelection = $derived(
@@ -138,32 +137,27 @@
   const visibleFields = $derived($formConfig?.fields.filter((f: FormField) => f.type !== FormFieldType.HIDDEN) ?? [])
 </script>
 
-<div class="p-5">
-  <!-- Header with back button -->
-  <div class="flex items-center gap-3 mb-5">
-    <button
-      class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 transition-colors cursor-pointer text-[#6b7280]"
-      onclick={goBack}
-    >
-      <span class="w-4 h-4 block">{@html Icons.arrowLeft}</span>
-    </button>
-    <h3 class="text-[16px] font-semibold text-[#1a1a2e] truncate">{title}</h3>
-  </div>
-
+<div>
   {#if submissionState === SubmissionState.SUCCESS}
     <!-- Success state -->
     <div class="flex flex-col items-center py-8 gap-4">
       <div class="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600">
         <span class="w-6 h-6 block">{@html Icons.check}</span>
       </div>
-      <p class="text-[14px] font-medium text-[#1a1a2e]">{submissionMessage}</p>
-      <p class="text-[12px] text-[#6b7280]">Your job is being processed</p>
-      <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg bg-[#1a1a2e] text-white hover:bg-[#2d2d44] transition-colors cursor-pointer"
-        onclick={goBack}
-      >
-        Back to datasets
-      </button>
+      <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">{submissionMessage}</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">Your job is being processed</p>
+      <div class="flex gap-[clamp(6px,0.56vh,8px)] w-full mt-2">
+        <button
+          class="flex-1 py-1.5 rounded-full font-medium text-dtcc-muted bg-white/30 hover:bg-white/50 border border-black/15 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          style="font-size: var(--atlas-caption-text-size);"
+          onclick={goBack}
+        >Back to datasets</button>
+        <button
+          class="flex-1 py-1.5 rounded-full font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+          style="font-size: var(--atlas-caption-text-size);"
+          onclick={() => { unseenDownloads.set(0); activePanel.set('downloads') }}
+        >View in Downloads</button>
+      </div>
     </div>
   {:else if submissionState === SubmissionState.ERROR}
     <!-- Error state -->
@@ -171,10 +165,10 @@
       <div class="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500">
         <span class="w-6 h-6 block">{@html Icons.close}</span>
       </div>
-      <p class="text-[14px] font-medium text-[#1a1a2e]">Submission failed</p>
-      <p class="text-[12px] text-red-500 text-center px-4">{submissionMessage}</p>
+      <p class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">Submission failed</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-red-500 text-center px-4">{submissionMessage}</p>
       <button
-        class="mt-2 px-4 py-2 text-[13px] rounded-lg border border-[#e5e7eb] hover:bg-black/5 transition-colors cursor-pointer"
+        class="mt-2 px-4 py-1.5 text-[var(--atlas-body-text-size)] rounded-full border border-black/15 hover:bg-black/5 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
         onclick={() => { submissionState = SubmissionState.IDLE; submissionMessage = ''; }}
       >
         Try again
@@ -182,10 +176,10 @@
     </div>
   {:else}
     <!-- Form fields -->
-    <form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+    <form class="flex flex-col gap-[clamp(12px,1.11vh,16px)] pb-1" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
       {#each visibleFields as field (field.name)}
         <div class="flex flex-col gap-1.5">
-          <label for={field.name} class="text-[13px] font-medium text-[#1a1a2e]">
+          <label for={field.name} class="text-[var(--atlas-body-text-size)] font-medium text-dtcc-navy">
             {field.label}
             {#if field.required}
               <span class="text-orange-500">*</span>
@@ -193,15 +187,15 @@
           </label>
 
           {#if field.description}
-            <p class="text-[11px] text-[#6b7280] -mt-0.5">{field.description}</p>
+            <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-dtcc-muted -mt-0.5">{field.description}</p>
           {/if}
 
           {#if field.type === FormFieldType.TEXT}
             <input
               id={field.name}
               type="text"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder ?? ''}
               value={values[field.name] ?? ''}
               oninput={(e) => updateValue(field.name, (e.target as HTMLInputElement).value)}
@@ -210,8 +204,8 @@
             <input
               id={field.name}
               type="number"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.min !== undefined ? `Min: ${field.min}` : ''}
               step={field.step ?? (field.type === FormFieldType.INTEGER ? 1 : 'any')}
               min={field.min}
@@ -227,17 +221,17 @@
               <input
                 id={field.name}
                 type="checkbox"
-                class="w-4 h-4 rounded border-[#e5e7eb] text-orange-500 focus:ring-orange-200 cursor-pointer accent-orange-500"
+                class="w-4 h-4 rounded border-dtcc-border-light text-orange-500 focus:ring-orange-200 cursor-pointer accent-orange-500"
                 checked={values[field.name] === true}
                 onchange={(e) => updateValue(field.name, (e.target as HTMLInputElement).checked)}
               />
-              <span class="text-[13px] text-[#6b7280]">{field.description || field.label}</span>
+              <span class="text-[var(--atlas-body-text-size)] text-dtcc-muted">{field.description || field.label}</span>
             </label>
           {:else if field.type === FormFieldType.SELECT}
             <select
               id={field.name}
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors cursor-pointer appearance-none bg-white
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors cursor-pointer appearance-none bg-white
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               value={values[field.name] ?? ''}
               onchange={(e) => updateValue(field.name, (e.target as HTMLSelectElement).value)}
             >
@@ -250,8 +244,8 @@
             <input
               id={field.name}
               type="text"
-              class="h-9 px-3 rounded-lg border text-[13px] outline-none transition-colors
-                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-[#e5e7eb] focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
+              class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border text-[var(--atlas-body-text-size)] outline-none transition-colors
+                {getFieldError(field.name) ? 'border-red-400 focus:ring-2 focus:ring-red-200' : 'border-dtcc-border-light focus:ring-2 focus:ring-orange-200 focus:border-orange-400'}"
               placeholder={field.placeholder}
               value={values[field.name] ?? ''}
               oninput={(e) => updateValue(field.name, (e.target as HTMLInputElement).value)}
@@ -259,17 +253,17 @@
           {/if}
 
           {#if getFieldError(field.name)}
-            <p class="text-[11px] text-red-500">{getFieldError(field.name)}</p>
+            <p class="text-[var(--atlas-caption-text-size)] text-red-500">{getFieldError(field.name)}</p>
           {/if}
         </div>
       {/each}
 
       {#if !$bbox}
-        <p class="text-[12px] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
+        <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-orange-500 bg-orange-50 px-3 py-2 rounded-lg">
           Draw a bounding box on the map before submitting.
         </p>
       {:else if !hasCoverageForSelection}
-        <p class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+        <p class="text-[var(--atlas-caption-text-size)] leading-[var(--atlas-caption-line-height)] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
           Selected area does not intersect this dataset's known coverage.
         </p>
       {/if}
@@ -277,10 +271,10 @@
       <button
         type="submit"
         disabled={isSubmitting || !$bbox || !hasCoverageForSelection}
-        class="mt-2 h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
+        class="mt-2 h-[var(--atlas-control-height)] rounded-full text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {isSubmitting || !$bbox || !hasCoverageForSelection
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-[#1a1a2e] text-white hover:bg-[#2d2d44]'}"
+            : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
       >
         {#if isSubmitting}
           Submitting...

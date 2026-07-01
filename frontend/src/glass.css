@@ -1,0 +1,38 @@
+/* Glassmorphism Utilities */
+.glass-legacy {
+  background: rgba(255, 255, 255, 0.5) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.15) !important;
+}
+
+.glass-new {
+  position: relative;
+  background: rgba(255, 255, 255, var(--glass-bg-opacity, 0.55)) !important;
+  backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 4px)) saturate(var(--glass-saturate, 1.1)) !important;
+  border: 1px solid rgba(255, 255, 255, var(--glass-border-opacity, 0.5)) !important;
+  box-shadow: 
+    var(--glass-shadow-x, 0px) var(--glass-shadow-y, 3px) var(--glass-shadow-blur, 7px) rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Pseudo-elements for highlights */
+.glass-new::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important; right: 0 !important; height: 2px !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)), transparent) !important;
+  z-index: 50 !important;
+  pointer-events: none !important;
+}
+
+.glass-new::after {
+  content: '' !important;
+  position: absolute !important; left: 0 !important; width: 2px !important; height: 100% !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, var(--glass-edge-opacity, 0.25)), transparent) !important;
+  z-index: 50 !important;
+  pointer-events: none !important;
+}

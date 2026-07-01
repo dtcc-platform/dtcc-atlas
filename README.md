@@ -8,9 +8,10 @@ Interactive web app for browsing/downloading DTCC datasets.
 - A Python environment (`venv`, `conda`, `uv`, etc.) with:
   - `dtcc-core`
   - `fastapi`
-  - `uvicorn`
-- Optional: `dtcc-sim` (for simulation-related datasets)
+  - `uvicorn[standard]`
 - Node.js + npm
+- Optional: a running `dtcc-sim` mini-service (for simulation-related datasets)
+- Optional: a running `dtcc-agent` mini-service (for Lurkie chat)
 
 ### 1) Activate your Python environment
 
@@ -22,7 +23,7 @@ Example (`venv`):
 source .venv/bin/activate
 ```
 
-Example (`conda`, common when including `dtcc-sim`):
+Example (`conda`):
 
 ```bash
 source ~/miniconda3/bin/activate
@@ -32,7 +33,7 @@ conda activate fenicsx-env
 ### 2) Start Atlas
 
 ```bash
-cd /Users/logg/scratch/dtcc/dtcc-atlas
+cd /path/to/dtcc-atlas
 ./start_dev.sh
 ```
 
@@ -45,18 +46,68 @@ Notes:
 - If ports `3000` or `8000` are in use, the script asks whether to stop existing processes.
 - Stop both servers with `Ctrl+C`.
 
+### 3) Optional: Connect a local `dtcc-sim` mini-service
+
+If `dtcc-sim` is running locally on port `8001`, point Atlas at it before
+starting the backend:
+
+```bash
+cd /path/to/dtcc-atlas
+export DTCC_REMOTE_SERVICES=http://localhost:8001
+./start_dev.sh
+```
+
+Notes:
+- Start `dtcc-sim` before Atlas.
+- Atlas registers remote services at startup, so restart Atlas if `dtcc-sim`
+  comes up later.
+- Without `DTCC_REMOTE_SERVICES`, Atlas still works with `dtcc-core` datasets.
+
+### 4) Optional: Connect a local `dtcc-agent` mini-service
+
+If `dtcc-agent` is running locally on port `8050`, Atlas can proxy Lurkie chat
+to it. `dtcc-agent` needs Claude auth inside its Docker container.
+
+On macOS, do not mount `~/.claude` for auth. Generate a Claude Code OAuth token
+on the host, then export only the token value before recreating the container:
+
+```bash
+cd /path/to/dtcc-agent
+
+claude setup-token
+printf '%s\n' 'sk-ant-oat01-PASTE-TOKEN-HERE' > token
+chmod 600 token
+
+export CLAUDE_CODE_OAUTH_TOKEN="$(tr -d '\r\n' < token)"
+python verify_auth.py --require-oauth
+
+docker compose up -d --build --force-recreate
+docker compose exec -T dtcc-agent python verify_auth.py --require-oauth
+curl http://localhost:8050/health
+```
+
+Do not use `export CLAUDE_CODE_OAUTH_TOKEN="$(claude setup-token)"`; that
+command is interactive and can capture the whole login screen into the
+environment variable.
+
+Then point Atlas at the service before starting the backend:
+
+```bash
+cd /path/to/dtcc-atlas
+export DTCC_AGENT_SERVICE_URL=http://localhost:8050
+./start_dev.sh
+```
+
+When `DTCC_AGENT_SERVICE_URL` is set, Atlas proxies `/api/v1/agent/chat` to
+the external service instead of launching `dtcc-agent` in-process. Without it,
+Atlas keeps the existing local fallback.
+
 ## One-Time Python Package Setup (if needed)
 
 Install missing backend packages into your active environment:
 
 ```bash
-pip install "fastapi>=0.125.0" "uvicorn>=0.38.0"
-```
-
-Optional (`dtcc-sim` support):
-
-```bash
-pip install dtcc-sim
+pip install "fastapi>=0.125.0" "uvicorn[standard]>=0.38.0" "python-multipart>=0.0.20" "websockets>=16.0"
 ```
 
 ## Production Mode
@@ -64,8 +115,10 @@ pip install dtcc-sim
 Build frontend and serve from FastAPI:
 
 ```bash
-cd /Users/logg/scratch/dtcc/dtcc-atlas
+cd /path/to/dtcc-atlas
 ./build_and_start.sh
 ```
+
+Note: `build_and_start.sh` currently runs FastAPI via `conda run -n fenicsx-env`.
 
 Open: http://localhost:8000

@@ -28,6 +28,11 @@ class JobStorage:
     def temp_dir(self) -> Path:
         return self._temp_dir
 
+    @staticmethod
+    def _matches_job_id(filepath: Path, job_id: str) -> bool:
+        """Match files by job-id prefix, including multi-part extensions."""
+        return filepath.name == job_id or filepath.name.startswith(f"{job_id}.")
+
     def save_result(self, job_id: str, data: bytes, extension: str = "bin") -> str:
         """
         Save job result to temporary file.
@@ -71,7 +76,7 @@ class JobStorage:
         with self._lock:
             # Find file with matching job_id prefix
             for filepath in self._temp_dir.iterdir():
-                if filepath.stem == job_id:
+                if self._matches_job_id(filepath, job_id):
                     with open(filepath, "rb") as f:
                         return (f.read(), str(filepath))
         return None
@@ -88,7 +93,7 @@ class JobStorage:
         """
         with self._lock:
             for filepath in self._temp_dir.iterdir():
-                if filepath.stem == job_id:
+                if self._matches_job_id(filepath, job_id):
                     return str(filepath)
         return None
 
@@ -104,7 +109,7 @@ class JobStorage:
         """
         with self._lock:
             for filepath in self._temp_dir.iterdir():
-                if filepath.stem == job_id:
+                if self._matches_job_id(filepath, job_id):
                     filepath.unlink()
                     self._file_times.pop(job_id, None)
                     return True
@@ -129,7 +134,7 @@ class JobStorage:
 
             for job_id in expired_jobs:
                 for filepath in self._temp_dir.iterdir():
-                    if filepath.stem == job_id:
+                    if self._matches_job_id(filepath, job_id):
                         try:
                             filepath.unlink()
                             removed += 1

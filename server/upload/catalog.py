@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -98,6 +99,14 @@ class UploadCatalog:
 
                 CREATE INDEX IF NOT EXISTS idx_uploaded_datasets_name_version
                     ON uploaded_datasets(dataset_name, version);
+
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id             TEXT PRIMARY KEY,
+                    created_at     TEXT NOT NULL,
+                    last_accessed  TEXT NOT NULL,
+                    state_json     TEXT NOT NULL DEFAULT '{}',
+                    bookmarks_json TEXT NOT NULL DEFAULT '[]'
+                );
                 """
             )
 
@@ -108,6 +117,24 @@ class UploadCatalog:
             if "name" not in columns:
                 conn.execute("ALTER TABLE upload_batches ADD COLUMN name TEXT")
 
+            # Quality-gate columns — added in v2 schema migration.
+            _migrations: list[str] = [
+                "ALTER TABLE upload_batches ADD COLUMN quality_check_status TEXT",
+                "ALTER TABLE upload_batches ADD COLUMN quality_check_result TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict_issues TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN verdict_summary TEXT",
+                "ALTER TABLE upload_candidates ADD COLUMN thumbnail_path TEXT",
+                "ALTER TABLE uploaded_datasets ADD COLUMN last_review_at TEXT",
+                "ALTER TABLE uploaded_datasets ADD COLUMN review_issues TEXT",
+                "ALTER TABLE upload_batches ADD COLUMN session_id TEXT",
+            ]
+            for stmt in _migrations:
+                try:
+                    conn.execute(stmt)
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+
     def create_batch(
         self,
         batch_id: str,
@@ -116,16 +143,17 @@ class UploadCatalog:
         file_count: int,
         total_bytes: int,
         status: str = "uploaded",
+        session_id: str | None = None,
     ) -> None:
         created_at = _utc_now_iso()
         with self._lock, self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO upload_batches
-                (id, name, created_at, status, root_dir, file_count, total_bytes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, name, created_at, status, root_dir, file_count, total_bytes, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (batch_id, name, created_at, status, root_dir, file_count, total_bytes),
+                (batch_id, name, created_at, status, root_dir, file_count, total_bytes, session_id),
             )
 
     def update_batch_status(self, batch_id: str, status: str) -> None:
@@ -133,6 +161,20 @@ class UploadCatalog:
             conn.execute(
                 "UPDATE upload_batches SET status = ? WHERE id = ?",
                 (status, batch_id),
+            )
+
+    def update_quality_check(
+        self, batch_id: str, status: str, result: Any
+    ) -> None:
+        """Update quality check status and JSON result on a batch."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE upload_batches
+                SET quality_check_status = ?, quality_check_result = ?
+                WHERE id = ?
+                """,
+                (status, json.dumps(result), batch_id),
             )
 
     def add_batch_files(self, batch_id: str, file_records: list[dict[str, Any]]) -> None:
@@ -203,6 +245,19 @@ class UploadCatalog:
             ).fetchone()
         return dict(row) if row else None
 
+    def list_batches_by_session(self, session_id: str) -> list[dict[str, Any]]:
+        """Return all batches belonging to *session_id*, most recent first."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM upload_batches
+                WHERE session_id = ?
+                ORDER BY created_at DESC
+                """,
+                (session_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     def list_batch_files(self, batch_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -237,6 +292,10 @@ class UploadCatalog:
         candidate.pop("group_rel_paths_json", None)
         candidate.pop("warnings_json", None)
         candidate.pop("metadata_json", None)
+        # Decode verdict_issues from JSON string if present.
+        vi = candidate.get("verdict_issues")
+        if isinstance(vi, str):
+            candidate["verdict_issues"] = json.loads(vi)
         return candidate
 
     def insert_uploaded_dataset(self, record: dict[str, Any]) -> None:
@@ -340,3 +399,93 @@ class UploadCatalog:
         record.pop("bounds_json", None)
         record.pop("metadata_json", None)
         return record
+
+    def update_candidate_verdict(
+        self,
+        candidate_id: str,
+        verdict: str,
+        issues: Any,
+        summary: str,
+        thumbnail_path: str | None = None,
+    ) -> None:
+        """Update verdict fields on a candidate."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE upload_candidates
+                SET verdict = ?, verdict_issues = ?, verdict_summary = ?,
+                    thumbnail_path = ?
+                WHERE id = ?
+                """,
+                (verdict, json.dumps(issues), summary, thumbnail_path, candidate_id),
+            )
+
+    def update_dataset_review(
+        self, dataset_id: str, review_issues: Any
+    ) -> None:
+        """Update review timestamp and issues on a dataset."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE uploaded_datasets
+                SET last_review_at = ?, review_issues = ?
+                WHERE id = ?
+                """,
+                (_utc_now_iso(), json.dumps(review_issues), dataset_id),
+            )
+
+    # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    def create_session(self) -> str:
+        """Create a new session and return its 8-char ID."""
+        now = _utc_now_iso()
+        with self._lock, self._connect() as conn:
+            while True:
+                session_id = secrets.token_urlsafe(6)
+                existing = conn.execute(
+                    "SELECT 1 FROM sessions WHERE id = ?", (session_id,)
+                ).fetchone()
+                if existing is None:
+                    break
+            conn.execute(
+                """
+                INSERT INTO sessions (id, created_at, last_accessed)
+                VALUES (?, ?, ?)
+                """,
+                (session_id, now, now),
+            )
+        return session_id
+
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        """Return a session dict by ID, or None if not found."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM sessions WHERE id = ?", (session_id,)
+            ).fetchone()
+        return dict(row) if row else None
+
+    def touch_session(self, session_id: str) -> None:
+        """Update the last_accessed timestamp of a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET last_accessed = ? WHERE id = ?",
+                (_utc_now_iso(), session_id),
+            )
+
+    def update_session_state(self, session_id: str, state: Any) -> None:
+        """Update the state_json column for a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET state_json = ? WHERE id = ?",
+                (json.dumps(state), session_id),
+            )
+
+    def update_session_bookmarks(self, session_id: str, bookmarks: Any) -> None:
+        """Update the bookmarks_json column for a session."""
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "UPDATE sessions SET bookmarks_json = ? WHERE id = ?",
+                (json.dumps(bookmarks), session_id),
+            )

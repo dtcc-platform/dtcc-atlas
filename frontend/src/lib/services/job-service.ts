@@ -2,7 +2,10 @@
  * Job service for managing async dataset downloads via SSE
  */
 
+import { get } from 'svelte/store';
 import { API_BASE_URL } from '../config';
+import { sessionFetch } from '../api/fetch';
+import { sessionId } from '../stores/session';
 
 export type JobStatus = 'queued' | 'processing' | 'complete' | 'failed';
 
@@ -67,7 +70,7 @@ class JobService {
    * Submit a new job for processing
    */
   async submitJob(request: JobSubmitRequest): Promise<JobSubmitResponse> {
-    const response = await fetch(`${API_BASE_URL}/jobs/submit`, {
+    const response = await sessionFetch(`${API_BASE_URL}/jobs/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +92,7 @@ class JobService {
    * Cancel a running or queued job
    */
   async cancelJob(jobId: string): Promise<boolean> {
-    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/cancel`, {
+    const response = await sessionFetch(`${API_BASE_URL}/jobs/${jobId}/cancel`, {
       method: 'POST',
     });
 
@@ -105,7 +108,7 @@ class JobService {
    * Get status of a specific job (fallback for non-SSE)
    */
   async getJobStatus(jobId: string): Promise<Job> {
-    const response = await fetch(`${API_BASE_URL}/jobs/${jobId}/status`);
+    const response = await sessionFetch(`${API_BASE_URL}/jobs/${jobId}/status`);
 
     if (!response.ok) {
       throw new Error(`Failed to get job status: ${response.statusText}`);
@@ -118,7 +121,7 @@ class JobService {
    * List recent jobs
    */
   async listJobs(limit = 50): Promise<Job[]> {
-    const response = await fetch(`${API_BASE_URL}/jobs/list?limit=${limit}`);
+    const response = await sessionFetch(`${API_BASE_URL}/jobs/list?limit=${limit}`);
 
     if (!response.ok) {
       throw new Error(`Failed to list jobs: ${response.statusText}`);
@@ -139,7 +142,11 @@ class JobService {
     this.isConnecting = true;
 
     try {
-      this.eventSource = new EventSource(`${API_BASE_URL}/jobs/events`);
+      const sid = get(sessionId);
+      const sseUrl = sid
+        ? `${API_BASE_URL}/jobs/events?session_id=${sid}`
+        : `${API_BASE_URL}/jobs/events`;
+      this.eventSource = new EventSource(sseUrl);
 
       this.eventSource.onopen = () => {
         console.info('SSE connection established; live job updates resumed.');
@@ -298,6 +305,21 @@ class JobService {
    */
   isConnected(): boolean {
     return this.eventSource !== null && this.eventSource.readyState === EventSource.OPEN;
+  }
+
+  /**
+   * Three-state server status for the TopBar status dot.
+   * ready       — SSE open and receiving events
+   * idle        — SSE connecting / reconnecting (was connected, temporarily lost)
+   * disconnected — no source and not connecting (max retries reached or never started)
+   */
+  getStatus(): 'ready' | 'idle' | 'disconnected' {
+    if (this.eventSource) {
+      if (this.eventSource.readyState === EventSource.OPEN) return 'ready'
+      if (this.eventSource.readyState === EventSource.CONNECTING) return 'idle'
+    }
+    if (this.isConnecting) return 'idle'
+    return 'disconnected'
   }
 
   /**

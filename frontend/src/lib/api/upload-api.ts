@@ -1,4 +1,7 @@
+import { get } from 'svelte/store'
 import { API_BASE_URL } from '../config'
+import { sessionId } from '../stores/session'
+import { sessionFetch } from './fetch'
 
 export interface UploadCandidate {
   id: string
@@ -33,10 +36,18 @@ export interface IngestCandidateOverride {
 
 export interface IngestResponse {
   batch_id: string
+  batch_name?: string
   ingested_count: number
   failed_count: number
   ingested: Array<Record<string, unknown>>
   failed: Array<Record<string, unknown>>
+  combined_bounds?: {
+    minX: number
+    minY: number
+    maxX: number
+    maxY: number
+    crs: string
+  } | null
 }
 
 export interface UploadBatchProgress {
@@ -79,6 +90,10 @@ export async function createUploadBatch(
     let uploadComplete = false
 
     xhr.open('POST', `${API_BASE_URL}/uploads/batches`)
+    const sid = get(sessionId)
+    if (sid) {
+      xhr.setRequestHeader('X-Session-Id', sid)
+    }
     xhr.responseType = 'json'
 
     xhr.upload.onprogress = (event: ProgressEvent<EventTarget>) => {
@@ -151,7 +166,7 @@ export async function ingestUploadBatch(
   batchId: string,
   candidates: IngestCandidateOverride[]
 ): Promise<IngestResponse> {
-  const response = await fetch(`${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/ingest`, {
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/ingest`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -174,4 +189,96 @@ function tryParseJson(raw: string): Record<string, unknown> | null {
   } catch {
     return null
   }
+}
+
+// -- Quality Gate types --
+
+export interface QualityIssue {
+  severity: 'warn' | 'fail'
+  code: string
+  message: string
+}
+
+export interface CandidateVerdict {
+  name: string
+  verdict: 'pass' | 'warn' | 'fail'
+  issues: QualityIssue[]
+  metadata: Record<string, unknown>
+  thumbnail_path: string | null
+  summary: string
+}
+
+export interface QualityCheckResult {
+  batch_id: string
+  status: 'completed' | 'failed'
+  result: {
+    candidates: CandidateVerdict[]
+  }
+}
+
+export interface CatalogReviewResult {
+  status: 'completed' | 'failed'
+  result: {
+    health_score: number
+    issues: Array<{
+      code: string
+      severity: string
+      datasets: string[]
+      message: string
+    }>
+    summary: string
+  }
+}
+
+// -- Quality Gate API calls --
+
+export async function runQualityCheck(batchId: string): Promise<QualityCheckResult> {
+  const response = await sessionFetch(
+    `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
+    { method: 'POST' },
+  )
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Quality check failed')
+  }
+  return response.json()
+}
+
+export async function getQualityCheck(batchId: string): Promise<{
+  batch_id: string
+  status: string | null
+  candidates: (UploadCandidate & {
+    verdict?: string | null
+    verdict_issues?: QualityIssue[] | null
+    verdict_summary?: string | null
+    thumbnail_path?: string | null
+  })[]
+}> {
+  const response = await sessionFetch(
+    `${API_BASE_URL}/uploads/batches/${encodeURIComponent(batchId)}/quality-check`,
+  )
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Failed to get quality check')
+  }
+  return response.json()
+}
+
+export async function checkAiAvailable(): Promise<{ available: boolean; reason: string }> {
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/ai-available`)
+  if (!response.ok) {
+    return { available: false, reason: 'Failed to check AI availability' }
+  }
+  return response.json()
+}
+
+export async function runCatalogReview(): Promise<CatalogReviewResult> {
+  const response = await sessionFetch(`${API_BASE_URL}/uploads/catalog/review`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.detail || 'Catalog review failed')
+  }
+  return response.json()
 }

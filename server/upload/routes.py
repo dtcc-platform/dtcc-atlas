@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
+
+from pyproj import Transformer
 
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
 
 from .detection import is_ignored_upload_path, scan_candidates
+from .deterministic_checks import check_all_candidates
 from .ingest import ingest_candidate
+from .quality_gate import _collect_existing_datasets, run_quality_gate
 from .service import ensure_catalog_directories, get_catalog
 
 
@@ -54,6 +59,58 @@ class IngestRequest(BaseModel):
     candidates: list[CandidateOverride] = Field(default_factory=list)
 
 
+def _compute_combined_bounds(
+    ingested: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Compute the union bounding box of all ingested datasets in EPSG:3006.
+
+    Each item in *ingested* should have ``bounds`` (list of 4 floats or None)
+    and ``crs`` (string or None).  Items whose bounds are None or whose CRS is
+    missing are silently skipped.  If no valid bounds remain, ``None`` is
+    returned.
+    """
+    TARGET_CRS = "EPSG:3006"
+
+    all_min_x: list[float] = []
+    all_min_y: list[float] = []
+    all_max_x: list[float] = []
+    all_max_y: list[float] = []
+
+    for item in ingested:
+        bounds = item.get("bounds")
+        crs = item.get("crs")
+        if bounds is None or crs is None:
+            continue
+        if len(bounds) != 4:
+            continue
+
+        min_x, min_y, max_x, max_y = (float(v) for v in bounds)
+
+        if crs.upper() != TARGET_CRS:
+            try:
+                transformer = Transformer.from_crs(crs, TARGET_CRS, always_xy=True)
+                min_x, min_y = transformer.transform(min_x, min_y)
+                max_x, max_y = transformer.transform(max_x, max_y)
+            except Exception:
+                continue
+
+        all_min_x.append(min_x)
+        all_min_y.append(min_y)
+        all_max_x.append(max_x)
+        all_max_y.append(max_y)
+
+    if not all_min_x:
+        return None
+
+    return {
+        "minX": min(all_min_x),
+        "minY": min(all_min_y),
+        "maxX": max(all_max_x),
+        "maxY": max(all_max_y),
+        "crs": TARGET_CRS,
+    }
+
+
 def create_upload_router() -> APIRouter:
     router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -61,6 +118,7 @@ def create_upload_router() -> APIRouter:
     async def create_batch(
         batch_name: str | None = Form(default=None),
         files: list[UploadFile] = File(...),
+        x_session_id: str | None = Header(default=None),
     ):
         if not files:
             raise HTTPException(status_code=400, detail="No files were uploaded.")
@@ -141,6 +199,7 @@ def create_upload_router() -> APIRouter:
             file_count=len(file_records),
             total_bytes=total_bytes,
             status="uploaded",
+            session_id=x_session_id,
         )
         catalog.add_batch_files(batch_id, file_records)
 
@@ -149,6 +208,24 @@ def create_upload_router() -> APIRouter:
         catalog.replace_candidates(batch_id, candidates)
         catalog.update_batch_status(batch_id, "scanned")
         print(f"[upload] Batch {batch_id}: scan completed, detected {len(candidates)} candidates")
+
+        # Run deterministic quality checks immediately (instant, no AI)
+        existing_datasets = _collect_existing_datasets(catalog)
+        verdicts = check_all_candidates(candidates, existing_datasets)
+        name_to_id: dict[str, str] = {c["name"]: c["id"] for c in candidates}
+        for v in verdicts:
+            cid = name_to_id.get(v["name"])
+            if cid:
+                catalog.update_candidate_verdict(
+                    candidate_id=cid,
+                    verdict=v["verdict"],
+                    issues=v["issues"],
+                    summary=v["summary"],
+                    thumbnail_path=None,
+                )
+        # Re-fetch candidates so response includes verdicts
+        candidates = catalog.list_candidates(batch_id)
+        print(f"[upload] Batch {batch_id}: deterministic checks complete")
 
         return {
             "batch_id": batch_id,
@@ -221,17 +298,73 @@ def create_upload_router() -> APIRouter:
             "ingested" if not failed else "ingested_with_errors",
         )
 
+        combined_bounds = _compute_combined_bounds(ingested)
+
         return {
             "batch_id": batch_id,
+            "batch_name": batch.get("name", ""),
             "ingested_count": len(ingested),
             "failed_count": len(failed),
             "ingested": ingested,
             "failed": failed,
+            "combined_bounds": combined_bounds,
         }
 
     @router.get("/datasets")
     async def list_uploaded_datasets():
         datasets = get_catalog().list_uploaded_datasets(latest_only=True)
         return {"datasets": datasets}
+
+    @router.post("/batches/{batch_id}/quality-check")
+    async def trigger_quality_check(batch_id: str):
+        catalog = get_catalog()
+        batch = catalog.get_batch(batch_id)
+        if not batch:
+            raise HTTPException(status_code=404, detail="Batch not found.")
+
+        result = run_quality_gate(catalog, batch_id)
+        if result is None:
+            raise HTTPException(status_code=502, detail="Quality check failed")
+
+        return {"batch_id": batch_id, "status": "completed", "result": result}
+
+    @router.get("/batches/{batch_id}/quality-check")
+    async def get_quality_check(batch_id: str):
+        catalog = get_catalog()
+        batch = catalog.get_batch(batch_id)
+        if not batch:
+            raise HTTPException(status_code=404, detail="Batch not found.")
+
+        candidates = catalog.list_candidates(batch_id)
+        return {
+            "batch_id": batch_id,
+            "status": batch["quality_check_status"],
+            "candidates": candidates,
+        }
+
+    @router.get("/ai-available")
+    async def ai_available():
+        """Check whether AI enrichment (Claude CLI + dtcc-agent MCP) is available."""
+        from .claude_runner import MCP_CONFIG_PATH
+
+        has_claude = shutil.which("claude") is not None
+        has_mcp = MCP_CONFIG_PATH.exists()
+        available = has_claude and has_mcp
+        reason = ""
+        if not has_claude:
+            reason = "Claude CLI not found on PATH."
+        elif not has_mcp:
+            reason = "dtcc-agent MCP config (.mcp.json) not found."
+        return {"available": available, "reason": reason}
+
+    @router.post("/catalog/review")
+    async def trigger_catalog_review():
+        from .catalog_review import run_catalog_review
+
+        catalog = get_catalog()
+        result = run_catalog_review(catalog)
+        if result is None:
+            raise HTTPException(status_code=502, detail="Catalog review failed")
+        return {"status": "completed", "result": result}
 
     return router

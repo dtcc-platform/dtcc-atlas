@@ -1,15 +1,24 @@
 <script lang="ts">
-  import { activePanel } from '../stores/ui'
+  import { activePanel, unseenLayers } from '../stores/ui'
   import { datasets } from '../stores/datasets'
+  import { layerAddRequests, type LayerAddRequest } from '../stores/layers'
+  import { readFileAsGeoJson, detectGeometryKind, defaultStyleForGeometry, splitByLayerType, computeBounds } from '../map/geojson-utils'
+  import { transformCoordinates } from '../map/projections'
+  import { MAX_BBOX_AREA_M2 } from '../config'
+  import type { SplitLayer } from '../map/geojson-utils'
   import { Icons } from '../ui/icons'
   import { fetchDatasetList } from '../api/dataset-api'
   import {
     createUploadBatch,
     ingestUploadBatch,
+    runQualityCheck,
+    checkAiAvailable,
     type UploadCandidate,
     type UploadBatchProgress,
     type IngestCandidateOverride,
+    type CandidateVerdict,
   } from '../api/upload-api'
+  import type { BoundingBox } from '../types'
 
   type Step = 'select' | 'review' | 'ingesting' | 'complete'
 
@@ -29,8 +38,23 @@
     message: '',
   })
 
+  interface Props {
+    onIngested?: (bounds: BoundingBox, label: string) => void
+  }
+
+  let { onIngested }: Props = $props()
+
   type CandidateEdit = { keep: boolean; dataset_name: string; role: string; crs: string }
   let edits: Record<string, CandidateEdit> = $state({})
+
+  let qualityChecking = $state(false)
+  let qualityVerdicts: Record<string, CandidateVerdict> = $state({})
+  let aiVerdicts: Record<string, CandidateVerdict> = $state({})
+  let qualityError: string = $state('')
+  let aiEnriched = $state(false)
+  let aiAvailable: boolean | null = $state(null)
+  let aiUnavailableReason = $state('')
+  let parsedGeojsonLayers: SplitLayer[] = $state([])
 
   function fileKey(file: File): string {
     const relative = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name
@@ -44,9 +68,27 @@
       map.set(fileKey(f), f)
     }
     for (const f of Array.from(fileList)) {
+      if (!f.name.toLowerCase().endsWith('.geojson')) continue
       map.set(fileKey(f), f)
     }
     selectedFiles = Array.from(map.values())
+  }
+
+  let isDragOver = $state(false)
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault()
+    isDragOver = true
+  }
+
+  function handleDragLeave() {
+    isDragOver = false
+  }
+
+  function handleDrop(e: DragEvent) {
+    e.preventDefault()
+    isDragOver = false
+    addFiles(e.dataTransfer?.files ?? null)
   }
 
   function onFilesSelected(e: Event) {
@@ -83,13 +125,53 @@
       message: 'Preparing upload...',
     }
     try {
+      // Parse any .geojson files client-side for map visualization
+      const allLayers: SplitLayer[] = []
+      for (const file of selectedFiles) {
+        if (file.name.toLowerCase().endsWith('.geojson')) {
+          try {
+            const geojson = await readFileAsGeoJson(file)
+            const baseName = file.name.replace(/\.(geo)?json$/i, '')
+            allLayers.push(...splitByLayerType(baseName, geojson))
+          } catch {
+            // Not a valid GeoJSON -- skip, let server handle it
+          }
+        }
+      }
+      parsedGeojsonLayers = allLayers
+
       const resp = await createUploadBatch(selectedFiles, uploadBatchName, (progress) => {
         scanProgress = progress
       })
       batchId = resp.batch_id
       candidates = resp.candidates
       initializeEdits(resp.candidates)
+      // Populate instant deterministic verdicts from upload response
+      const verdictMap: Record<string, CandidateVerdict> = {}
+      for (const c of resp.candidates) {
+        const cAny = c as UploadCandidate & {
+          verdict?: string | null
+          verdict_issues?: Array<{ severity: 'warn' | 'fail'; code: string; message: string }> | null
+          verdict_summary?: string | null
+        }
+        if (cAny.verdict) {
+          verdictMap[c.name] = {
+            name: c.name,
+            verdict: cAny.verdict as 'pass' | 'warn' | 'fail',
+            issues: cAny.verdict_issues ?? [],
+            metadata: {},
+            thumbnail_path: null,
+            summary: cAny.verdict_summary ?? '',
+          }
+        }
+      }
+      qualityVerdicts = verdictMap
       step = 'review'
+      // Check AI availability in background (non-blocking)
+      checkAiAvailable().then((r) => {
+        aiAvailable = r.available
+        aiUnavailableReason = r.reason
+      })
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Failed to scan files'
     } finally {
@@ -122,9 +204,91 @@
       const list = await fetchDatasetList()
       datasets.set(list)
       step = 'complete'
+
+      // Add parsed GeoJSON layers (split by layer_type if present)
+      // Batch into a single store update to avoid re-entrant subscription issues
+      if (parsedGeojsonLayers.length > 0) {
+        const requests: LayerAddRequest[] = parsedGeojsonLayers.map(({ name, geojson }) => {
+          const kind = detectGeometryKind(geojson)
+          const { style, opacity } = defaultStyleForGeometry(kind, name)
+          return { name, geojson, style, opacity }
+        })
+        layerAddRequests.set(requests)
+        unseenLayers.update(n => n + requests.length)
+      }
+
+      // Set bbox from uploaded data extent so it doubles as a dataset selection.
+      // Clamp to 25 km² (MAX_BBOX_AREA_M2) by shrinking to a square centered on the extent.
+      let selectionBounds: BoundingBox | null = null
+      if (resp.combined_bounds) {
+        selectionBounds = {
+          minX: resp.combined_bounds.minX,
+          minY: resp.combined_bounds.minY,
+          maxX: resp.combined_bounds.maxX,
+          maxY: resp.combined_bounds.maxY,
+          crs: resp.combined_bounds.crs,
+        }
+      } else if (parsedGeojsonLayers.length > 0) {
+        const allFeatures = parsedGeojsonLayers.flatMap(l => l.geojson.features)
+        const wgs84Bounds = computeBounds({ type: 'FeatureCollection', features: allFeatures })
+        if (wgs84Bounds) {
+          const sw = transformCoordinates([wgs84Bounds[0], wgs84Bounds[1]], 'EPSG:4326', 'EPSG:3006')
+          const ne = transformCoordinates([wgs84Bounds[2], wgs84Bounds[3]], 'EPSG:4326', 'EPSG:3006')
+          selectionBounds = { minX: sw[0], minY: sw[1], maxX: ne[0], maxY: ne[1], crs: 'EPSG:3006' }
+        }
+      }
+      if (selectionBounds) {
+        const areaM2 = (selectionBounds.maxX - selectionBounds.minX) * (selectionBounds.maxY - selectionBounds.minY)
+        if (areaM2 > MAX_BBOX_AREA_M2) {
+          const cx = (selectionBounds.minX + selectionBounds.maxX) / 2
+          const cy = (selectionBounds.minY + selectionBounds.maxY) / 2
+          const half = Math.sqrt(MAX_BBOX_AREA_M2) / 2
+          selectionBounds = { minX: cx - half, minY: cy - half, maxX: cx + half, maxY: cy + half, crs: 'EPSG:3006' }
+        }
+        onIngested?.(selectionBounds, resp.batch_name || uploadBatchName)
+      }
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : 'Ingestion failed'
       step = 'review'
+    }
+  }
+
+  async function analyzeQuality() {
+    if (!batchId) return
+    qualityChecking = true
+    qualityError = ''
+    try {
+      const resp = await runQualityCheck(batchId)
+      const merged: Record<string, CandidateVerdict> = {}
+      const aiOnly: Record<string, CandidateVerdict> = {}
+      for (const v of resp.result.candidates) {
+        const vAny = v as CandidateVerdict & { ai_summary?: string }
+        // Update the overall verdict (may be stricter after AI)
+        merged[v.name] = {
+          ...v,
+          // Only keep deterministic issues for the main verdict display
+          issues: v.issues.filter((i: any) => i.source !== 'ai'),
+        }
+        // Collect AI-only data separately
+        const aiIssues = v.issues.filter((i: any) => i.source === 'ai')
+        if (aiIssues.length > 0 || vAny.ai_summary) {
+          aiOnly[v.name] = {
+            name: v.name,
+            verdict: v.verdict,
+            issues: aiIssues,
+            metadata: v.metadata ?? {},
+            thumbnail_path: v.thumbnail_path,
+            summary: vAny.ai_summary ?? '',
+          }
+        }
+      }
+      qualityVerdicts = merged
+      aiVerdicts = aiOnly
+      aiEnriched = true
+    } catch (e) {
+      qualityError = e instanceof Error ? e.message : 'Quality check failed'
+    } finally {
+      qualityChecking = false
     }
   }
 
@@ -134,6 +298,14 @@
     batchId = null
     candidates = []
     edits = {}
+    qualityVerdicts = {}
+    aiVerdicts = {}
+    qualityError = ''
+    qualityChecking = false
+    aiEnriched = false
+    aiAvailable = null
+    aiUnavailableReason = ''
+    parsedGeojsonLayers = []
     uploadBatchName = defaultUploadName()
     ingestResult = null
     errorMessage = ''
@@ -169,49 +341,50 @@
   }
 </script>
 
-<div class="p-5">
-  <div class="flex items-center justify-between mb-4">
-    <h3 class="text-[16px] font-semibold text-[#1a1a2e]">Upload Data</h3>
-    <button class="p-1 rounded hover:bg-black/5 cursor-pointer" onclick={() => activePanel.set(null)}>
-      {@html Icons.close}
-    </button>
-  </div>
-
+<div>
   {#if step === 'select'}
     <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-[#6b7280]">
-        Add files or a folder. Atlas will detect candidate datasets procedurally.
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
+        Add a GeoJSON file to visualize and analyze.
       </p>
 
-      <div class="rounded-lg border-2 border-dashed border-[#d1d5db] bg-[#f9fafb] p-4">
+      <div
+        class="rounded-[var(--atlas-control-radius)] border-2 border-dashed p-4 transition-colors
+          {isDragOver ? 'border-dtcc-orange bg-dtcc-orange/5' : 'border-dtcc-border bg-dtcc-bg'}"
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
+        role="group"
+        aria-label="File drop zone"
+      >
         <label class="block mb-3">
-          <span class="block text-[12px] text-[#6b7280] mb-1">Upload name</span>
+          <span class="block text-[var(--atlas-caption-text-size)] text-dtcc-muted mb-1">Upload name</span>
           <input
-            class="h-8 w-full px-2 rounded border border-[#e5e7eb] text-[12px] bg-white"
+            class="h-[var(--atlas-control-height)] w-full px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-body-text-size)] bg-white"
             bind:value={uploadBatchName}
             placeholder="Upload 2026-02-26 14:30"
           />
         </label>
         <div class="flex gap-2">
-          <label class="px-3 py-2 rounded-lg bg-white border border-[#e5e7eb] text-[12px] cursor-pointer hover:bg-black/5">
+          <label class="px-3 py-2 rounded-[var(--atlas-control-radius)] bg-white border border-dtcc-border-light text-[var(--atlas-caption-text-size)] cursor-pointer hover:bg-black/5">
             Add files
-            <input type="file" multiple class="hidden" onchange={onFilesSelected} />
-          </label>
-          <label class="px-3 py-2 rounded-lg bg-white border border-[#e5e7eb] text-[12px] cursor-pointer hover:bg-black/5">
-            Add folder
-            <input type="file" multiple webkitdirectory directory class="hidden" onchange={onFilesSelected} />
+            <input type="file" multiple accept=".geojson" class="hidden" onchange={onFilesSelected} />
           </label>
         </div>
-        <p class="mt-3 text-[12px] text-[#6b7280]">
-          {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
-        </p>
+        {#if isDragOver}
+          <p class="mt-3 text-[var(--atlas-caption-text-size)] text-dtcc-orange font-medium">Drop files here...</p>
+        {:else}
+          <p class="mt-3 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
+            {selectedFiles.length} file{selectedFiles.length === 1 ? '' : 's'} selected
+          </p>
+        {/if}
       </div>
 
       <button
-        class="h-10 rounded-lg text-[13px] font-medium transition-colors cursor-pointer
+        class="h-[var(--atlas-control-height)] rounded-full text-[var(--atlas-body-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
           {loading || !selectedFiles.length
             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-[#1a1a2e] text-white hover:bg-[#2d2d44]'}"
+            : 'bg-dtcc-orange text-white hover:bg-dtcc-orange-dark'}"
         disabled={loading || !selectedFiles.length}
         onclick={scanFiles}
       >
@@ -219,17 +392,17 @@
       </button>
 
       {#if loading}
-        <div class="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3">
-          <div class="flex items-center justify-between text-[11px] text-[#6b7280] mb-1">
+        <div class="rounded-[var(--atlas-control-radius)] border border-dtcc-border-light bg-dtcc-bg p-3">
+          <div class="flex items-center justify-between text-[var(--atlas-caption-text-size)] text-dtcc-muted mb-1">
             <span>{scanProgress.phase === 'uploading' ? 'Upload progress' : 'Server scan'}</span>
             <span>{scanProgress.percent.toFixed(1)}%</span>
           </div>
-          <div class="h-2 bg-white border border-[#e5e7eb] rounded overflow-hidden">
-            <div class="h-full bg-[#e35a1d] transition-all duration-200" style={`width: ${scanProgress.percent}%`}></div>
+          <div class="h-2 bg-white border border-dtcc-border-light rounded overflow-hidden">
+            <div class="h-full bg-dtcc-orange transition-all duration-200" style={`width: ${scanProgress.percent}%`}></div>
           </div>
-          <p class="mt-2 text-[12px] text-[#374151]">{scanProgress.message || 'Working...'}</p>
+          <p class="mt-2 text-[var(--atlas-caption-text-size)] text-dtcc-muted">{scanProgress.message || 'Working...'}</p>
           {#if scanProgress.bytesTotal > 0}
-            <p class="mt-1 text-[11px] text-[#6b7280]">
+            <p class="mt-1 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
               {formatBytes(scanProgress.bytesSent)} / {formatBytes(scanProgress.bytesTotal)}
             </p>
           {/if}
@@ -237,16 +410,38 @@
       {/if}
     </div>
   {:else if step === 'review'}
-    <div class="flex flex-col gap-3">
-      <p class="text-[12px] text-[#6b7280]">
+    <div class="flex flex-col gap-2">
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         Review detected candidates and adjust name, role, or CRS before ingestion.
       </p>
-      <div class="max-h-[420px] overflow-y-auto border border-[#e5e7eb] rounded-lg">
+      {#if aiAvailable === false}
+        <div class="h-[var(--atlas-control-height)] w-full rounded-full text-[var(--atlas-caption-text-size)] font-medium flex items-center justify-center
+          bg-gray-100 border border-gray-200 text-gray-400">
+          Enrich with AI — requires dtcc-agent
+        </div>
+      {:else}
+        <button
+          class="h-[var(--atlas-control-height)] w-full rounded-full text-[var(--atlas-caption-text-size)] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none
+            {qualityChecking
+              ? 'bg-amber-100 text-amber-700 cursor-wait'
+              : aiEnriched
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100'}"
+          disabled={qualityChecking || aiEnriched || aiAvailable === null}
+          onclick={analyzeQuality}
+        >
+          {qualityChecking ? 'Enriching with AI...' : aiEnriched ? 'AI enrichment complete' : 'Enrich with AI'}
+        </button>
+      {/if}
+      {#if qualityError}
+        <div class="text-[var(--atlas-caption-text-size)] text-red-600">{qualityError}</div>
+      {/if}
+      <div class="max-h-[min(260px,35vh)] overflow-y-auto border border-dtcc-border-light rounded-[var(--atlas-control-radius)] scrollbar-subtle">
         {#each candidates as candidate}
-          <div class="p-3 border-b border-[#f0f0f0] last:border-b-0">
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <div class="text-[13px] font-medium text-[#1a1a2e]">{candidate.title}</div>
-              <label class="text-[12px] text-[#6b7280] flex items-center gap-1">
+          <div class="p-2 border-b border-dtcc-border-light last:border-b-0">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="text-[var(--atlas-caption-text-size)] font-medium text-dtcc-navy">{candidate.title}</div>
+              <label class="text-[var(--atlas-caption-text-size)] text-dtcc-muted flex items-center gap-1">
                 <input
                   type="checkbox"
                   checked={edits[candidate.id]?.keep ?? true}
@@ -256,15 +451,15 @@
               </label>
             </div>
 
-            <div class="grid grid-cols-1 gap-2">
+            <div class="grid grid-cols-1 gap-1.5">
               <input
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)]"
                 value={edits[candidate.id]?.dataset_name ?? candidate.name}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], dataset_name: (e.target as HTMLInputElement).value } }}
                 placeholder="Dataset name"
               />
               <select
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px] bg-white"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)] bg-white"
                 value={edits[candidate.id]?.role ?? candidate.role}
                 onchange={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], role: (e.target as HTMLSelectElement).value } }}
               >
@@ -276,19 +471,53 @@
                 <option value="unknown">Unknown</option>
               </select>
               <input
-                class="h-8 px-2 rounded border border-[#e5e7eb] text-[12px]"
+                class="h-[var(--atlas-control-height)] px-[var(--atlas-control-padding-x)] rounded-[var(--atlas-control-radius)] border border-dtcc-border-light text-[var(--atlas-caption-text-size)]"
                 value={edits[candidate.id]?.crs ?? ''}
                 oninput={(e) => edits = { ...edits, [candidate.id]: { ...edits[candidate.id], crs: (e.target as HTMLInputElement).value } }}
                 placeholder="CRS override (optional)"
               />
             </div>
 
-            <div class="mt-2 text-[11px] text-[#6b7280]">
+            <div class="mt-2 text-[var(--atlas-caption-text-size)] text-dtcc-muted">
               Type: {candidate.inferred_type} • Confidence: {candidate.confidence}
             </div>
             {#if candidate.warnings?.length}
-              <div class="mt-1 text-[11px] text-orange-600">
+              <div class="mt-1 text-[var(--atlas-caption-text-size)] text-orange-600">
                 {candidate.warnings.join(' | ')}
+              </div>
+            {/if}
+            {#if qualityVerdicts[candidate.name]}
+              {@const v = qualityVerdicts[candidate.name]}
+              <div class="mt-2 p-2 rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)]
+                {v.verdict === 'pass' ? 'bg-green-50 text-green-700' :
+                 v.verdict === 'warn' ? 'bg-amber-50 text-amber-700' :
+                 'bg-red-50 text-red-700'}">
+                <div class="font-medium mb-1">
+                  {v.verdict === 'pass' ? 'PASS' : v.verdict === 'warn' ? 'WARNING' : 'FAIL'}
+                </div>
+                {#if v.issues.length > 0}
+                  <ul class="mt-1 list-disc list-inside">
+                    {#each v.issues as issue}
+                      <li>{issue.code}: {issue.message}</li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            {/if}
+            {#if aiVerdicts[candidate.name]}
+              {@const ai = aiVerdicts[candidate.name]}
+              <div class="mt-1 p-2 rounded-[var(--atlas-control-radius)] text-[var(--atlas-caption-text-size)] bg-blue-50 text-blue-700 border border-blue-100">
+                <div class="font-medium mb-1">AI Insights</div>
+                {#if ai.summary}
+                  <div>{ai.summary}</div>
+                {/if}
+                {#if ai.issues.length > 0}
+                  <ul class="mt-1 list-disc list-inside">
+                    {#each ai.issues as issue}
+                      <li>{issue.code}: {issue.message}</li>
+                    {/each}
+                  </ul>
+                {/if}
               </div>
             {/if}
           </div>
@@ -297,13 +526,13 @@
 
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-[#e5e7eb] text-[12px] hover:bg-black/5 cursor-pointer"
+          class="h-[var(--atlas-control-height)] px-3 rounded-full border border-black/15 text-[var(--atlas-caption-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Start over
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-[#1a1a2e] text-white hover:bg-[#2d2d44] cursor-pointer"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-full text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={ingest}
         >
           Ingest selected
@@ -312,27 +541,27 @@
     </div>
   {:else if step === 'ingesting'}
     <div class="py-8 text-center">
-      <div class="w-8 h-8 mx-auto border-2 border-[#e35a1d] border-t-transparent rounded-full animate-spin"></div>
-      <p class="mt-3 text-[13px] text-[#1a1a2e]">Ingesting datasets...</p>
-      <p class="text-[12px] text-[#6b7280]">Normalizing files and registering catalog entries</p>
+      <div class="w-8 h-8 mx-auto border-2 border-dtcc-orange border-t-transparent rounded-full animate-spin"></div>
+      <p class="mt-3 text-[var(--atlas-body-text-size)] text-dtcc-navy">Ingesting datasets...</p>
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">Normalizing files and registering catalog entries</p>
     </div>
   {:else if step === 'complete'}
     <div class="flex flex-col gap-3">
-      <div class="p-3 rounded-lg bg-green-50 text-green-700 text-[12px]">
+      <div class="p-3 rounded-[var(--atlas-control-radius)] bg-green-50 text-green-700 text-[var(--atlas-caption-text-size)]">
         Ingestion completed.
       </div>
-      <p class="text-[12px] text-[#6b7280]">
+      <p class="text-[var(--atlas-caption-text-size)] text-dtcc-muted">
         {ingestResult?.ingested_count ?? 0} ingested, {ingestResult?.failed_count ?? 0} failed.
       </p>
       <div class="flex gap-2">
         <button
-          class="h-9 px-3 rounded-lg border border-[#e5e7eb] text-[12px] hover:bg-black/5 cursor-pointer"
+          class="h-[var(--atlas-control-height)] px-3 rounded-full border border-black/15 text-[var(--atlas-caption-text-size)] text-dtcc-muted hover:bg-black/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={resetWizard}
         >
           Upload more
         </button>
         <button
-          class="h-9 flex-1 rounded-lg text-[13px] font-medium bg-[#1a1a2e] text-white hover:bg-[#2d2d44] cursor-pointer"
+          class="h-[var(--atlas-control-height)] flex-1 rounded-full text-[var(--atlas-body-text-size)] font-medium bg-dtcc-orange text-white hover:bg-dtcc-orange-dark cursor-pointer focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
           onclick={() => activePanel.set('datasets')}
         >
           Open datasets
@@ -342,6 +571,6 @@
   {/if}
 
   {#if errorMessage}
-    <div class="mt-3 text-[12px] text-red-600">{errorMessage}</div>
+    <div class="mt-3 text-[var(--atlas-caption-text-size)] text-red-600">{errorMessage}</div>
   {/if}
 </div>

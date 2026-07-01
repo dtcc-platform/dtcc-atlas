@@ -310,4 +310,6 @@ def ingest_candidate(
         "inferred_type": inferred_type,
         "role": role,
         "warnings": warnings,
+        "bounds": bounds,
+        "crs": crs,
     }
