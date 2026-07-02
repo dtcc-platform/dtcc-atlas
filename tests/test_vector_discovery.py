@@ -72,6 +72,40 @@ class TestDiscoverPublishedDatasets:
         assert len(result) == 1
         assert result[0]["name"] == "my-dataset"
 
+    def test_scanning_reads_dataset_manifest_v2_package(self, tmp_path):
+        ds = tmp_path / "smoke-package"
+        ds.mkdir()
+        manifest = {
+            "schema_version": "dtcc-dataset-manifest-v2",
+            "identity": {"name": "smoke", "title": "Smoke Slice"},
+            "metadata": {"description": "Synthetic smoke."},
+            "provenance": {},
+            "presentation": {"summary": "A smoke view."},
+            "request": {"dataset_name": "smoke", "bounds": [0, 0, 10, 20]},
+            "artifacts": [
+                {
+                    "path": "artifacts/smoke_slice.png",
+                    "role": "primary",
+                    "format": "png",
+                    "media_type": "image/png",
+                    "data_kind": "raster",
+                    "bounds": [1, 2, 3, 4],
+                }
+            ],
+        }
+        (ds / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = discover_published_datasets(tmp_path)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "smoke"
+        assert result[0]["title"] == "Smoke Slice"
+        assert result[0]["type"] == "dataset_manifest_v2"
+        assert result[0]["bounds"] == [1, 2, 3, 4]
+        assert result[0]["manifest"] == "manifest.json"
+        assert result[0]["display_artifact"]["path"] == "artifacts/smoke_slice.png"
+        assert result[0]["artifacts"][0]["media_type"] == "image/png"
+
 
 # ── get_dataset_metadata ─────────────────────────────────────────────────────
 

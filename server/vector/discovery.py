@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from server.config import PUBLISHED_DATASETS_DIR
+from server.datasets.manifest_v2 import ManifestV2Error, load_manifest_v2, manifest_v2_summary
 
 
 def discover_published_datasets(published_dir: Path | None = None) -> list[dict]:
@@ -47,6 +48,29 @@ def discover_published_datasets(published_dir: Path | None = None) -> list[dict]
     for subdir in published_dir.iterdir():
         if not subdir.is_dir():
             continue
+
+        manifest_path = subdir / "manifest.json"
+        if manifest_path.exists():
+            try:
+                summary = manifest_v2_summary(load_manifest_v2(manifest_path))
+                identity = summary["identity"]
+                datasets.append({
+                    "name": identity.get("name") or subdir.name,
+                    "title": summary.get("title") or identity.get("name") or subdir.name,
+                    "type": "dataset_manifest_v2",
+                    "source": "dtcc-upload",
+                    "path": f"{subdir.name}/",
+                    "bounds": summary.get("bounds"),
+                    "manifest": "manifest.json",
+                    "artifacts": summary["artifacts"],
+                    "display_artifact": summary["display_artifact"],
+                    "metadata": summary["metadata"],
+                    "presentation": summary["presentation"],
+                    "request": summary["request"],
+                })
+                continue
+            except ManifestV2Error:
+                continue
 
         metadata_path = subdir / "metadata.json"
         if metadata_path.exists():
