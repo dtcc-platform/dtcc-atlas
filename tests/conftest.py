@@ -16,7 +16,6 @@ sys.modules["dtcc_core.datasets.dataset"] = MagicMock()
 sys.modules["dtcc_core.common"] = MagicMock()
 sys.modules["dtcc_core.common.progress"] = MagicMock()
 sys.modules["dtcc_lod2_roofer"] = MagicMock()
-sys.modules["pyproj"] = MagicMock()
 sys.modules["requests"] = MagicMock()
 multipart_mock = MagicMock()
 multipart_mock.__version__ = "0.0"
