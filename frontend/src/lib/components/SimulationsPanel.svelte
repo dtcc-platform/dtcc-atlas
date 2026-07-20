@@ -1,13 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { datasets } from '../stores/datasets'
+  import { datasets, selectedDataset, formConfig } from '../stores/datasets'
   import { activePanel, collapsedPanels, togglePanelCollapsed } from '../stores/ui'
-  import { slide } from 'svelte/transition'
+  import { fetchDatasetSchema } from '../api/dataset-api'
+  import { schemaParser } from '../forms/schema-parser'
   import FloatingPanel from './FloatingPanel.svelte'
-  import { Icons } from '../ui/icons'
   import type { DatasetInfo } from '../types'
 
   onMount(() => collapsedPanels.update(s => ({ ...s, 'simulations': false })))
+
+  async function selectSimulation(dataset: DatasetInfo) {
+    selectedDataset.set(dataset)
+    const schema = await fetchDatasetSchema(dataset.name)
+    const config = schemaParser.parse(schema, dataset.name)
+    formConfig.set(config)
+    activePanel.set('dataset-form')
+  }
 
   // Filter datasets to show only dtcc-sim source
   const simulations = $derived.by(() => {
@@ -55,13 +63,21 @@
         <!-- Simulations list -->
         <div class="flex flex-col gap-[clamp(6px,0.56vh,8px)]">
             {#each simulations as sim (sim.name)}
-              <div class="px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] border border-black/5 bg-white/30 hover:bg-white/50 transition-colors cursor-pointer">
-                <div class="flex flex-col gap-1">
-                  <div
-                    class="font-medium text-dtcc-navy truncate"
-                    style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
-                  >
-                    {sim.title || sim.name}
+              <button
+                class="w-full flex items-start justify-between px-[var(--atlas-card-padding-x)] py-[var(--atlas-card-padding-y)] rounded-[var(--atlas-control-radius)] border border-black/5 text-left
+                  bg-white/30 hover:bg-white/50 transition-colors group cursor-pointer
+                  focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
+                onclick={() => selectSimulation(sim)}
+              >
+                <div class="min-w-0 flex-1 flex flex-col gap-1">
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span
+                      class="font-medium text-dtcc-navy truncate min-w-0"
+                      style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
+                    >
+                      {sim.title || sim.name}
+                    </span>
+                    <span class="text-dtcc-muted shrink-0">&rarr;</span>
                   </div>
                   <div class="mt-0.5">
                     <span
@@ -71,18 +87,15 @@
                       {datasetSubtitle(sim)}
                     </span>
                   </div>
-                  <div class="flex gap-1.5 flex-wrap pt-1">
-                    {#if sim.data_kind_label}
+                  {#if sim.data_kind_label}
+                    <div class="flex gap-1.5 flex-wrap pt-1">
                       <span class="inline-block px-2 py-0.5 rounded-full bg-dtcc-navy/10 text-dtcc-dark font-medium" style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-caption-line-height);">
                         {sim.data_kind_label}
                       </span>
-                    {/if}
-                    <span class="inline-block px-2 py-0.5 rounded-full bg-gray-300/20 text-dtcc-muted font-medium" style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-caption-line-height);">
-                      No selection
-                    </span>
-                  </div>
+                    </div>
+                  {/if}
                 </div>
-              </div>
+              </button>
             {/each}
         </div>
       {/if}

@@ -94,11 +94,31 @@
     activePanel.set(null)
   }
 
+  const DATASET_META: Record<string, { provider?: string; crs: string; lod?: string; updateFrequency?: string; description?: string }> = {
+    point_cloud:          { provider: 'Lantmäteriet', crs: 'EPSG:3006', description: 'A raw 3D point cloud of the terrain and buildings, captured by LiDAR aerial survey.' },
+    buildings:            { crs: 'EPSG:3006', lod: 'LOD1', description: 'Extruded 3D building models derived from footprints and height data.' },
+    building_footprints:  { crs: 'EPSG:3006', description: '2D footprint polygons of all registered buildings in the area.' },
+    city:                 { crs: 'EPSG:3006', lod: 'LOD1', description: 'A combined 3D city model including terrain, buildings, and surface features.' },
+    city_footprints:      { crs: 'EPSG:3006', description: '2D footprint polygons representing the combined city ground coverage.' },
+    terrain_surface_mesh: { crs: 'EPSG:3006', description: 'A triangulated surface mesh of the ground terrain.' },
+    city_surface_mesh:    { crs: 'EPSG:3006', lod: 'LOD1', description: 'A triangulated surface mesh of the full city including buildings and terrain.' },
+    city_flat_mesh:       { crs: 'EPSG:3006', lod: 'LOD0', description: 'A flat triangulated mesh of the city projected onto a 2D plane.' },
+    city_volume_mesh:     { crs: 'EPSG:3006', description: 'A tetrahedral volume mesh of the open air region inside a 3D bounding box enclosing the city.' },
+    air_quality:          { provider: 'SMHI', crs: 'EPSG:3006', updateFrequency: 'real-time', description: 'Real-time air quality measurements including pollutant concentrations from SMHI stations.' },
+    roads:                { provider: 'OSM', crs: 'EPSG:3006', description: 'A road network dataset derived from OpenStreetMap.' },
+    trees:                { crs: 'EPSG:3006', description: 'Locations and estimated heights of individual trees in the urban area.' },
+    weather:              { provider: 'SMHI', crs: 'EPSG:3006', updateFrequency: 'hourly', description: 'Hourly meteorological data including temperature, wind, and precipitation.' },
+    hydrology:            { provider: 'SMHI', crs: 'EPSG:3006', updateFrequency: 'daily', description: 'Daily hydrological data including river flows and water levels.' },
+    ocean:                { provider: 'SMHI', crs: 'EPSG:3006', updateFrequency: 'hourly', description: 'Hourly oceanographic data including sea level and water temperature.' },
+  }
+
   function datasetSubtitle(dataset: DatasetInfo): string {
+    const meta = DATASET_META[dataset.name]
+    if (meta?.description) return meta.description
     const bits: string[] = []
     if (dataset.version !== undefined) bits.push(`v${dataset.version}`)
     if (dataset.supported_formats && dataset.supported_formats.length > 0) {
-      bits.push(`formats: ${dataset.supported_formats.join(', ')}`)
+      bits.push(dataset.supported_formats.join(', '))
     }
     return bits.join(' • ')
   }
@@ -167,23 +187,35 @@
                   focus-visible:ring-2 focus-visible:ring-dtcc-orange/50 focus-visible:outline-none"
                 onclick={() => selectDataset(dataset)}
               >
-                <div class="min-w-0">
-                  <div
-                    class="font-medium text-dtcc-navy truncate"
-                    style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
-                  >
-                    {dataset.title || dataset.name}
-                  </div>
-                  <div class="mt-0.5">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline justify-between gap-2">
                     <span
-                      class="text-dtcc-muted truncate"
-                      style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-caption-line-height);"
+                      class="font-medium text-dtcc-navy truncate min-w-0"
+                      style="font-size: var(--atlas-body-text-size); line-height: var(--atlas-body-line-height);"
+                    >
+                      {dataset.title || dataset.name}
+                    </span>
+                    <span class="ds-meta flex items-baseline gap-1.5 shrink-0 overflow-hidden">
+                      {#if DATASET_META[dataset.name]?.provider}
+                        <span
+                          class="ds-meta-provider text-dtcc-muted"
+                          style="font-size: var(--atlas-caption-text-size); line-height: var(--atlas-body-line-height);"
+                        >
+                          {DATASET_META[dataset.name].provider}
+                        </span>
+                      {/if}
+                      <span class="ds-meta-arrow text-dtcc-muted">&rarr;</span>
+                    </span>
+                  </div>
+                  <div class="ds-description mt-0.5">
+                    <span
+                      class="text-dtcc-muted"
+                      style="font-size: var(--atlas-caption-text-size);"
                     >
                       {datasetSubtitle(dataset)}
                     </span>
                   </div>
                 </div>
-                <span class="text-dtcc-muted opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">&rarr;</span>
               </button>
             {/each}
           </div>
@@ -200,5 +232,27 @@
   }
   .animate-panel-in {
     animation: panel-in 200ms ease-out;
+  }
+
+  .ds-description {
+    line-height: 1.1 !important;
+  }
+
+  /* Provider slides left on hover to reveal the arrow */
+  .ds-meta-provider {
+    transform: translateX(1.2em);
+    transition: transform 200ms ease;
+  }
+  button:hover .ds-meta-provider,
+  button:focus-visible .ds-meta-provider {
+    transform: translateX(0);
+  }
+  .ds-meta-arrow {
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+  button:hover .ds-meta-arrow,
+  button:focus-visible .ds-meta-arrow {
+    opacity: 1;
   }
 </style>

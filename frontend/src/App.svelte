@@ -20,7 +20,7 @@
   import EmptyState from './lib/components/EmptyState.svelte'
   import SaveBookmarkDialog from './lib/components/SaveBookmarkDialog.svelte'
   import SessionDialog from './lib/components/SessionDialog.svelte'
-  import CoordinateInputDialog from './lib/components/CoordinateInputDialog.svelte'
+  import BoundsInspector from './lib/components/BoundsInspector.svelte'
   import LurkieChat from './lib/components/LurkieChat.svelte'
   import LayersPanel from './lib/components/LayersPanel.svelte'
   import SimulationsPanel from './lib/components/SimulationsPanel.svelte'
@@ -46,7 +46,6 @@
   let mapView: MapView
   let saveDialogOpen = $state(false)
   let sessionDialogOpen = $state(false)
-  let coordDialogOpen = $state(false)
   let sessionChangeOpen = $state(false)
   let sessionChangeCurrent = $state('')
   let sessionChangeNext = $state('')
@@ -459,7 +458,13 @@
     <SearchPalette onSelect={(r) => mapView?.flyTo(parseFloat(r.lon), parseFloat(r.lat))} />
     <SaveBookmarkDialog bind:open={saveDialogOpen} onSave={handleSaveAOI} />
     <SessionDialog bind:open={sessionDialogOpen} />
-    <CoordinateInputDialog bind:open={coordDialogOpen} onApply={(b) => mapView?.loadBbox(b)} />
+    {#if $drawingActive}
+      <BoundsInspector
+        onPreview={(b) => mapView?.setBboxExtent(b)}
+        onCommit={(b) => { mapView?.loadBbox(b); drawingActive.set(false) }}
+        onCancel={() => { mapView?.clearBbox(); drawingActive.set(false) }}
+      />
+    {/if}
     <!-- JobTray removed: job progress is now shown inside the Downloads panel (spec 8.2).
          The bottom-right popup is no longer used for job notifications. -->
     <!-- <JobTray onRetry={handleRetryJob} /> -->
