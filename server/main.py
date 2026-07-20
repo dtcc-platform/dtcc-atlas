@@ -32,7 +32,7 @@ from server.agent import create_agent_router
 from server import config
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
-from server.logging import info, warning
+from server.dtcc_logging import info, warning
 import json
 
 # Create job manager at module level so routes can be registered before catch-all

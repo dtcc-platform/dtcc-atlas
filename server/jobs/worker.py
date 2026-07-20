@@ -8,7 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from server.logging import info, warning
+from server.dtcc_logging import info, warning
 
 
 _PROGRESS_MIN_INTERVAL = 0.2

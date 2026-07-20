@@ -14,7 +14,7 @@ from collections import deque
 from .models import Job, JobStatus
 from .storage import JobStorage
 from .worker import process_dataset_job
-from server.logging import info, warning
+from server.dtcc_logging import info, warning
 
 logger = logging.getLogger(__name__)
 

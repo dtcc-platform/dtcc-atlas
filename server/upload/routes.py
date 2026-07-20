@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from pyproj import Transformer
 
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
-from server.logging import info
+from server.dtcc_logging import info
 
 from .detection import is_ignored_upload_path, scan_candidates
 from .deterministic_checks import check_all_candidates
