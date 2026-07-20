@@ -3,6 +3,8 @@
 This fails at import time if tests/conftest.py's dtcc_core mock stops
 returning a 5-tuple from get_logger (tuple-unpack would raise ValueError).
 """
+import pytest
+
 from server import logging as server_logging
 
 
@@ -15,3 +17,13 @@ def test_logging_exposes_level_functions():
         server_logging.critical,
     ):
         assert callable(fn)
+
+
+def test_error_and_critical_raise_runtime_error():
+    # Real dtcc-core error()/critical() log AND raise (legacy DTCC API);
+    # the conftest mock mirrors that so misuse on log-then-continue paths
+    # fails loudly in tests.
+    with pytest.raises(RuntimeError, match="boom"):
+        server_logging.error("boom")
+    with pytest.raises(RuntimeError, match="boom"):
+        server_logging.critical("boom")
