@@ -32,11 +32,12 @@ from server.agent import create_agent_router
 from server import config
 from server.config import JOB_MAX_WORKERS, JOB_TIMEOUT
 from server.middleware import SelectiveGZipMiddleware
+from server.dtcc_logging import info, warning
 import json
 
 # Create job manager at module level so routes can be registered before catch-all
 job_manager = JobManager(max_workers=JOB_MAX_WORKERS, job_timeout=JOB_TIMEOUT)
-print(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
+info(f"Job manager initialized with {JOB_MAX_WORKERS} workers, {JOB_TIMEOUT}s timeout")
 
 
 @asynccontextmanager
@@ -49,7 +50,7 @@ async def lifespan(app: fastapi.FastAPI):
     # Cleanup on shutdown
     if job_manager:
         job_manager.shutdown()
-        print("Job manager shutdown complete")
+        info("Job manager shutdown complete")
 
 
 app = fastapi.FastAPI(title="DTCC Atlas", version="0.1.0", lifespan=lifespan)
@@ -86,23 +87,23 @@ def _refresh_available_datasets() -> None:
         register_remote_service = None
 
     if config.REMOTE_SERVICES and register_remote_service is None:
-        print(
-            "Warning: DTCC_REMOTE_SERVICES configured, but this dtcc-core version "
+        warning(
+            "DTCC_REMOTE_SERVICES configured, but this dtcc-core version "
             "does not support remote dataset services"
         )
     elif register_remote_service is not None:
         for url in config.REMOTE_SERVICES:
-            print(f"Registering remote dataset service: {url}")
+            info(f"Registering remote dataset service: {url}")
             try:
                 register_remote_service(url)
             except Exception as exc:
-                print(f"Warning: failed to register remote dataset service {url}: {exc}")
+                warning(f"Failed to register remote dataset service {url}: {exc}")
 
     available_datasets = datasets.list()
     available_dataset_names = list(available_datasets.keys())
     added_remote = sorted(set(available_dataset_names) - before_remote)
     if added_remote:
-        print(f"Registered remote datasets: {', '.join(added_remote)}")
+        info(f"Registered remote datasets: {', '.join(added_remote)}")
 
 
 _refresh_available_datasets()
@@ -356,7 +357,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
     # Merge bounds with parameters
     params = {"bounds": request.bounds, **request.parameters}
 
-    print(f"Download request for dtcc-core dataset '{request.dataset}' with params: {params}")
+    info(f"Download request for dtcc-core dataset '{request.dataset}' with params: {params}")
     try:
         # Validate parameters using the dataset's ArgsModel
         _ = dataset.ArgsModel(**params)
@@ -395,7 +396,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
         if file_format == "cityjson":
             file_format = "city.json"
         filename = f"{filename}.{file_format}"
-        print(f"Returning file '{filename}' with content type '{content_type}'")
+        info(f"Returning file '{filename}' with content type '{content_type}'")
 
         return Response(
             content=data,
@@ -420,7 +421,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
 
 def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path):
     """Handle download for published vector datasets."""
-    print(f"Download request for vector dataset '{request.dataset}' with bounds: {request.bounds}")
+    info(f"Download request for vector dataset '{request.dataset}' with bounds: {request.bounds}")
 
     # Validate bounds
     if len(request.bounds) != 4:
@@ -437,7 +438,7 @@ def _download_vector_dataset(request: DatasetDownloadRequest, geojson_path: Path
         filtered = clip_features_to_bounds(geojson, request.bounds)
 
         feature_count = len(filtered.get("features", []))
-        print(f"Filtered to {feature_count} features within bounds")
+        info(f"Filtered to {feature_count} features within bounds")
 
         # Return as GeoJSON
         filename = request.filename or request.dataset
@@ -462,27 +463,27 @@ app.include_router(jobs_router, prefix="/api/v1")
 # Mount vector datasets router
 vector_router = create_vector_router()
 app.include_router(vector_router, prefix="/api/v1")
-print("Vector datasets router mounted at /api/v1/vector")
+info("Vector datasets router mounted at /api/v1/vector")
 
 # Mount admin router
 admin_router = create_admin_router()
 app.include_router(admin_router, prefix="/api/v1")
-print("Admin router mounted at /api/v1/admin")
+info("Admin router mounted at /api/v1/admin")
 
 # Mount upload router
 upload_router = create_upload_router()
 app.include_router(upload_router, prefix="/api/v1")
-print("Upload router mounted at /api/v1/uploads")
+info("Upload router mounted at /api/v1/uploads")
 
 # Mount session router
 session_router = create_session_router(get_catalog())
 app.include_router(session_router, prefix="/api/v1")
-print("Session router mounted at /api/v1/sessions")
+info("Session router mounted at /api/v1/sessions")
 
 # Mount agent chat router
 agent_router = create_agent_router(available_datasets=available_dataset_names, catalog=get_catalog())
 app.include_router(agent_router, prefix="/api/v1")
-print("Agent chat router mounted at /api/v1/agent")
+info("Agent chat router mounted at /api/v1/agent")
 
 
 # Mount static files (must be last due to catch-all route)
@@ -514,4 +515,4 @@ if static_dir.exists():
 
         raise fastapi.HTTPException(status_code=404, detail="Not found")
 else:
-    print("Warning: Static directory not found, SPA will not be served.")
+    warning("Static directory not found, SPA will not be served.")

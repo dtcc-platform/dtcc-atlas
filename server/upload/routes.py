@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from pyproj import Transformer
 
 from server.config import UPLOAD_RAW_DIR, CATALOG_DATASETS_DIR
+from server.dtcc_logging import info
 
 from .detection import is_ignored_upload_path, scan_candidates
 from .deterministic_checks import check_all_candidates
@@ -131,7 +132,7 @@ def create_upload_router() -> APIRouter:
         clean_batch_name = (batch_name or "").strip() or _default_batch_name()
         batch_root = raw_root / batch_id
         batch_root.mkdir(parents=True, exist_ok=True)
-        print(
+        info(
             f"[upload] Starting batch {batch_id} '{clean_batch_name}' "
             f"with {len(files)} incoming files"
         )
@@ -148,7 +149,7 @@ def create_upload_router() -> APIRouter:
 
             if is_ignored_upload_path(rel_path):
                 await upload.close()
-                print(
+                info(
                     f"[upload] Batch {batch_id}: skipped ignored file {idx + 1}/{len(files)} "
                     f"'{rel_path}'"
                 )
@@ -170,7 +171,7 @@ def create_upload_router() -> APIRouter:
             await upload.close()
 
             total_bytes += size
-            print(
+            info(
                 f"[upload] Batch {batch_id}: stored file {idx + 1}/{len(files)} "
                 f"'{rel_path}' ({size} bytes)"
             )
@@ -203,11 +204,11 @@ def create_upload_router() -> APIRouter:
         )
         catalog.add_batch_files(batch_id, file_records)
 
-        print(f"[upload] Batch {batch_id}: starting procedural scan for {len(file_records)} files")
+        info(f"[upload] Batch {batch_id}: starting procedural scan for {len(file_records)} files")
         candidates = scan_candidates(file_records)
         catalog.replace_candidates(batch_id, candidates)
         catalog.update_batch_status(batch_id, "scanned")
-        print(f"[upload] Batch {batch_id}: scan completed, detected {len(candidates)} candidates")
+        info(f"[upload] Batch {batch_id}: scan completed, detected {len(candidates)} candidates")
 
         # Run deterministic quality checks immediately (instant, no AI)
         existing_datasets = _collect_existing_datasets(catalog)
@@ -225,7 +226,7 @@ def create_upload_router() -> APIRouter:
                 )
         # Re-fetch candidates so response includes verdicts
         candidates = catalog.list_candidates(batch_id)
-        print(f"[upload] Batch {batch_id}: deterministic checks complete")
+        info(f"[upload] Batch {batch_id}: deterministic checks complete")
 
         return {
             "batch_id": batch_id,

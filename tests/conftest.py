@@ -9,6 +9,19 @@ from unittest.mock import MagicMock
 # server/main.py runs `from dtcc_core import datasets` and `datasets.list()`
 # at module level, so these must be in sys.modules first.
 _mock = MagicMock(name="dtcc_core")
+# server/dtcc_logging.py tuple-unpacks get_logger() into 5 level functions
+# (debug, info, warning, error, critical). Mirror real dtcc-core semantics:
+# error() and critical() log AND raise RuntimeError(message); the rest return
+# normally.
+def _raise_runtime_error(message):
+    raise RuntimeError(message)
+_mock.get_logger.return_value = (
+    MagicMock(),  # debug
+    MagicMock(),  # info
+    MagicMock(),  # warning
+    MagicMock(side_effect=_raise_runtime_error),  # error
+    MagicMock(side_effect=_raise_runtime_error),  # critical
+)
 _mock.datasets.list.return_value = {}
 sys.modules["dtcc_core"] = _mock
 sys.modules["dtcc_core.datasets"] = _mock.datasets
