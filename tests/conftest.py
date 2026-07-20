@@ -9,6 +9,8 @@ from unittest.mock import MagicMock
 # server/main.py runs `from dtcc_core import datasets` and `datasets.list()`
 # at module level, so these must be in sys.modules first.
 _mock = MagicMock(name="dtcc_core")
+# server/logging.py tuple-unpacks get_logger() into 5 level functions.
+_mock.get_logger.return_value = tuple(MagicMock() for _ in range(5))
 _mock.datasets.list.return_value = {}
 sys.modules["dtcc_core"] = _mock
 sys.modules["dtcc_core.datasets"] = _mock.datasets
