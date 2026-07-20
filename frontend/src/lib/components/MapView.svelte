@@ -154,6 +154,14 @@
     })
   }
 
+  // Live update during draw-mode coordinate editing — updates the drawn rectangle
+  // and bbox store without the side effects (datasets fetch, panel open) that
+  // loadBbox triggers. Used by BoundsInspector while drawing is active.
+  export function setBboxExtent(b: BoundingBox) {
+    drawer?.loadExtent(b)
+    bbox.set(b)
+  }
+
   export function toggle3D() {
     mapManager.toggle3DView()
   }

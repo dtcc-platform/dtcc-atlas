@@ -33,10 +33,12 @@ export interface Version {
 
 // -- Version stores --
 
-const _initId = generateVersionId()
+const _v1Id = generateVersionId()
 
-export const versions = writable<Version[]>([{ id: _initId, name: 'Version 1', layers: [] }])
-export const currentVersionId = writable<string>(_initId)
+export const versions = writable<Version[]>([
+  { id: _v1Id, name: 'Version 1', layers: [] },
+])
+export const currentVersionId = writable<string>(_v1Id)
 
 // Current version's layers — used by LayersPanel and all layer mutations
 export const layers = derived(
