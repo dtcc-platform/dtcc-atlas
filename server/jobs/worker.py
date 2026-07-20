@@ -8,7 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from server.logging import info, error
+from server.logging import info, warning
 
 
 _PROGRESS_MIN_INTERVAL = 0.2
@@ -254,7 +254,7 @@ def _process_core_dataset(
     except Exception as e:
         # Log full traceback for backend debugging
         import traceback
-        error(f"[job worker] Dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
+        warning(f"[job worker] Dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
         # Re-raise with cleaned error message for user
         clean_message = extract_error_message(e)
         raise RuntimeError(clean_message) from None
@@ -337,7 +337,7 @@ def _process_vector_dataset(
             geojson = json.load(f)
     except (json.JSONDecodeError, IOError) as e:
         import traceback
-        error(f"[job worker] Vector dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
+        warning(f"[job worker] Vector dataset '{dataset_name}' failed:\n{traceback.format_exc()}")
         raise RuntimeError(f"Error reading dataset: {e}") from None
 
     if on_progress:
