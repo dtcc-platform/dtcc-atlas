@@ -14,6 +14,7 @@ from collections import deque
 from .models import Job, JobStatus
 from .storage import JobStorage
 from .worker import process_dataset_job
+from server.logging import info, warning
 
 logger = logging.getLogger(__name__)
 
@@ -514,7 +515,7 @@ class JobManager:
         with self._subscriber_lock:
             self._subscribers.append(q)
             if self._debug_subscribers:
-                print(f"[job manager] SSE subscriber connected ({len(self._subscribers)} total)")
+                info(f"[job manager] SSE subscriber connected ({len(self._subscribers)} total)")
         return q
 
     def unsubscribe(self, q: asyncio.Queue) -> None:
@@ -523,7 +524,7 @@ class JobManager:
             if q in self._subscribers:
                 self._subscribers.remove(q)
                 if self._debug_subscribers:
-                    print(
+                    info(
                         f"[job manager] SSE subscriber disconnected "
                         f"({len(self._subscribers)} total)"
                     )
@@ -547,9 +548,9 @@ class JobManager:
             try:
                 removed = self._storage.cleanup_old()
                 if removed > 0:
-                    print(f"Cleaned up {removed} old job files")
+                    info(f"Cleaned up {removed} old job files")
             except Exception as e:
-                print(f"Error during cleanup: {e}")
+                warning(f"Error during cleanup: {e}")
 
     def shutdown(self) -> None:
         """Shutdown the job manager and cleanup resources."""
