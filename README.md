@@ -1,5 +1,14 @@
 # DTCC Atlas
 
+Atlas recognizes `.dtcc` downloads and Dataset Manifest v3 canonical packages.
+Package listings expose native and supported derivative formats; the download
+endpoint and background jobs use Core to validate canonical packages before
+serving artifacts. PNG/MP4/GeoJSON previews are supported; arbitrary native models
+are downloadable but are not rendered by a new model viewer. Package directories
+provide dataset API keys. Install the pinned Core revision together with this
+Atlas update.
+
+
 Interactive web app for browsing/downloading DTCC datasets.
 
 ## Quick Start (Development)

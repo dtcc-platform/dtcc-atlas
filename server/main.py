@@ -123,7 +123,7 @@ _FORMAT_TO_KIND = {
     "vtk": "mesh",
     "vtu": "mesh",
     "xdmf": "mesh",
-    "pb": "mesh",
+    "dtcc": "model",
     "inp": "mesh",
     "bdf": "mesh",
     "las": "point_cloud",
@@ -226,6 +226,7 @@ def _dataset_format_metadata(dataset_obj: Any) -> tuple[list[str], list[str], st
         "point_cloud": "Point cloud",
         "raster": "Raster",
         "mesh": "Mesh",
+        "model": "DTCC Model",
         "city_model": "City model",
         "mixed": "Format-dependent",
         "unknown": "Unknown",
@@ -267,7 +268,9 @@ def list_datasets():
         dataset.setdefault("source_group", "published")
         dataset.setdefault("source_label", str(dataset.get("source", "Published")))
         dataset.setdefault("data_kind", "vector")
-        dataset.setdefault("data_kind_label", "Vector")
+        dataset.setdefault("data_kind_label", {
+            "model": "DTCC Model", "raster": "Raster", "video": "Video", "vector": "Vector",
+        }.get(dataset["data_kind"], dataset["data_kind"]))
         dataset.setdefault("return_types", ["vector"])
         dataset.setdefault("supported_formats", ["geojson"])
     all_datasets.extend(published)
@@ -316,6 +319,17 @@ def download_dataset(request: DatasetDownloadRequest):
     # Check if it's a dtcc-core dataset
     if request.dataset in available_datasets:
         return _download_core_dataset(request)
+
+    from server.vector.discovery import get_dataset_artifact
+    try:
+        selected = get_dataset_artifact(request.dataset, request.parameters.get("format"))
+    except ValueError as error:
+        raise fastapi.HTTPException(status_code=422, detail=str(error)) from error
+    if selected:
+        path, artifact = selected
+        if artifact["format"] == "geojson":
+            return _download_vector_dataset(request, path)
+        return FileResponse(path, media_type=artifact["media_type"], filename=path.name)
 
     # Check if it's a published vector dataset
     geojson_path = get_dataset_geojson_path(request.dataset)
@@ -383,7 +397,7 @@ def _download_core_dataset(request: DatasetDownloadRequest):
                 "cityjson": "application/json",
                 "json": "application/json",
                 "xdmf": "application/x-hdf5",
-                "pb": "application/x-protobuf",
+                "dtcc": "application/vnd.dtcc.model+protobuf",
                 "vtk": "application/x-vtk",
                 "tar.gz": "application/gzip",
             }

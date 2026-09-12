@@ -192,8 +192,16 @@ def process_dataset_job(
             on_remote_info=on_remote_info,
         )
 
+    # Stored packages use the same artifact selection as direct downloads.
+    from server.vector.discovery import get_dataset_artifact, get_dataset_geojson_path
+    selected = get_dataset_artifact(dataset_name, params.get("format"))
+    if selected:
+        path, artifact = selected
+        if artifact["format"] == "geojson":
+            return _process_vector_dataset(dataset_name, params, path, on_progress=emit_progress)
+        return path.read_bytes(), artifact["format"], artifact["media_type"]
+
     # Check if it's a published vector dataset
-    from server.vector.discovery import get_dataset_geojson_path
     geojson_path = get_dataset_geojson_path(dataset_name)
     if geojson_path:
         return _process_vector_dataset(
@@ -283,7 +291,7 @@ def _process_core_dataset(
         "json": "application/json",
         "geojson": "application/geo+json",
         "xdmf": "application/x-hdf5",
-        "pb": "application/x-protobuf",
+        "dtcc": "application/vnd.dtcc.model+protobuf",
         "vtk": "application/x-vtk",
         "tar.gz": "application/gzip",
         # "gpkg": "application/geopackage+sqlite3",

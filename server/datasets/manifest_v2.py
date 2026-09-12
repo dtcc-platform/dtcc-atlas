@@ -1,4 +1,4 @@
-"""Dataset Manifest v2 parsing and artifact selection helpers."""
+"""Dataset Manifest v2/v3 parsing and display artifact selection."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Any, Mapping
 
 
 MANIFEST_V2_SCHEMA_VERSION = "dtcc-dataset-manifest-v2"
+MANIFEST_V3_SCHEMA_VERSION = "dtcc-dataset-manifest-v3"
 WINDOWS_DRIVE_RE = re.compile(r"^[A-Za-z]:")
 
 
@@ -30,9 +31,9 @@ def load_manifest_v2(path: str | Path) -> dict[str, Any]:
 
 
 def validate_manifest_v2(manifest: Mapping[str, Any]) -> None:
-    if manifest.get("schema_version") != MANIFEST_V2_SCHEMA_VERSION:
+    if manifest.get("schema_version") not in {MANIFEST_V2_SCHEMA_VERSION, MANIFEST_V3_SCHEMA_VERSION}:
         raise ManifestV2Error(
-            f"Dataset Manifest v2 schema_version must be {MANIFEST_V2_SCHEMA_VERSION!r}"
+            "Unsupported dataset manifest version; expected v2 or v3"
         )
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
@@ -49,6 +50,10 @@ def validate_manifest_v2(manifest: Mapping[str, Any]) -> None:
         if path in seen_paths:
             raise ManifestV2Error(f"Duplicate artifact path: {path}")
         seen_paths.add(path)
+    if manifest["schema_version"] == MANIFEST_V3_SCHEMA_VERSION:
+        models = [a for a in artifacts if a["role"] == "canonical_model"]
+        if len(models) != 1 or models[0]["format"] != "dtcc":
+            raise ManifestV2Error("Canonical package requires one native model artifact")
 
 
 def validate_artifact_path(path: str) -> str:
@@ -76,6 +81,8 @@ def select_display_artifact(manifest: Mapping[str, Any]) -> dict[str, Any]:
         assert isinstance(artifact, Mapping)
         media_type = str(artifact["media_type"])
         role = str(artifact["role"])
+        if media_type == "application/json" and artifact["format"] != "geojson":
+            continue  # CityJSON and other JSON documents are not GeoJSON previews.
         rank = _display_rank(media_type, role)
         if rank is None:
             continue
@@ -91,7 +98,13 @@ def select_display_artifact(manifest: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def manifest_v2_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
-    display_artifact = select_display_artifact(manifest)
+    validate_manifest_v2(manifest)
+    try:
+        display_artifact = select_display_artifact(manifest)
+    except ManifestV2Error:
+        if manifest["schema_version"] != MANIFEST_V3_SCHEMA_VERSION:
+            raise
+        display_artifact = None  # Native-only canonical packages remain discoverable.
     identity = manifest.get("identity") if isinstance(manifest.get("identity"), Mapping) else {}
     metadata = manifest.get("metadata") if isinstance(manifest.get("metadata"), Mapping) else {}
     presentation = (
@@ -100,10 +113,16 @@ def manifest_v2_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
     request = manifest.get("request") if isinstance(manifest.get("request"), Mapping) else {}
     title = _first_text(identity.get("title"), presentation.get("headline"), identity.get("name"))
     description = _first_text(metadata.get("description"), presentation.get("summary"))
-    bounds = display_artifact.get("bounds") if _is_bbox(display_artifact.get("bounds")) else request.get("bounds")
+    bounds = None if display_artifact is None else (
+        display_artifact.get("bounds") if _is_bbox(display_artifact.get("bounds")) else request.get("bounds")
+    )
+    # Auxiliary files (for example PNG world files) remain in the package but
+    # are not offered as standalone dataset download formats.
+    formats = list(dict.fromkeys(a["format"] for a in manifest["artifacts"] if a["data_kind"] != "unknown"))
+    default_format = display_artifact["format"] if display_artifact else "dtcc"
 
     return {
-        "schema_version": MANIFEST_V2_SCHEMA_VERSION,
+        "schema_version": manifest["schema_version"],
         "identity": dict(identity),
         "metadata": dict(metadata),
         "presentation": dict(presentation),
@@ -113,6 +132,10 @@ def manifest_v2_summary(manifest: Mapping[str, Any]) -> dict[str, Any]:
         "bounds": bounds if _is_bbox(bounds) else None,
         "artifacts": [dict(artifact) for artifact in manifest["artifacts"]],
         "display_artifact": display_artifact,
+        "supported_formats": formats,
+        "schema": {"type": "object", "properties": {
+            "format": {"type": "string", "enum": formats, "default": default_format},
+        }},
     }
 
 

@@ -13,7 +13,7 @@ def test_process_dataset_job_bootstraps_remote_from_cached_discoveries(monkeypat
 
     class RemoteDataset:
         source_service = "dtcc-sim"
-        supported_formats = ["pb"]
+        supported_formats = ["dtcc"]
         timeout_hint = 600
 
         class ArgsModel:

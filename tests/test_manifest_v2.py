@@ -3,8 +3,43 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 
 import pytest
+
+
+@pytest.mark.skipif(not os.environ.get("DTCC_CORE_CONTRACT_DIR"), reason="requires the Core contract artifact")
+def test_canonical_discovery_uses_real_core_admission(tmp_path):
+    # Atlas' normal test fixture mocks Core globally. A clean process exercises
+    # the actual consumer and rejects damaged stored model data.
+    script = '''
+import os, zipfile
+from pathlib import Path
+from server.vector.discovery import discover_published_datasets, get_dataset_artifact
+root = Path(os.environ["ATLAS_CONTRACT_OUTPUT"])
+with zipfile.ZipFile(Path(os.environ["DTCC_CORE_CONTRACT_DIR"]) / "canonical.dtccpkg") as archive:
+    archive.extractall(root / "canonical-raster")
+listed = discover_published_datasets(root)
+assert listed[0]["type"] == "dataset_manifest_v3"
+assert listed[0]["display_artifact"]["format"] == "png"
+model, artifact = get_dataset_artifact("canonical-raster", "dtcc", root)
+assert artifact["role"] == "canonical_model"
+model.write_bytes(b"corrupt")
+try:
+    get_dataset_artifact("canonical-raster", "dtcc", root)
+except ValueError:
+    pass
+else:
+    raise AssertionError("Corrupt native model was served")
+'''
+    env = dict(os.environ, ATLAS_CONTRACT_OUTPUT=str(tmp_path))
+    repo = Path(__file__).resolve().parents[1]
+    env["PYTHONPATH"] = os.pathsep.join([str(repo.parent / "dtcc-core"), str(repo)])
+    completed = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 from server.datasets.manifest_v2 import (
     ManifestV2Error,

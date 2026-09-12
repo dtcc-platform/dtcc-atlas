@@ -98,7 +98,7 @@ class TestDiscoverPublishedDatasets:
         result = discover_published_datasets(tmp_path)
 
         assert len(result) == 1
-        assert result[0]["name"] == "smoke"
+        assert result[0]["name"] == "smoke-package"  # Directory key used by download endpoints.
         assert result[0]["title"] == "Smoke Slice"
         assert result[0]["type"] == "dataset_manifest_v2"
         assert result[0]["bounds"] == [1, 2, 3, 4]

@@ -20,7 +20,7 @@ def test_worker_wrapper_emits_remote_task_info_and_result(monkeypatch):
     ):
         if on_remote_info:
             on_remote_info({"remote_task_id": "task-1", "cancel_url": "http://sim/cancel/task-1"})
-        return (b"data", "pb", "application/x-protobuf")
+        return (b"data", "dtcc", "application/vnd.dtcc.model+protobuf")
 
     monkeypatch.setattr(
         "server.jobs.manager.process_dataset_job",
@@ -37,7 +37,7 @@ def test_worker_wrapper_emits_remote_task_info_and_result(monkeypatch):
     }
     assert second == {
         "type": "result",
-        "data": (b"data", "pb", "application/x-protobuf"),
+        "data": (b"data", "dtcc", "application/vnd.dtcc.model+protobuf"),
     }
 
 
